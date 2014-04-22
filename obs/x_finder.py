@@ -48,49 +48,73 @@
 # Import libraries
 import numpy as np
 from astropy.io import fits
+from astropy.io import ascii 
+from astropy.table import Table
+from astropy.table import Column
 
 
 #### ###############################
 #  Deal with the RA/DEC
-def get_coord(files, radec=None):
+def get_coord(targ_file, radec=None):
 
+    # Import Tables
+    if radec == None:
+        # Read 
+        ra_tab = ascii.read(file) #, names=('Name','RA','DEC','Epoch'))
+        # Rename the columns
+        ra_tab.rename_column('col1','Name')
+        ra_tab.rename_column('col2','RA')
+        ra_tab.rename_column('col3','DEC')
+    else: 
+        # Error check
+        #if len(targ_file) != 3 then stop
+        # Generate the Table
+        ra_tab = Table( targ_file, names=('Name','RA','DEC') )
 
-  if not keyword_set( SURVEY ) then survey = '2r'
-  ;; Readlist
-  if not keyword_set( RADEC ) then readcol, targlist, nam, ra, dec, SKIPLINE=skip, FORMAT='A,A,A' $
-    else begin
-      if n_elements(targlist[*,0]) NE 3 then begin
-          print, 'x_fndchrt: Dont forget the name!!'
-          return
-      endif
-      nam = targlist[0,*]
-      ra = targlist[1,*]
-      dec = targlist[2,*]
-  endelse
+    # Add dummy columns for decimal degrees and EPOCH
+    nrow = len(ra_tab)
+    col_RAD = Column(name='RAD', data=np.zeros(nrow))
+    col_DECD = Column(name='DECD', data=np.zeros(nrow))
+    col_EPOCH = Column(name='EPOCH', data=np.zeros(nrow))
+    ra_tab.add_columns( [col_RAD, col_DECD, col_EPOCH] )
+        
+    return ra_tab
 
+#### ###############################
+#  Main driver
+def main(targ_file, survey='2r', radec=None, deci=None)
 
-  if keyword_set(SDSS) then begin
-      ;; Check for wget
-      spawn, 'which wget', blah
-      if strmid(blah, 0, 1) NE '/' then begin
-          print, 'x_fndchrt:  No wget on your machine. SDSS will not work'
-          print, 'x_fndchrt:  Continue only if you are sure it is in your path.'
-      endif
-  endif
+    # Check for wget
+    #if keyword_set(SDSS) then begin
+        #  ;; Check for wget
+        #  spawn, 'which wget', blah
+        #  if strmid(blah, 0, 1) NE '/' then begin
+        #      print, 'x_fndchrt:  No wget on your machine. SDSS will not work'
+        #      print, 'x_fndchrt:  Continue only if you are sure it is in your path.'
+        #  endif
+    # endif
 
-  ;; Loop
-  nobj = n_elements(nam)
+    # Read in the Target list
+    import x_finder as x_f
+    ra_tab = x_f.get_coord(targ_file, radec=radec)
 
-  for q=0L,nobj-1 do begin
-     ;; Grab ra, dec
-     if not keyword_set(DECI) then x_radec, ra[q], dec[q], rad, decd $
-     else begin
-        rad = double(ra[q])
-        decd = double(dec[q])
-        x_radec, ras, decs, rad, decd, /flip
-        ra[q] = ras
-        dec[q] = decs
-     endelse
+    ## 
+    # Main Loop
+    nobj = len(ra_tab) 
+
+    for q in range(nobj):
+        # Grab ra, dec in decimal degrees
+        if deci != None: 
+            return
+                    #rad = double(ra[q])
+                    #decd = double(dec[q])
+                    #x_radec, ras, decs, rad, decd, /flip
+                    #ra[q] = ras
+                    #dec[q] = decs
+        else: 
+            # Convert to decimal degress 
+            x_radec.stod(ra_tab) #ra_tab['RA'][q], ra_tab['DEC'][q], TABL)
+            #x_radec.stod(ra_tab['RA'][q], ra_tab['DEC'][q], TABL)
      
 
      ;; Precess if necessary
