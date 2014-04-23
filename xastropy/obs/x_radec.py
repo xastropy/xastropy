@@ -60,7 +60,7 @@ def stod1(rads):
     dec = np.array(rads[1].split(':'),dtype='float')
     decd = abs(dec[0]) + dec[1]/60. + dec[2]/3600.
 
-    pdb.set_trace()
+    #pdb.set_trace()
     # Deal with negative sign
     flg_neg = rads[1][0].strip() == '-'
     if flg_neg:
@@ -69,28 +69,30 @@ def stod1(rads):
     return rad, decd
 
 #### ###############################
-#  Deal with lists
-def stod_list(in_list):
+#  Deal with arrays of RA, DEC
+#    Not coded yet.  Not sure we'll need it
+#def stod_array(in_ra, in_dec):
 
-    import x_radec as x_r
-    # Loop on length of the List
-    nrow = len(in_list[0])
-    rad = np.zeros(nrow)
-    decd = np.zeros(nrow)
-    for k in range(nrow):
-        rad[k], decd[k] = x_r.stod1( in_list[k] )
+#    import x_radec as x_r
+#    rad = np.zeros(nrow)
+#    decd = np.zeros(nrow)
+#    for k in range(nrow):
+#        rad[k], decd[k] = x_r.stod1( in_arr[k] )
 
-    return rad, decd
+#    return rad, decd
 
 #### ###############################
 #  Loop on rows in the Table
 def stod_table(table):
 
+    import x_radec as x_r
     # Loop on rows
     for k in range(len(table)):
         rad, decd = x_r.stod1( (table['RA'][k], table['DEC'][k]) )
         table['RAD'][k] = rad
         table['DECD'][k] = decd
+
+        #return rad, decd
 
 #### ###############################
 #  String to decimal degress
@@ -98,10 +100,33 @@ def stod(in_rads, radec=None):
 
     import x_radec as x_r
     options = {'astropy.table.table.Table': x_r.stod_table(in_rads),
-               'list': x_r.stod_list(in_rads),
+    #               'numpy.ndarray': x_r.stod_array(in_rads),
+               'list': x_r.stod1(in_rads),    # 2 elements only
     }
 
     # Do the right operation
     ty = type(in_rads)
-    options[ty](in_rads)
+    rad, decd = options[ty](in_rads)
 
+    print rad, decd
+
+
+    ### TESTING
+    #import numpy as np
+    #from astropy.io import fits
+    #from astropy.io import ascii 
+    #from astropy.table import Table
+    #from astropy.table import Column
+    
+    #import xastropy
+    #from xastropy.obs import x_radec as x_r
+    #from xastropy.obs import x_finder as x_f
+
+    ## Load the Table
+    #ra_tab = x_f.get_coord('Lick_2014A_z1qso.lst')
+
+    ## 
+    #x_r.stod_table(ra_tab)
+    #zip(ra_tab['RAD'], ra_tab['DECD'])
+
+    

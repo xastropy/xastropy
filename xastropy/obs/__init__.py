@@ -1,2 +1,2 @@
-import exercises
-import experiments
+import x_radec
+import x_finder
