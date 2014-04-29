@@ -52,7 +52,6 @@ def getimg(ra, dec, scale=0.3961, xs=512, ys=512, grid=None,label=None,invert=No
     name+=str(int(xs))	#setting the width
     name+='&height='
     name+=str(int(ys)) 	#setting the height
-    print 'xs = ', int(xs)
     
     #------ Options
     options = ''
@@ -71,7 +70,6 @@ def getimg(ra, dec, scale=0.3961, xs=512, ys=512, grid=None,label=None,invert=No
     rtv = requests.get(name1+name)
     img = Image.open(StringIO(rtv.content))
 
-	
     # B&W ?
     if BW != None:
         import PIL.ImageOps

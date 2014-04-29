@@ -92,7 +92,7 @@ def get_coord(targ_file, radec=None):
 #  x_finder.main(['TST', '10:31:38.87', '+25:59:02.3'],radec=1)
 #  imsize is in arcmin
 def main(targ_file, survey='2r', radec=None, deci=None, 
-EPOCH=0., SDSS=None, BW=None, imsize=5.):
+         EPOCH=0., SDSS=None, BW=None, imsize=5.):
 
     # Read in the Target list
     import x_finder as x_f
@@ -132,47 +132,59 @@ EPOCH=0., SDSS=None, BW=None, imsize=5.):
 
     
     nobj = len(ra_tab) 
-    #print 'Am here now2', ra_tab['RA'], ra_tab['RAD'], nobj
-    for q in range(nobj):
+    for qq in range(nobj):
 
         # Outfil
-        outfil = ra_tab['Name'][q]+'.pdf'
+        outfil = ra_tab['Name'][qq]+'.pdf'
 
         # Grab the Image
         if SDSS != None:
             from xastropy.obs import x_getsdssimg as xgs
             reload(xgs)
             npix = round(imsize*60./0.39612)
-            img = xgs.getimg(ra_tab['RAD'][q], ra_tab['DECD'][q],BW=BW,
+            img = xgs.getimg(ra_tab['RAD'][qq], ra_tab['DECD'][qq],BW=BW,
             xs=npix,ys=npix)
         else: 
             return  # Should do DSS here
 
-        print 'img size = ', img.size
+        #print 'img size = ', img.size
         # Generate the plot
         plt.clf()
         fig = matplotlib.pyplot.gcf()
         fig.set_size_inches(8.0,10.5)
+
+        # Font
+        plt.rcParams['font.family']= 'times new roman'
+        ticks_font = matplotlib.font_manager.FontProperties(family='times new roman', 
+           style='normal', size=16, weight='normal', stretch='normal')
+        ax = plt.gca()
+        for label in ax.get_yticklabels() :
+            label.set_fontproperties(ticks_font)
+        for label in ax.get_xticklabels() :
+            label.set_fontproperties(ticks_font)
+
+        # Image
         if BW: 
             cmm = cm.Greys_r
         else: 
             cmm = None 
         plt.imshow(img,cmap=cmm,aspect='equal',extent=(-imsize/2., imsize/2, -imsize/2.,imsize/2))
         # Label
-        plt.xlabel('Relative ArcMin')
+        plt.xlabel('Relative ArcMin', fontsize=20)
         xpos = 0.12*imsize
         ypos = 0.02*imsize
         plt.text(-imsize/2.-xpos, 0., 'EAST', rotation=90.,fontsize=20)
         plt.text(0.,imsize/2.+ypos, 'NORTH', fontsize=20, horizontalalignment='center')
         # Title
-        ax = plt.gca()
-        plt.text(0.5,1.24, str(ra_tab['Name'][q]), fontsize=32, 
+        plt.text(0.5,1.24, str(ra_tab['Name'][qq]), fontsize=32, 
         horizontalalignment='center',transform=ax.transAxes)
-        plt.text(0.5,1.18, 'RA(2000)='+str(ra_tab['RA'][q]), fontsize=24, 
+        plt.text(0.5,1.16, 'RA(2000) = '+str(ra_tab['RA'][qq]), fontsize=28, 
         horizontalalignment='center',transform=ax.transAxes)
-        plt.text(0.5,1.13, 'DEC(2000)='+str(ra_tab['DEC'][q]), fontsize=24, 
+        plt.text(0.5,1.10, 'DEC(2000) = '+str(ra_tab['DEC'][qq]), fontsize=28, 
         horizontalalignment='center',transform=ax.transAxes)
         #import pdb; pdb.set_trace()
 
         plt.savefig(outfil)
         print 'x_finder: Wrote '+outfil
+
+    print 'x_finder: All done.'
