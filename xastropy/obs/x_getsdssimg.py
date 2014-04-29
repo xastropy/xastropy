@@ -68,9 +68,10 @@ def getimg(ra, dec, scale=0.3961, xs=512, ys=512, grid=None,label=None,invert=No
     name+='&query='
 
     # Request
-    r = requests.get(name1+name)
-    img = Image.open(StringIO(r.content))
+    rtv = requests.get(name1+name)
+    img = Image.open(StringIO(rtv.content))
 
+	
     # B&W ?
     if BW != None:
         import PIL.ImageOps

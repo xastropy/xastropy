@@ -157,7 +157,22 @@ EPOCH=0., SDSS=None, BW=None, imsize=5.):
             cmm = cm.Greys_r
         else: 
             cmm = None 
-        plt.imshow(img,cmap=cmm,aspect='equal')
+        plt.imshow(img,cmap=cmm,aspect='equal',extent=(-imsize/2., imsize/2, -imsize/2.,imsize/2))
+        # Label
+        plt.xlabel('Relative ArcMin')
+        xpos = 0.12*imsize
+        ypos = 0.02*imsize
+        plt.text(-imsize/2.-xpos, 0., 'EAST', rotation=90.,fontsize=20)
+        plt.text(0.,imsize/2.+ypos, 'NORTH', fontsize=20, horizontalalignment='center')
+        # Title
+        ax = plt.gca()
+        plt.text(0.5,1.24, str(ra_tab['Name'][q]), fontsize=32, 
+        horizontalalignment='center',transform=ax.transAxes)
+        plt.text(0.5,1.18, 'RA(2000)='+str(ra_tab['RA'][q]), fontsize=24, 
+        horizontalalignment='center',transform=ax.transAxes)
+        plt.text(0.5,1.13, 'DEC(2000)='+str(ra_tab['DEC'][q]), fontsize=24, 
+        horizontalalignment='center',transform=ax.transAxes)
+        #import pdb; pdb.set_trace()
 
         plt.savefig(outfil)
         print 'x_finder: Wrote '+outfil
