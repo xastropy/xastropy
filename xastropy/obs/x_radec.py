@@ -54,6 +54,7 @@ import pdb
 #  Main driver
 def stod1(rads):
     # RA
+    #pdb.set_trace()
     ra = np.array(rads[0].split(':'),dtype='float')
     rad = (360./24.)*(ra[0] + ra[1]/60. + ra[2]/3600.)
     # DEC
@@ -92,23 +93,32 @@ def stod_table(table):
         table['RAD'][k] = rad
         table['DECD'][k] = decd
 
-        #return rad, decd
+        return rad, decd
 
 #### ###############################
 #  String to decimal degress
 def stod(in_rads, radec=None):
 
     import x_radec as x_r
-    options = {'astropy.table.table.Table': x_r.stod_table(in_rads),
+    from astropy.table import Table
+    #    options = {'astropy.table.table.Table': x_r.stod_table(in_rads),
+        #           'list': x_r.stod1(in_rads),    # 2 elements only
+        #}
     #               'numpy.ndarray': x_r.stod_array(in_rads),
-               'list': x_r.stod1(in_rads),    # 2 elements only
-    }
 
     # Do the right operation
-    ty = type(in_rads)
-    rad, decd = options[ty](in_rads)
+    #ty = type(in_rads)
+    #print 'x_radec: ', ty, type(ty) is Table
+    #if type(ty) is Table:   # isintance!!
+    x_r.stod_table(in_rads)
+    #elif type(ty) is 'numpy.ndarray':   # this won't work
+    #    return -1
+    #    # Not ready for this
+    #    x_r.stod_array(in_rads)
+    #else:
+    #    return -1
 
-    print rad, decd
+    print 'Success!!'
 
 
     ### TESTING

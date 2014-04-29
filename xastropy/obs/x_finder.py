@@ -51,7 +51,8 @@ from astropy.io import fits
 from astropy.io import ascii 
 from astropy.table import Table
 from astropy.table import Column
-
+import matplotlib
+import aplpy
 
 #### ###############################
 #  Deal with the RA/DEC
@@ -68,9 +69,12 @@ def get_coord(targ_file, radec=None):
         ra_tab.rename_column('col3','DEC')
     else: 
         # Error check
-        #if len(targ_file) != 3 then stop
+        if len(targ_file) != 3:
+            return -1
+        # Manipulate
+        arr = np.array(targ_file).reshape(1,3)
         # Generate the Table
-        ra_tab = Table( targ_file, names=('Name','RA','DEC') )
+        ra_tab = Table( arr, names=('Name','RA','DEC') )
 
     # Add dummy columns for decimal degrees and EPOCH
     nrow = len(ra_tab)
@@ -85,27 +89,22 @@ def get_coord(targ_file, radec=None):
 
 #### ###############################
 #  Main driver
-def main(targ_file, survey='2r', radec=None, deci=None, EPOCH=0.):
-
-    # Check for wget
-    #if keyword_set(SDSS) then begin
-        #  ;; Check for wget
-        #  spawn, 'which wget', blah
-        #  if strmid(blah, 0, 1) NE '/' then begin
-        #      print, 'x_fndchrt:  No wget on your machine. SDSS will not work'
-        #      print, 'x_fndchrt:  Continue only if you are sure it is in your path.'
-        #  endif
-    # endif
+#  x_finder.main(['TST', '10:31:38.87', '+25:59:02.3'],radec=1)
+#  imsize is in arcmin
+def main(targ_file, survey='2r', radec=None, deci=None, 
+EPOCH=0., SDSS=None, BW=None, imsize=5.):
 
     # Read in the Target list
     import x_finder as x_f
+    import x_radec as x_r
     ra_tab = x_f.get_coord(targ_file, radec=radec)
 
     # Grab ra, dec in decimal degrees
     if deci != None: 
         return
     # Convert to decimal degress 
-    x_radec.stod(ra_tab) #ra_tab['RA'][q], ra_tab['DEC'][q], TABL)
+
+    x_r.stod(ra_tab) #ra_tab['RA'][q], ra_tab['DEC'][q], TABL)
 
     # Precess (as necessary)
     if EPOCH > 1000.:
@@ -128,8 +127,37 @@ def main(targ_file, survey='2r', radec=None, deci=None, EPOCH=0.):
             
     ## 
     # Main Loop
-    nobj = len(ra_tab) 
+    import matplotlib.pyplot as plt
+    import matplotlib.cm as cm
 
+    
+    nobj = len(ra_tab) 
+    #print 'Am here now2', ra_tab['RA'], ra_tab['RAD'], nobj
     for q in range(nobj):
 
+        # Outfil
+        outfil = ra_tab['Name'][q]+'.pdf'
+
         # Grab the Image
+        if SDSS != None:
+            from xastropy.obs import x_getsdssimg as xgs
+            reload(xgs)
+            npix = round(imsize*60./0.39612)
+            img = xgs.getimg(ra_tab['RAD'][q], ra_tab['DECD'][q],BW=BW,
+            xs=npix,ys=npix)
+        else: 
+            return  # Should do DSS here
+
+        print 'img size = ', img.size
+        # Generate the plot
+        plt.clf()
+        fig = matplotlib.pyplot.gcf()
+        fig.set_size_inches(8.0,10.5)
+        if BW: 
+            cmm = cm.Greys_r
+        else: 
+            cmm = None 
+        plt.imshow(img,cmap=cmm,aspect='equal')
+
+        plt.savefig(outfil)
+        print 'x_finder: Wrote '+outfil
