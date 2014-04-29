@@ -1,9 +1,9 @@
-# Tests the Finder chart program
+# Tests the codes in xastropy.obs 
 #   Requires "requests", "astropy", "aplpy", "PIL"
 from xastropy.obs import x_finder as xf
 from xastropy.obs import x_radec as x_r
 
-def main():
+def finder():
     reload(x_r)
     reload(xf)
     # SDSS
@@ -13,4 +13,4 @@ def main():
     return
 
 if __name__ == '__main__':
-    main()
+    finder()

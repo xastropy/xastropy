@@ -5,6 +5,7 @@
 #;
 #; PURPOSE:
 #;    Returns an Image by querying the SDSS website
+#;      Will use DSS2-red as a backup 
 #;
 #; CALLING SEQUENCE:
 #;
@@ -30,14 +31,16 @@
 #;------------------------------------------------------------------------------
 
 # Import libraries
+import requests
+import PIL
 
-# Grab the Image (default is 202" on a side)
-def getimg(ra, dec, scale=0.3961, xs=512, ys=512, grid=None,label=None,invert=None, BW=None):
+# Generate the SDSS URL (default is 202" on a side)
+def sdsshttp(ra, dec, imsize, scale=0.39612, grid=None, label=None, invert=None):#, xs, ys):
 
-    import requests
-    import PIL
-    from PIL import Image
-    from cStringIO import StringIO
+    # Pixels
+    npix = round(imsize*60./scale)
+    xs = npix
+    ys = npix
 
     # Generate the http call
     name1='http://skyservice.pha.jhu.edu/DR10/ImgCutout/'
@@ -66,8 +69,43 @@ def getimg(ra, dec, scale=0.3961, xs=512, ys=512, grid=None,label=None,invert=No
         
     name+='&query='
 
+    url = name1+name
+    return url
+
+# Generate the SDSS URL (default is 202" on a side)
+def dsshttp(ra, dec, imsize):
+
+    #https://archive.stsci.edu/cgi-bin/dss_search?v=poss2ukstu_red&r=00:42:44.35&d=+41:16:08.6&e=J2000&h=15.0&w=15.0&f=gif&c=none&fov=NONE&v3=
+
+    Equinox = 'J2000'
+    dss = 'poss2ukstu_red'
+    url = "http://archive.stsci.edu/cgi-bin/dss_search?"
+    url += "v="+dss+'&r='+str(ra)+'&d='+str(dec)
+    url += "&e="+Equinox
+    url += '&h='+str(imsize)+"&w="+str(imsize)
+    url += "&f=gif"
+    url += "&c=none"
+    url += "&fov=NONE"
+    url += "&v3="
+
+    return url
+    
+
+# ##########################################
+def getimg(ra, dec, imsize, BW=None, DSS=None):
+
+    from PIL import Image
+    from cStringIO import StringIO
+    import x_getsdssimg as xgs
+
+    # Get URL
+    if DSS == None:  # Default
+        url = xgs.sdsshttp(ra,dec,imsize)
+    else:
+        url = xgs.dsshttp(ra,dec,imsize) # DSS
+
     # Request
-    rtv = requests.get(name1+name)
+    rtv = requests.get(url) 
     img = Image.open(StringIO(rtv.content))
 
     # B&W ?

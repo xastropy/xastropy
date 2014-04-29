@@ -92,7 +92,7 @@ def get_coord(targ_file, radec=None):
 #  x_finder.main(['TST', '10:31:38.87', '+25:59:02.3'],radec=1)
 #  imsize is in arcmin
 def main(targ_file, survey='2r', radec=None, deci=None, 
-         EPOCH=0., SDSS=None, BW=None, imsize=5.):
+         EPOCH=0., DSS=None, BW=None, imsize=5.):
 
     # Read in the Target list
     import x_finder as x_f
@@ -138,14 +138,9 @@ def main(targ_file, survey='2r', radec=None, deci=None,
         outfil = ra_tab['Name'][qq]+'.pdf'
 
         # Grab the Image
-        if SDSS != None:
-            from xastropy.obs import x_getsdssimg as xgs
-            reload(xgs)
-            npix = round(imsize*60./0.39612)
-            img = xgs.getimg(ra_tab['RAD'][qq], ra_tab['DECD'][qq],BW=BW,
-            xs=npix,ys=npix)
-        else: 
-            return  # Should do DSS here
+        from xastropy.obs import x_getsdssimg as xgs
+        reload(xgs)
+        img = xgs.getimg(ra_tab['RAD'][qq], ra_tab['DECD'][qq], imsize, BW=BW,DSS=DSS)
 
         #print 'img size = ', img.size
         # Generate the plot
@@ -188,3 +183,4 @@ def main(targ_file, survey='2r', radec=None, deci=None,
         print 'x_finder: Wrote '+outfil
 
     print 'x_finder: All done.'
+    return
