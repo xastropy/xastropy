@@ -1,1 +1,1 @@
-import tst_finder
+import tst_obs
