@@ -89,7 +89,7 @@ def get_coord(targ_file, radec=None):
 
 #### ###############################
 #  Main driver
-#  x_finder.main(['TST', '10:31:38.87', '+25:59:02.3'],radec=1)
+#  x_finder.main(['TST', '10:31:38.87', '+25:59:02.3'],radec=1, SDSS=1)
 #  imsize is in arcmin
 def main(targ_file, survey='2r', radec=None, deci=None, 
          EPOCH=0., DSS=None, BW=None, imsize=5.):
@@ -136,6 +136,7 @@ def main(targ_file, survey='2r', radec=None, deci=None,
 
         # Outfil
         outfil = ra_tab['Name'][qq]+'.pdf'
+        print outfil
 
         # Grab the Image
         from xastropy.obs import x_getsdssimg as xgs

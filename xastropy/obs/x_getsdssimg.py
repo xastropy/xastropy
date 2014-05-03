@@ -41,6 +41,7 @@ def sdsshttp(ra, dec, imsize, scale=0.39612, grid=None, label=None, invert=None)
     npix = round(imsize*60./scale)
     xs = npix
     ys = npix
+    #from StringIO import StringIO
 
     # Generate the http call
     name1='http://skyservice.pha.jhu.edu/DR10/ImgCutout/'
@@ -107,6 +108,10 @@ def getimg(ra, dec, imsize, BW=None, DSS=None):
     # Request
     rtv = requests.get(url) 
     img = Image.open(StringIO(rtv.content))
+
+    # DEBUG
+    import matplotlib.pyplot as plt
+    import pdb; pdb.set_trace()
 
     # B&W ?
     if BW != None:
