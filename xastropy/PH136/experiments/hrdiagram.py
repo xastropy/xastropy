@@ -8,6 +8,81 @@ from astropy.io import fits
 import ds9
 
 ####################################
+# CLASSES
+###########
+class Landolt_data:
+    """A simple class for Landolt data"""
+
+    __slots__ = ['Name', 'RA', 'DEC', 'V', 'B-V', 'U-B', 'V-R', 'R-I', 'V-I', 'n', 'm']
+                 
+
+    def __init__(self, Name, RA, DEC, V, BV, UB, VR, RI, VI, n=0, m=0):
+        self.Name = Name
+        self.RA = RA
+        self.DEC = DEC
+        self.V = V
+        self.BV = BV
+        self.UB = UB
+        self.VR = VR
+        self.RI = RI
+        self.VI = VI
+        self.n = n
+        self.m = m
+
+#
+class standard_star:
+    """A simple class for a standard star and its analysis"""
+
+    __slots__ = ['Name', 'RA', 'DEC', 'xpix', 'ypix', 'Filter', 'mI', 'sigmI']
+                 
+
+    def __init__(self, Name, xpix=0., ypix=0., Filter='', mI=0., sigmI=0.):
+        self.Name = Name # Landolt name (Field_star)
+        self.xpix = xpix # Detector coordinates
+        self.ypix = ypix # Detector coordinates
+        self.mI = mI
+        self.sigmI = sigmI
+        self.Filter = Filter
+        #self.mAB = mAB
+        #self.sigmAB = sigmAB
+        #self.RA = RA
+        #self.DEC = DEC
+
+    def getdet(self): # Return detector related info
+        print 'Standard Star: ', self.Name, ' at pixel', self.xpix, ',', self.ypix
+        print 'Instrument magnitude: ', self.mI, self.sigmI
+        print '  for filter ', self.Filter
+
+    # Center the star on an image
+    def centroid(self,img,win_xy=None, No_Recenter=None, mask=None, 
+                 weight=None, Silent=None): 
+
+        # Region to center about
+        if win_xy != None: 
+            win_xy = (20., 20)
+
+        # Cut image
+        shpe = img.shape
+        i0 = np.max( [int(self.xpix-win_xy[0]), 0] )
+        i1 = np.min( [int(self.xpix+win_xy[0]), shpe[0]] )
+        i2 = np.max( [int(self.ypix-win_xy[0]), 0] )
+        i3 = np.min( [int(self.xpix+win_xy[0]), shpe[1]] )
+        tmp_img = img[i0:i1, i2:i3]
+
+        # Centroid
+        import xastropy.phot.ian_phot as iph
+        reload(iph)
+        x0,y0 = iph.centroid(tmp_img,mask=mask, w=weight)
+        if Silent == None:
+            print 'Original position: ({:.1f},{:.1f})'.format(self.xpix,self.ypix)
+            print 'New position: ({:.1f},{:.1f})'.format(x0,y0)
+
+        # Save?
+        if No_Recenter == None: 
+            self.xpix = x0
+            self.ypix = y0
+
+####################################
 # Generate a simple ASCII log from the data
 def mk_log(file_path=None,outfil=None):
 
@@ -387,53 +462,67 @@ def proc_sa104(file_path=None,outdir=None, bias_fil=None):
 
             # Write
             print 'Writing ', outfil
-            fits.writeto(outfil, timg, clobber=True)
+            fits.writeto(outfil, timg, head, clobber=True)
             
     return
 
 ####################################
 # Process SA 104 images
-#def phot_sa104(std_path=None,bias_fil=None):
+def phot_sa104():
 
-    # SA 104 stars
-#    sa104 = { 
+    import xastropy.PH136.experiments.hrdiagram as hrd
+    from astropy.io.fits import getdata
+    import xastropy.phot.ian_phot as iph
+
+    # SA 104 stars (470, 350, 461)
+    sa104 = [ hrd.Landolt_data('104_470', '12:43:22.314', '-00:29:52.83', 14.310, 0.732, 
+                               0.101, 0.295, 0.356, 0.649), 
+              hrd.Landolt_data('104_350', '12:43:14.204', '-00:33:20.54', 13.634, 0.673, 
+                               0.165, 0.383, 0.353, 0.736), 
+              hrd.Landolt_data('104_461', '12:43:06.031', '-00:32:18.01', 9.705, 0.476, 
+                               -0.035, 0.288, 0.289, 0.579)]
+
+    # Set (approximate) pixel values in image 
+    sa104_xypix = np.array( ((58.1, 976.2), 
+                    (308.0, 427.), 
+                    (645.9, 583.)))
+    gdstar = [1,2] # First one is too close to the edge (I think)
+
+    # Aperture:  Nickel binned 2x2 = 0.
+    arcpix = 0.366 # arcsec/pix
+    aper = [ 7. / arcpix ]
+
+    # Grab files
+    std_files = glob.glob('Std/SA104*fits')
+    
+    std_stars = []
+    # Loop on images
+    for ff in std_files:
+        # Read
+        img,head = getdata(ff,0,header=True)
+        filt = str(head['FILTNAM']).strip()
+        # Loop on stars
+        for ii in gdstar: 
+            # Construct
+            std_star = hrd.standard_star(sa104[ii].Name, 
+                                         sa104_xypix[ii,0], sa104_xypix[ii,1],
+                                         Filter=filt)
+            # Centroid
+            std_star.centroid(img,win_xy=(20,20))
+
+            # Photometry
+            pdb.set_trace()
+            iphot =  iph.aperphot(ff, pos=[std_star.xpix,std_star.ypix], dap=aper)
+
+        
+
+    # Loop
+    #for obj in sa104:
+        # Refine centroid
+    return
 
 ####################################
 # Process M67 images
 #def sex_all(file_path=None,outdir=None, bias_fil=None):
 
-
-class star_data:
-    """A simple class to track SED data for an object"""
-
-    __slots__ = ['RA', 'DEC', 'zqso', 'FUV', 'NUV', 'umag', 'gmag']
-
-    def __init__(self, RA, DEC,  zqso, FUV, NUV, umag, gmag):
-        self.RA = RA
-        self.DEC = DEC
-        self.zqso = zqso
-        self.FUV = FUV
-        self.NUV = NUV
-        self.umag = umag
-        self.gmag = gmag
-
-class Landolt_data:
-    """A simple class for Landolt data"""
-
-    __slots__ = ['RA', 'DEC', 'V', 'B-V', 'U-B', 'V-R', 'R-I', 'V-I', 'n', 'm', 'xpix', 'ypix']
-                 
-
-    def __init__(self, RA, DEC, V, BV, UB, VR, RI, VI, n=0, m=0, xpix=0., ypix=0.):
-        self.RA = RA
-        self.DEC = DEC
-        self.V = V
-        self.BV = BV
-        self.UB = UB
-        self.VR = VR
-        self.RI = RI
-        self.VI = VI
-        self.n = n
-        self.m = m
-        self.xpix = xpix
-        self.ypix = ypix
 
