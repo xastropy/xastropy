@@ -28,5 +28,5 @@ def lclass_to_table(arr):
         
         col = Column(name=iattr, data=np.zeros(arr))
         # Loop on the list
-        for iclass in arr:
+        #for iclass in arr:
     
