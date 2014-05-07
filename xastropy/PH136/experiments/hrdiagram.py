@@ -1,5 +1,7 @@
+"""Python module for the HR diagram experiment of PH136
+Run on 2014 Apr 30 data from the Nickel
+"""
 # Module for the HR Diagram experiment
-#  Run on 2014 Apr 30 data from the Nickel
 
 import numpy as np
 import pdb
@@ -29,29 +31,51 @@ class Landolt_data:
         self.n = n
         self.m = m
 
+    # Push back the apparent magnitude
+    def mAB(self, Filter):
+        # Data
+        allf = ['U','B','V','R','I']
+        allmAB = [ self.UB+self.BV+self.V, 
+                   self.BV+self.V, 
+                   self.V,
+                   self.V-self.VR,
+                   self.V-self.VI]
+        # Index
+        #pdb.set_trace()
+        try:
+            idx = allf.index(Filter)
+        except: 
+            pdb.set_trace()
+        return allmAB[idx]
+
 #
 class standard_star:
     """A simple class for a standard star and its analysis"""
 
-    __slots__ = ['Name', 'RA', 'DEC', 'xpix', 'ypix', 'Filter', 'mI', 'sigmI']
+    __slots__ = ['Name', 'RA', 'DEC', 'xpix', 'ypix', 'Filter', 'mI', 'sigmI', 'mAB']
                  
 
-    def __init__(self, Name, xpix=0., ypix=0., Filter='', mI=0., sigmI=0.):
+    def __init__(self, Name, xpix=0., ypix=0., Filter='', mI=0., sigmI=0., mAB=0.):
         self.Name = Name # Landolt name (Field_star)
         self.xpix = xpix # Detector coordinates
         self.ypix = ypix # Detector coordinates
         self.mI = mI
         self.sigmI = sigmI
         self.Filter = Filter
-        #self.mAB = mAB
+        self.mAB = mAB
         #self.sigmAB = sigmAB
         #self.RA = RA
         #self.DEC = DEC
 
-    def getdet(self): # Return detector related info
-        print 'Standard Star: ', self.Name, ' at pixel', self.xpix, ',', self.ypix
-        print 'Instrument magnitude: ', self.mI, self.sigmI
-        print '  for filter ', self.Filter
+    def __str__(self): # Return info
+        lin= 'Standard Star: {} at pixel ({:.1f},{:.1f})\n'.format(self.Name,
+                                                                   self.xpix, 
+                                                                   self.ypix)
+        lin+='Instrument magnitude: {:.2f}, {:.2f}'.format(self.mI,self.sigmI)
+        lin+=' for filter {}'.format(self.Filter)
+        if self.mAB > 0.:
+            lin+=' Landolt magnitude = {:.2f}'.format(self.mAB)
+        return lin
 
     # Center the star on an image
     def centroid(self,img,win_xy=None, No_Recenter=None, mask=None, 
@@ -59,20 +83,27 @@ class standard_star:
 
         # Region to center about
         if win_xy != None: 
-            win_xy = (20., 20)
+            win_xy = (20, 20)
 
         # Cut image
         shpe = img.shape
         i0 = np.max( [int(self.xpix-win_xy[0]), 0] )
         i1 = np.min( [int(self.xpix+win_xy[0]), shpe[0]] )
-        i2 = np.max( [int(self.ypix-win_xy[0]), 0] )
-        i3 = np.min( [int(self.xpix+win_xy[0]), shpe[1]] )
+
+        i2 = np.max( [int(self.ypix-win_xy[1]), 0] )
+        i3 = np.min( [int(self.ypix+win_xy[1]), shpe[1]] )
         tmp_img = img[i0:i1, i2:i3]
 
         # Centroid
         import xastropy.phot.ian_phot as iph
         reload(iph)
+        #pdb.set_trace()
         x0,y0 = iph.centroid(tmp_img,mask=mask, w=weight)
+
+        # Offset based on windowing
+        x0 = x0 + i0
+        y0 = y0 + i2
+
         if Silent == None:
             print 'Original position: ({:.1f},{:.1f})'.format(self.xpix,self.ypix)
             print 'New position: ({:.1f},{:.1f})'.format(x0,y0)
@@ -81,6 +112,8 @@ class standard_star:
         if No_Recenter == None: 
             self.xpix = x0
             self.ypix = y0
+
+    # Turn into a FITS table
 
 ####################################
 # Generate a simple ASCII log from the data
@@ -130,6 +163,8 @@ def mk_bias(file_list=None,file_path=None,outfil=None):
     #  So, we need a bias image
     import xastropy.PH136.experiments.hrdiagram as hrd
     from astropy.io.fits import getdata
+    from astropy.io.fits import Column
+    from astropy.io import fits 
     from astropy.stats import sigma_clip 
 
     # Defaults
@@ -467,13 +502,18 @@ def proc_sa104(file_path=None,outdir=None, bias_fil=None):
     return
 
 ####################################
-# Process SA 104 images
-def phot_sa104():
+# Perform photometry on SA104 and calculate ZP
+def phot_sa104(outfil=None):
 
     import xastropy.PH136.experiments.hrdiagram as hrd
     from astropy.io.fits import getdata
     import xastropy.phot.ian_phot as iph
+    from astropy.stats import sigma_clip 
+    reload(iph)
 
+    # Outfil
+    if outfil == None:
+        outfil = 'Std/ZP_SA104.fits'
     # SA 104 stars (470, 350, 461)
     sa104 = [ hrd.Landolt_data('104_470', '12:43:22.314', '-00:29:52.83', 14.310, 0.732, 
                                0.101, 0.295, 0.356, 0.649), 
@@ -489,32 +529,81 @@ def phot_sa104():
     gdstar = [1,2] # First one is too close to the edge (I think)
 
     # Aperture:  Nickel binned 2x2 = 0.
-    arcpix = 0.366 # arcsec/pix
-    aper = [ 7. / arcpix ]
+    arcpix = 0.368 # arcsec/pix
+    aper = (np.array( (7., 15., 25.) )/arcpix).tolist()
 
     # Grab files
     std_files = glob.glob('Std/SA104*fits')
     
     std_stars = []
+    afilt = []
     # Loop on images
     for ff in std_files:
         # Read
         img,head = getdata(ff,0,header=True)
         filt = str(head['FILTNAM']).strip()
+        afilt.append(filt)
         # Loop on stars
         for ii in gdstar: 
             # Construct
             std_star = hrd.standard_star(sa104[ii].Name, 
                                          sa104_xypix[ii,0], sa104_xypix[ii,1],
-                                         Filter=filt)
+                                         Filter=filt, mAB=sa104[ii].mAB(filt))
+            #pdb.set_trace()
             # Centroid
             std_star.centroid(img,win_xy=(20,20))
 
             # Photometry
-            pdb.set_trace()
             iphot =  iph.aperphot(ff, pos=[std_star.xpix,std_star.ypix], dap=aper)
 
+            # Push into our data
+            std_star.mI = -2.5*np.log10(iphot.phot)
+            std_star.sigmI = 2.5 * iphot.ephot / iphot.phot / np.log(10.)
+
+            # Add to lists
+            std_stars.append(std_star)
         
+    # Calculate the Zero point
+    all_filt=np.array(afilt)
+    filters,ifilt = np.unique(all_filt,return_index=True)
+    nfilt = len(filters)
+    mZP = np.zeros(nfilt)
+    sig_mZP = np.zeros(nfilt)
+
+    # Loop on filter
+    idx = -1
+    for ff in filters:
+        zp = []
+        idx = idx + 1
+        # Loop on standar star obs
+        for std in std_stars:
+            if std.Filter == ff:
+                zp.append( std.mAB-std.mI )
+        if len(zp) == 0:
+            pdb.set_trace()
+        # Combine
+        clipzp = sigma_clip(zp,2.5,None)
+        mZP[idx] = np.mean(clipzp)
+        sig_mZP[idx] = np.std(clipzp)
+
+    # Save as FITS table
+    c1 = fits.Column(name='Filter',format='1A',array=filters)
+    c2 = fits.Column(name='ZP',format='E',array=mZP)
+    c3 = fits.Column(name='sig_ZP',format='E',array=sig_mZP)
+    tbhdu = fits.new_table([c1, c2, c3])
+    tbhdu.writeto(outfil, clobber=True)
+
+    #pdb.set_trace()
+
+    # 'Raw' Data too?
+    import pickle
+    rawfil = 'Std/Raw_SA104.pkl'
+    f = open(rawfil,'wb')
+    pickle.dump(std_stars,f)
+    f.close()
+
+    #
+    print 'phot_sa104: All done!'
 
     # Loop
     #for obj in sa104:
