@@ -613,6 +613,34 @@ def phot_sa104(outfil=None):
 
 ####################################
 # Process M67 images
-#def sex_all(file_path=None,outdir=None, bias_fil=None):
+def sex_m67():
 
+    from subprocess import Popen, PIPE
 
+    # Get the list
+    m67_files = glob.glob('Science/M67*.fits')
+
+    # Loop away on M67 images
+    for ff in m67_files:
+        # Run SExtractor
+        p = Popen(['sex', ff, '-c', 'Sex/m67_config.sex']).wait() #, stdout=PIPE,stderr=PIPE)
+
+        # New files into
+        newdat = 'Sex/'+'sex_'+ff[8:-5]+'.dat'
+        newseg = 'Sex/'+'seg_'+ff[8:]
+        print 'Writing: ', newdat, newseg
+
+        # Push them
+        p2 = Popen(['mv', 'm67.dat', newdat]).wait()#, stdout=PIPE,stderr=PIPE)
+        p3 = Popen(['mv', 'check.fits', newseg]).wait()#, stdout=PIPE,stderr=PIPE)
+        #pdb.set_trace()
+    
+    print 'sex_m67: All Done'
+    return
+
+####################################
+# Generate the M67 catalog
+#def cat_m67():
+
+    # Add filter column
+    # Add field column
