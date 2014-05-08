@@ -296,7 +296,7 @@ def lmcextinct(ra, dec, **kw):
 
     # 2009-02-15 22:11 IJC: Created and tested.
 
-    import pyfits
+    import astropy.io.fits as pyfits
     from matplotlib.mlab import griddata
     from pylab import meshgrid, arange, array, sqrt, cos, sin, arctan2, arcsin
 
@@ -636,7 +636,8 @@ def subreg(fn, center=None, dim=None, verbose=False):
     # 2009-09-24 11:20 IJC: Created
     print "Function subreg is deprecated; please use subreg2 (which is much faster!)"
 
-    import pyfits
+    import astropy.io.fits as pyfits
+    #import pyfits
     from numpy import zeros, nan, concatenate, int, float, max, min
 
     if not hasattr(fn, '__iter__'):
@@ -714,7 +715,8 @@ def subreg2(fn, center=None, dim=None, verbose=False):
     # 2011-12-15 15:53 IJMC: Updated to use memmap. MUCH faster!
     # 2012-06-16 06:57 IJMC: Now 'fn' can also be a Numpy array.
 
-    import pyfits
+    import astropy.io.fits as pyfits
+    #import pyfits
     from numpy import zeros, nan, concatenate, int, float, max, min
 
     if not hasattr(fn, '__iter__'):
@@ -879,7 +881,8 @@ def aperphot(fn, timekey=None, pos=[0,0], dap=[2,4,6], mask=None, verbose=False,
 
     from numpy import meshgrid, median,isfinite,sort,ndarray,string_
     import numpy as np
-    import pyfits
+    import astropy.io.fits as pyfits
+    #import pyfits
     #from xastropy.phot.ian_analysis import fixval
     from os import path
     from scipy import interpolate

@@ -592,6 +592,7 @@ def phot_sa104(outfil=None):
     c3 = fits.Column(name='sig_ZP',format='E',array=sig_mZP)
     tbhdu = fits.new_table([c1, c2, c3])
     tbhdu.writeto(outfil, clobber=True)
+    print 'phot_sa104: Wrote ', outfil
 
     #pdb.set_trace()
 
