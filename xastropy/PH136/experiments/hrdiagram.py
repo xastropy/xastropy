@@ -640,7 +640,56 @@ def sex_m67():
 
 ####################################
 # Generate the M67 catalog
-#def cat_m67():
+def cat_m67(outfil=None,ZP_fil=None):
 
-    # Add filter column
-    # Add field column
+    from astropy.table import Table, Column, vstack
+
+    # ZP file
+    if ZP_fil == None:
+        ZP_fil = 'Std/ZP_SA104.fits'
+    zp_dat = Table.read(ZP_fil,format='fits')
+        
+
+    # Sex files
+    m67_sex_files = glob.glob('Sex/sex_M67*.dat')
+
+    # Loop
+    flg=0
+    for ff in m67_sex_files:
+
+        # Read Table
+        #pdb.set_trace()
+        dat = Table.read(ff,format='ascii.sextractor')
+        ndat = len(dat)
+
+        # Alter by ZeroPoint
+        filt = ff[-5]
+        idx = np.where( zp_dat['Filter'] == 'B')[0]
+        ZPval = float( zp_dat['ZP'][idx] )
+        dat['MAG_BEST'] += ZPval
+        pdb.set_trace()
+
+        # Filter column
+        afilt = ndat * [filt]
+        fcolm = Column(name='FILTER',data=afilt)
+
+        # Field column
+        field = [ff[12:14]]
+        afield = ndat * field
+        fldcolm = Column(name='FIELD',data=afield)
+        dat.add_columns([fcolm,fldcolm])
+        if flg == 0:
+            all_dat = dat
+            flg = 1
+        else: 
+            all_dat = vstack( [all_dat, dat] )
+            #pdb.set_trace()
+
+    # Write
+    if outfil == None:
+        outfil='M67_catalog.fits'
+    #pdb.set_trace()
+    #hdu=fits.new_table(all_dat)
+    all_dat.write(outfil, format='fits',overwrite=True)#, clobber=True)
+    print 'cat_m67: Wrote ', outfil, ' with ', len(all_dat), ' entires'
+    return

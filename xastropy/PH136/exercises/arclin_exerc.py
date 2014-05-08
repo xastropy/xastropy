@@ -4,7 +4,6 @@
 # Import libraries
 import numpy as np
 from astropy.io import fits
-from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib import pyplot
 import pdb
 
@@ -13,7 +12,7 @@ import pdb
 #   import xastropy.PH136.exercises.arclin_exerc as ale 
 #   reload(ale)
 #   ale.plot_spec('tst.00000011.FIT.gz')
-def plot_spec(fits_fil,prow=None):
+def plot_spec(fits_fil,prow=None,give_spec=False, noplot=False):
     from astropy.io.fits import getdata
 
     # Read
@@ -29,8 +28,14 @@ def plot_spec(fits_fil,prow=None):
 
     #pdb.set_trace()
     # Plot
-    pyplot.plot(np.arange(npix), spec)
-    pyplot.show()
+    if noplot:
+        pyplot.plot(np.arange(npix), spec)
+        pyplot.show()
+
+    if give_spec:
+        return spec
+    else: 
+        return
 
     #pdb.set_trace()
 
@@ -39,7 +44,10 @@ def plot_spec(fits_fil,prow=None):
 #   import xastropy.PH136.exercises.arclin_exerc as ale 
 #   reload(ale)
 #   ale.fit_lines()
-def fit_lines():
+#   ale.fit_lines(fits_fil='tst.00000011.FIT.gz')
+def fit_lines(xquery=None,show_plot=True, plot_spec=True, fits_fil=None):
+
+    import xastropy.PH136.exercises.arclin_exerc as ale 
 
     # Generate the arrays
     pix_val = np.array( [70.71, 75.5, 147.2, 403.26] )
@@ -54,7 +62,31 @@ def fit_lines():
     xval = np.linspace(1., 500, 100)
     yval = pv(xval)
 
-    # Plot
-    pyplot.plot(pix_val, wav_val, 'o')
-    pyplot.plot(xval, yval)
-    pyplot.show()
+    # Plot?
+    if show_plot:
+        pyplot.clf()
+        pyplot.plot(pix_val, wav_val, 'o')
+        pyplot.plot(xval, yval)
+        pyplot.xlabel('pixel')
+        pyplot.ylabel('Wave (Ang)')
+        #pyplot.show()
+        pyplot.savefig('arclin_fit.pdf')
+
+    # Plot the spectrum
+    if plot_spec and (fits_fil != None):
+        spec = ale.plot_spec(fits_fil, give_spec=True, noplot=True)
+        npix = len(spec)
+        xval = np.arange(npix)
+        wave = pv(xval)
+        pyplot.clf()
+        pyplot.plot(wave, spec,drawstyle="steps-mid", ls='-')
+        pyplot.xlim([4000., 6000])
+        pyplot.xlabel('Wavelength (Ang)')
+        pyplot.ylabel('Counts')
+        pyplot.savefig('arclin_spec.pdf')
+        
+
+    # Print a value
+    if xquery != None:
+        wquery = pv(xquery)
+        print 'Wavelength for pixel = ', xquery, ' is wave = ', wquery
