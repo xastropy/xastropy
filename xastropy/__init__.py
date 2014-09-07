@@ -3,3 +3,5 @@ import obs
 import tests
 import phot
 import data
+import spec
+import plotting
