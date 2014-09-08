@@ -12,19 +12,21 @@
 """
 
 # Import libraries
+import barak
 import numpy as np
 from astropy.io import fits
 from astropy.io import ascii 
-from astropy.table import Table
-from astropy.table import Column
 import pdb
 
 #### ###############################
 #  Read Spectrum from FITS file
 #  Return Barak-favored Table
 #
-def readspec(file, inflg=None):
+def readspec(specfil, inflg=None, efil=None):
     from xastropy.spec import readwrite as rw
+    from astropy.table import Table
+    from astropy.table import Column
+    from barak import spec as bs
 
     # Initialize
     dat = None
@@ -32,7 +34,7 @@ def readspec(file, inflg=None):
         inflg = 0
 
     # Read header
-    hdulist = fits.open(file)
+    hdulist = fits.open(specfil)
 
     ## #################
     # Binary FITS table?
@@ -64,8 +66,22 @@ def readspec(file, inflg=None):
     elif hdulist[0].header['NAXIS'] == 1: # Data in the zero extension
         # Look for wavelength info
         if 'CRVAL1' in hdulist[0].header.keys():
-            print 'spec.readwrite: Not ready for this yet!'
-            return
+            # Flux
+            fx = hdulist[0].data.flatten()
+            # Wavelength
+            wave = rw.setwave(hdulist[0].header)
+            # Error
+            if efil == None:
+                ipos = max(specfil.find('F.fits'),specfil.find('f.fits'))
+                if ipos < 0: # No error array
+                    sig = np.zeros(fx.size)
+                else:
+                    if specfil.find('F.fits') > 0:
+                        efil = specfil[0:ipos]+'E.fits'
+                    else:
+                        efil = specfil[0:ipos]+'e.fits'
+            if efil != None:
+                sig=fits.getdata(efil)
         else:  # ASSUMING MULTI-EXTENSION
             if len(hdulist) <= 2:
                 print 'spec.readwrite: No wavelength info but only 2 extensions!'
@@ -77,12 +93,40 @@ def readspec(file, inflg=None):
         print 'spec.readwrite: Looks like an image'
         return dat
 
-    # Generate output
+    # Generate Barak output
+    try:
+        co = fits.getdata(name+'_c.fits')
+    except:
+        co = np.nan*np.ones(len(fx))
+    sp = bs.Spectrum(wa=wave, fl=fx, er=sig, co=co, filename=specfil)
 
     # Return 
-    return fx, sig, wave
+    return sp
 
+#### ###############################
+#### ###############################
+#  Set wavelength array using Header cards
+def setwave(hdr):
 
+    # Initialize
+    SCL = 1.
+    
+    # Parse the header
+    npix = hdr['NAXIS1'] 
+    crpix1 = hdr['CRPIX1'] if 'CRPIX1' in hdr else 1.
+    crval1 = hdr['CRVAL1'] if 'CRVAL1' in hdr else 1.
+    cdelt1 = hdr['CDELT1'] if 'CDELT1' in hdr else 1.
+    ctype1 = hdr['CTYPE1'] if 'CTYPE1' in hdr else None
+    dcflag = hdr['DC-FLAG'] if 'DC-FLAG' in hdr else None
+
+    # Generate
+    if dcflag == 1:
+        wave = SCL * 10.**(crval1 + ( cdelt1 * np.arange(npix) + 1. - crpix1) ) # Log
+
+    # Return
+    return wave
+
+#### ###############################
 #### ###############################
 #  Grab values from the Binary FITS Table
 def get_table_column(tags, hdulist):
