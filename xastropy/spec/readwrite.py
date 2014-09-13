@@ -16,25 +16,35 @@ import barak
 import numpy as np
 from astropy.io import fits
 from astropy.io import ascii 
-import pdb
+import os, pdb
 
 #### ###############################
 #  Read Spectrum from FITS file
 #  Return Barak-favored Table
+#  from xastropy.spec import readwrite as xsr
+#  sp = xsr.readspec('SDSSJ114435.54+095921.7_F.fits',outfil='SDSSJ114435.54+095921.7.fits')
 #
-def readspec(specfil, inflg=None, efil=None):
+def readspec(specfil, inflg=None, efil=None, outfil=None):
     from xastropy.spec import readwrite as rw
+    from xastropy.files import general as xfg
+    #from xastropy.plotting import x_guis as xpxg
     from astropy.table import Table
     from astropy.table import Column
     from barak import spec as bs
+    #reload(bs)
 
     # Initialize
     dat = None
+    chk = None
     if inflg == None:
         inflg = 0
 
     # Read header
-    hdulist = fits.open(specfil)
+    datfil = xfg.chk_for_gz(specfil,chk=chk)
+    if chk == 0:
+        print 'xastropy.spec.readwrite: File does not exist ', specfil
+        return -1
+    hdulist = fits.open(datfil)
 
     ## #################
     # Binary FITS table?
@@ -77,11 +87,13 @@ def readspec(specfil, inflg=None, efil=None):
                     sig = np.zeros(fx.size)
                 else:
                     if specfil.find('F.fits') > 0:
-                        efil = specfil[0:ipos]+'E.fits'
+                        efil = xfg.chk_for_gz(specfil[0:ipos]+'E.fits')
                     else:
-                        efil = specfil[0:ipos]+'e.fits'
+                        efil = xfg.chk_for_gz(specfil[0:ipos]+'e.fits')
             if efil != None:
                 sig=fits.getdata(efil)
+            #pdb.set_trace()
+            #xpxg.plot_1d_arrays(sig)
         else:  # ASSUMING MULTI-EXTENSION
             if len(hdulist) <= 2:
                 print 'spec.readwrite: No wavelength info but only 2 extensions!'
@@ -98,7 +110,14 @@ def readspec(specfil, inflg=None, efil=None):
         co = fits.getdata(name+'_c.fits')
     except:
         co = np.nan*np.ones(len(fx))
+    # Plot?
+    if show_plot:
+            xpxg.plot_1d_arrays(wave,fx,sig,co)
     sp = bs.Spectrum(wa=wave, fl=fx, er=sig, co=co, filename=specfil)
+
+    # Write to disk?
+    if outfil != None:
+        sp.fits_write(outfil,overwrite=True)
 
     # Return 
     return sp

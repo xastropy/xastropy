@@ -14,7 +14,7 @@
 # Import libraries
 import numpy as np
 import pdb
-from matplotlib import pyplot
+import matplotlib.pyplot as plt
 
 #### ###############################
 #  Simplest quick plot
@@ -31,18 +31,18 @@ def plot_1d_arrays(*args):
         return
 
     # Clear
-    pyplot.clf()
+    plt.clf()
     # Plot it right up
     if len(args) == 1:
-        pyplot.plot(args[0].flatten())
+        plt.plot(args[0].flatten())
     else: 
         for kk in range(1,len(args)):
-            pyplot.plot(args[0].flatten(),args[kk].flatten())
+            plt.plot(args[0].flatten(),args[kk].flatten())
 
     # Finish
-    #mng = pyplot.get_current_fig_manager()
+    #mng = plt.get_current_fig_manager()
     #mng.full_screen_toggle() # Mac specific?! Not working anyhow
-    pyplot.show()
+    plt.show()
 
     return
     
