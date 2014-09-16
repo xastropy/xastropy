@@ -47,52 +47,48 @@ def x_contifit(specfil, outfil=None, savfil=None, redshift=0., divmult=1, forest
     # Read spectrum + convert to Barak format
     sp = xsr.readspec(specfil)
     
-    confirm = 'n'
 
     # Fit spline continuum:
-    while(confirm == 'n'):
-        if os.path.lexists(savfil): #'contfit_' + name + '.sav'):
-            option = raw_input('Adjust old continuum? (y)/n: ')
-            if option.lower() != 'n':
-                co_old, knots_old = loadobj(savfil) #'contfit_' + name + '.sav')
-                co, knots = bf.fitqsocont(sp.wa, sp.fl, sp.er, redshift,
-                                       oldco=co_old, knots=knots_old,
-                                       divmult=divmult,
-                                       forest_divmult=forest_divmult)
-            else:
-                co, knots = bf.fitqsocont(sp.wa, sp.fl, sp.er, redshift,
-                                       divmult=divmult,
-                                       forest_divmult=forest_divmult)
+    if os.path.lexists(savfil): #'contfit_' + name + '.sav'):
+        option = raw_input('Adjust old continuum? (y)/n: ')
+        if option.lower() != 'n':
+            co_old, knots_old = loadobj(savfil) #'contfit_' + name + '.sav')
+            co, knots = bf.fitqsocont(sp.wa, sp.fl, sp.er, redshift,
+                oldco=co_old, knots=knots_old,
+                divmult=divmult,
+                forest_divmult=forest_divmult)
         else:
             co, knots = bf.fitqsocont(sp.wa, sp.fl, sp.er, redshift,
-                                   divmult=divmult,
-                                   forest_divmult=forest_divmult)
+                divmult=divmult,
+                forest_divmult=forest_divmult)
+    else:
+        co, knots = bf.fitqsocont(sp.wa, sp.fl, sp.er, redshift,
+            divmult=divmult,
+            forest_divmult=forest_divmult)
+    
+    os.remove('_knots.sav')
 
-        os.remove('_knots.sav')
+    # Save continuum:
+    saveobj(savfil, (co, knots), overwrite=1)
 
-        # Save continuum:
-        saveobj(savfil, (co, knots), overwrite=1)
+    # Check continuum:
+    print('Plotting new continuum')
+    plt.clf()
+    plt.plot(sp.wa, sp.fl, drawstyle='steps-mid')
+    plt.plot(sp.wa, sp.co, color='r')
+    plt.show()
 
-        # Check continuum:
-        print('Plotting new continuum')
-        #sp_nyquist = read(specfil)
-        #co_new = np.interp(sp_nyquist.wa, sp.wa, co)
-        #sp_new = np.rec.fromarrays([sp_nyquist.wa, sp_nyquist.fl,
-        #                            sp_nyquist.er, co_new],
-        #                           names='wa, fl, er, co')
-        plt.clf()
-        plt.plot(sp.wa, sp.fl, drawstyle='steps-mid')
-        plt.plot(sp.wa, sp.co, color='r')
-        plt.show()
-
-        # Repeat?
-        confirm = 'y'
-        confirm = raw_input('Keep continuum? (y)/n: ')
+    # Repeat?
+    confirm = raw_input('Keep continuum? (y)/n: ')
+    if confirm == 'y':
+        fits.writeto(outfil, sp, clobber=True)
+    else:
+        print 'Writing to tmp.fits anyhow!'
+        fits.writeto('tmp.fits', sp, clobber=True)
     #print name
 
     ## Output
     # Data file with continuum
-    fits.writeto(outfil, sp, clobber=True)
 
 #### ###############################
 #  Calls plotvel (Crighton)
