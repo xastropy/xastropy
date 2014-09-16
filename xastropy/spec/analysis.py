@@ -14,6 +14,7 @@
 import barak
 import xastropy
 import numpy as np
+import matplotlib.pyplot as plt
 
 #name = "SDSSJ114436.66+095904.9"
 #redshift = 3.1483297
@@ -30,9 +31,12 @@ import numpy as np
 def x_contifit(specfil, outfil=None, savfil=None, redshift=0., divmult=1, forest_divmult=1):
 
     import os
-    from barak.fitcont import fitqsocont
+    import barak.fitcont as bf
     from barak.spec import read
     from barak.io import saveobj, loadobj
+    import xastropy.spec.readwrite as xsr
+    reload(xsr)
+    reload(bf)
 
     # Initialize
     if savfil == None:
@@ -41,7 +45,7 @@ def x_contifit(specfil, outfil=None, savfil=None, redshift=0., divmult=1, forest
         outfil = 'conti.fits'
         
     # Read spectrum + convert to Barak format
-    sp = xastropy.spec.readwrite.readspec(specfil)
+    sp = xsr.readspec(specfil)
     
     confirm = 'n'
 
@@ -51,16 +55,16 @@ def x_contifit(specfil, outfil=None, savfil=None, redshift=0., divmult=1, forest
             option = raw_input('Adjust old continuum? (y)/n: ')
             if option.lower() != 'n':
                 co_old, knots_old = loadobj(savfil) #'contfit_' + name + '.sav')
-                co, knots = fitqsocont(sp.wa, sp.fl, sp.er, redshift,
+                co, knots = bf.fitqsocont(sp.wa, sp.fl, sp.er, redshift,
                                        oldco=co_old, knots=knots_old,
                                        divmult=divmult,
                                        forest_divmult=forest_divmult)
             else:
-                co, knots = fitqsocont(sp.wa, sp.fl, sp.er, redshift,
+                co, knots = bf.fitqsocont(sp.wa, sp.fl, sp.er, redshift,
                                        divmult=divmult,
                                        forest_divmult=forest_divmult)
         else:
-            co, knots = fitqsocont(sp.wa, sp.fl, sp.er, redshift,
+            co, knots = bf.fitqsocont(sp.wa, sp.fl, sp.er, redshift,
                                    divmult=divmult,
                                    forest_divmult=forest_divmult)
 
@@ -71,37 +75,46 @@ def x_contifit(specfil, outfil=None, savfil=None, redshift=0., divmult=1, forest
 
         # Check continuum:
         print('Plotting new continuum')
-        sp_nyquist = read(specfil)
-        co_new = np.interp(sp_nyquist.wa, sp.wa, co)
-        sp_new = np.rec.fromarrays([sp_nyquist.wa, sp_nyquist.fl,
-                                    sp_nyquist.er, co_new],
-                                   names='wa, fl, er, co')
-        pl.clf()
-        pl.plot(sp_new.wa, sp_new.fl, drawstyle='steps-mid')
-        pl.plot(sp_new.wa, sp_new.co, color='r')
-        pl.show()
+        #sp_nyquist = read(specfil)
+        #co_new = np.interp(sp_nyquist.wa, sp.wa, co)
+        #sp_new = np.rec.fromarrays([sp_nyquist.wa, sp_nyquist.fl,
+        #                            sp_nyquist.er, co_new],
+        #                           names='wa, fl, er, co')
+        plt.clf()
+        plt.plot(sp.wa, sp.fl, drawstyle='steps-mid')
+        plt.plot(sp.wa, sp.co, color='r')
+        plt.show()
 
         # Repeat?
         confirm = 'y'
         confirm = raw_input('Keep continuum? (y)/n: ')
-    print name
+    #print name
 
-    # Output
-
+    ## Output
     # Data file with continuum
-    fits.writeto(outfil, sp_new, clobber=True)
+    fits.writeto(outfil, sp, clobber=True)
 
-    #ascii.write(sp_new, name + '.txt', Writer=ascii.CommentedHeader)
+#### ###############################
+#  Calls plotvel (Crighton)
+#    Adapted from N. Tejos scripts
+#
+def velplt(specfil):
+
+    # Imports
+    from plotspec import plotvel_util as pspv
+    reload(pspv)
+    import xastropy as xa
+    from subprocess import Popen
+
+    # Initialize
+    if 'f26_fil' not in locals():
+        f26_fil = 'tmp.f26'
+        command = ['touch',f26_fil]
+        print Popen(command)
+        print 'xa.spec.analysis.velplt: Generated a dummy f26 file -- ', f26_fil
+    if 'transfil' not in locals():
+        path = xa.__path__
+        transfil = path[0]+'/spec/Data/initial_search.lines'
     
-    try:
-        sp_unbinned = read(name + '_unbinned.fits')
-        co_new = np.interp(sp_unbinned.wa, sp.wa, co)
-        sp_new = np.rec.fromarrays([sp_unbinned.wa, sp_unbinned.fl,
-                                    sp_unbinned.er, co_new],
-                                   names='wa, fl, er, co')
-        writetable(name + '_unbinned.fits', sp_new,
-                   units=['angstrom', 'erg /s /cm**2 /angstrom',
-                          'erg /s /cm**2 /angstrom',
-                          'erg /s /cm**2 /angstrom'], overwrite=True)
-    except:
-        pass
+    # Call
+    pspv.main([specfil, 'f26='+f26_fil, 'transitions='+transfil])

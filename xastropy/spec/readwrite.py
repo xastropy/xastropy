@@ -24,7 +24,7 @@ import os, pdb
 #  from xastropy.spec import readwrite as xsr
 #  sp = xsr.readspec('SDSSJ114435.54+095921.7_F.fits',outfil='SDSSJ114435.54+095921.7.fits')
 #
-def readspec(specfil, inflg=None, efil=None, outfil=None):
+def readspec(specfil, inflg=None, efil=None, outfil=None, show_plot=0):
     from xastropy.spec import readwrite as rw
     from xastropy.files import general as xfg
     #from xastropy.plotting import x_guis as xpxg
