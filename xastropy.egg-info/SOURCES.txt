@@ -1,6 +1,0 @@
-setup.py
-xastropy/__init__.py
-xastropy.egg-info/PKG-INFO
-xastropy.egg-info/SOURCES.txt
-xastropy.egg-info/dependency_links.txt
-xastropy.egg-info/top_level.txt
