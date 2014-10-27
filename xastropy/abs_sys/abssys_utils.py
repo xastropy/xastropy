@@ -13,6 +13,7 @@
 
 import numpy as np
 import pdb
+from astropy.io import ascii 
 
 # Class for Absorption Line Survey
 class Absline_Survey(object):
@@ -20,11 +21,19 @@ class Absline_Survey(object):
 
     Attributes:
         nsys: An integer representing the number of absorption systems
-        miles:Theintegralnumberofmilesdrivenonthevehicle.
+        abs_type: Type of Absorption system (DLA, LLS)
+        ref: Reference to the Survey
     """
 
     # Number of systems
-    nsys = 0
 
-    def __init__(self, filename):
+    def __init__(self, flist, abs_type=None, ref=None):
+        # Expecting a list of files describing the absorption systems
+        data = ascii.read(flist, data_start=0, guess=False,format='no_header')
+        self.files = list(data['col1'])
+        self.nsys = len(self.files)
+        self.abs_type = abs_type
+        self.ref = ref
+        #
+        print('Read %s',self.nsys)
         
