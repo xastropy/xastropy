@@ -5,7 +5,7 @@
 #;    Version 1.0
 #;
 #; PURPOSE:
-#;    Module for Absorption Systems
+#;    Module for Lyman Limit Systems
 #;   27-Oct-2014 by JXP
 #;-
 #;------------------------------------------------------------------------------
@@ -17,6 +17,7 @@ import numpy as np
 import pdb
 from astropy.io import ascii 
 from xastropy.abs_sys.abssys_utils import Absline_System
+from xastropy.abs_sys.ionic_clm import Ionic_Clm
 from astropy import units as u
 
 # Class for LLS Absorption Lines 
@@ -36,14 +37,53 @@ class LLS_System(Absline_System):
             self.parse_dat_file(dat_file)
         # Set tau_LL
         self.tau_LL = (10.**self.NHI)*6.3391597e-18 # Should replace with photocross
+        self.ionic = {}
 
     # Modify standard dat parsing
     def parse_dat_file(self,dat_file):
         # Standard Call
         out_list = Absline_System.parse_dat_file(self,dat_file,flg_out=1)
         datdic = out_list[0]
+
         # LLS keys
         self.MH = float(datdic['[M/H]ave'])
+        self.nsub = int(datdic['Nsubsys'])
+        self.cldyfil = datdic['CloudyGridFile']
+
+        # LLS Subsystems
+        if self.nsub > 0:
+            subsys = {}
+            lbls= map(chr, range(65, 91))
+            keys = (['zabs','NHI','NHIsig','NH','NHsig','logx','sigx','b','bsig','Abundfile',
+                     'U','Usig','flg_low','flg_alpha','[alpha/H]','sig[a/H]',
+                     'flg_Fe','[Fe/H]','sig[Fe/H]','VPFITfile'])
+            for i in range(self.nsub):
+                # Generate
+                subsys[lbls[i]] = self.subsys()
+                # Fill in
+                for key in list(subsys[lbls[i]].keys()):
+                    try:
+                        tmpc = datdic[lbls[i]+key]
+                    except:
+                        print('lls_utils: Key %s not found', lbls[i]+key)
+                    else:  # Convert
+                        val = subsys[lbls[i]][key]
+                        #pdb.set_trace()
+                        if val.__class__ == np.ndarray:  
+                            subsys[lbls[i]][key] = np.array(map(float,tmpc.split()))
+                        else: # Single value
+                            subsys[lbls[i]][key] = (map(type(val),[tmpc]))[0]
+            # Encode
+            self.subsys = subsys
+
+    # Subsystem Dict
+    def subsys(self):
+        keys = (['zabs','NHI','NHIsig','NH','NHsig','logx','sigx','b','bsig','Abundfile',
+                'U','Usig','flg_low','flg_alpha','[alpha/H]','sig[a/H]',
+                'flg_Fe','[Fe/H]','sig[Fe/H]','VPFITfile'])
+        values = ([0., 0., np.zeros(2), 0., np.zeros(2), 0., np.zeros(2), 0., 0.,
+                   '', 0., np.zeros(2), 0, 0, 0., 0., 0, 0., 0., ''])
+        return dict(zip(keys,values))
 
     # Output
     def __repr__(self):
@@ -56,3 +96,7 @@ if __name__ == '__main__':
     # Test Absorption System
     tmp1 = LLS_System(dat_file='/Users/xavier/LLS/Data/UM669.z2927.dat')
     print(tmp1)
+    print(tmp1.subsys)
+    tmp1.ionic['1215.6701'] = Ionic_Clm(1215.6701)
+    print(tmp1.ionic)
+    print(tmp1.ionic['1215.6701'].wave)
