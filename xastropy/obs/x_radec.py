@@ -1,3 +1,4 @@
+'''
 #;+ 
 #; NAME:
 #; x_fndchrt   
@@ -44,6 +45,7 @@
 #;   21-Nov-2003 Written by JXP
 #;-
 #;------------------------------------------------------------------------------
+'''
 
 # Import libraries
 import numpy as np
@@ -51,7 +53,7 @@ from astropy.table import Table
 import pdb
 
 #### ###############################
-#  Main driver
+#  Main driver (return decimal values for inputted string)
 def stod1(rads):
     # RA
     #pdb.set_trace()
