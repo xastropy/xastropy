@@ -69,12 +69,13 @@ class Absline_System(object):
     """
 
     # Init
-    def __init__(self, zabs=0., NHI=0., epoch=2000.):
+    def __init__(self, abs_type, zabs=0., NHI=0., epoch=2000.):
         self.zabs = zabs
         self.NHI = NHI
         self.epoch = epoch
+        self.abs_type = abs_type
 
-    def parse_dat_file(self,dat_file,verbose=False):
+    def parse_dat_file(self,dat_file,verbose=False,flg_out=None):
         # Define
         datdic = {}
         # Open
@@ -88,30 +89,64 @@ class Absline_System(object):
         f.close()
         #pdb.set_trace()
 
+        #  #########
         # Pull attributes
-        try:  # RA/DEC
-            self.coord = SkyCoord(datdic['RA(2000)'], datdic['DEC(2000)'],
-                         'icrs', unit=(u.hour, u.deg))
+
+        # RA/DEC
+        try:
+            ras,decs = (datdic['RA(2000)'], datdic['DEC(2000)'])
             #print(datdic['RA(2000)'], datdic['DEC(2000)'])
             #pdb.set_trace()
-            if self.epoch != 2000.:
-                assert False, 'Not ready for non-2000'
         except:
-            print('blah exception')
-        # Return
-        if verbose: print(datdic)
+            ras, decs = ('00 00 00', '+00 00 00')
+        self.coord = SkyCoord(ras, decs, 'icrs', unit=(u.hour, u.deg))
 
-    def __repr__(self, zabs=0., NHI=0., epoch=2000.):
-        return ('[Absline_System: %s %s, z=%g, NHI=%g]' %
-                (self.coord.ra.to_string(unit=u.hour,sep=':',pad=True),
+        # zabs
+        try: 
+            self.zabs = float(datdic['zabs'])
+        except: self.zabs=0.
+
+        # NHI
+        try: 
+            self.NHI = float(datdic['NHI']) # DLA format
+        except:
+            try:
+                self.NHI = float(datdic['NHItot']) # LLS format
+            except: self.NHI=0.
+
+        # NHIsig
+        try: 
+            key_sigNHI = datdic['sig(NHI)'] # DLA format
+        except:
+            try:
+                key_sigNHI = datdic['NHIsig'] # LLS format
+            except: key_sigNHI='0.0'
+        #pdb.set_trace()
+        self.sigNHI = np.array(map(float,key_sigNHI.split()))
+        #print('sigNHI: ', self.sigNHI)
+
+        # Finish
+        if verbose: print(datdic)
+        if flg_out != None:
+            if (flg_out % 2) == 1: ret_val = [datdic]
+            else: ret_val = [0]
+            return ret_val
+        
+                        
+
+    def __repr__(self):
+        return ('[Absline_System: %s %s %s, %g, NHI=%g]' %
+                (self.abs_type,
+                 self.coord.ra.to_string(unit=u.hour,sep=':',pad=True),
                  self.coord.dec.to_string(sep=':',pad=True),
-                 self.zabs, self.NHI)
+                 self.zabs, self.NHI))
 
 ######################
 # Testing
 if __name__ == '__main__':
+
     # Test Absorption System
-    tmp1 = Absline_System()
+    tmp1 = Absline_System('LLS')
     tmp1.parse_dat_file('/Users/xavier/LLS/Data/UM669.z2927.dat')
     print(tmp1)
 
