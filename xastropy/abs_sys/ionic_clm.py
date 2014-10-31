@@ -15,7 +15,7 @@ from __future__ import print_function
 import numpy as np
 import pdb
 
-# Top-Level Class for Ionic columns
+# Top-Level Class for Ionic columns -- One line only!
 class Ionic_Clm(object):
     """Ionic column densities for an absorption system
 
@@ -23,10 +23,12 @@ class Ionic_Clm(object):
         zsys: Systemic redshift
     """
 
-    # Initialize with a .clm file
+    # Initialize with wavelength
     def __init__(self, wave, clm_file=None):
         self.wave = wave
-        self.data = {}
+        self.atomic = {} # Atomic Data
+        self.analy = {} # Analysis inputs (from .clm file)
+        self.measure = {} # Measured quantities
 
 ## ###################
 ##
@@ -39,6 +41,7 @@ class Ionic_Clm_File(object):
     """
     # Initialize with a .clm file
     def __init__(self, clm_fil):
+        #
         self.clm_fil = clm_fil
         # Parse
         self.read_clmfil()
@@ -67,71 +70,70 @@ class Ionic_Clm_File(object):
         See get_elem for properties of LINEDIC
         """
 
-        clm={}
         # Read file
         f=open(self.clm_fil, 'r')
         arr=f.readlines()
         f.close()
+        nline = len(arr)
         #
         source=arr[0][:-1]
         # Data files
         self.flg_data = int(arr[1][:-1])
-        self.fits_files=[]
+        self.fits_files={}
+        ii=2
+        for jj in range(0,6):
+            if (self.flg_data % (2**(jj+1))) > (2**jj - 1):
+                self.fits_files[2**jj] = arr[ii].strip()
+                ii += 1
 
-        anotherspec=True
-        ii=0
-        while anotherspec:
-            if len(arr[2+ii+1][:-1].split('.fit'))>1:
-                ii+=1
-                fits.append(arr[3+ii][:-1])
-                arr.pop(3)
-            else: anotherspec=False
-        clm['FITS']=fits
-        zabs=float(arr[3][:-1])
-        clm['ZABS']=zabs
-        fion=arr[4][:-1]
-        clm['ION']=fion
-        if len(arr[5][:-1].split(','))>1: #When there is a comma
-            NHI=float(arr[5][:-1].split(',')[0])
-            HIerr=float(arr[5][:-1].split(',')[1])
-            HI=[NHI,HIerr]
-            clm['HI']=HI
-        else:#When there is no comma (space)
-            NHI=float(arr[5][:-1].split()[0])
-            HIerr=float(arr[5][:-1].split()[1])
-            HI=[NHI,HIerr]
-            clm['HI']=HI
-        numlines=int(arr[6][:-1])#Number of lines that follow with 'by hand' abund
-        fixabund={}
-        if numlines>0:
-            for ii in range(numlines):
-                atom=int(arr[6+2*ii+1][:-1])
-                N=float(arr[6+2*ii+2][:-1].split(',')[0])
-                Nerr=float(arr[6+2*ii+2][:-1].split(',')[1])
-                inst=find_dflag(int(arr[6+2*ii+2][:-1].split(',')[2]))
-                fixabund[atom]=N, Nerr, inst
-        clm['FIX']=fixabund
-        vels={}
-        velline=6+2*numlines+1#line number where velocity limits start
-        if len(arr[velline:])>1:
-            for ii in range(len(arr[velline:])/2):
-                tmpdic={}
-                mflag=int(arr[velline+2*ii][:-1])
-                wl,vmin,vmax,dflag=arr[velline+2*ii+1][:-1].split(',')
+        # Redshift
+        self.zsys=float(arr[ii][:-1]) ; ii+=1
+        self.ion_fil=arr[ii].strip() ; ii+=1
+        # NHI
+        tmp = arr[ii].split(',') ; ii+=1
+        self.NHI=float(tmp[0])
+        self.sigNHI=float(tmp[1])
+        # Abundances by hand
+        numhand=int(arr[ii][:-1]) ; ii+=1
+        self.fixabund={}
+        if numhand>0:
+            for ii in range(ii,ii+numhand):
+                # Atomic number
+                atom=int(arr[ii][:-1]) ; ii+=1
+                # Values
+                tmp = arr[ii].split(',')
+                self.fixabund[atom]= float(tmp[0]), float(tmp[1]), int(tmp[2])
+        # Loop on lines
+        self.clm_lines = {}
+        while ii < (nline-1):
+            # No empty lines allowed
+            if len(arr[ii].strip()) == 0:
+               break
+            # Read flag
+            ionflg = int(arr[ii].strip()); ii+=1
+            # Read the rest
+            tmp = arr[ii].split(',') ; ii+=1
+            vmin = float(tmp[1].strip())
+            vmax = float(tmp[2].strip())
+            key = tmp[0].strip()
+            # Generate
+            self.clm_lines[key] = Ionic_Clm(float(tmp[0]))
+            self.clm_lines[key].analy['FLAGS'] = ionflg, int(tmp[3].strip())
+            # By-hand
+            if ionflg >= 8:
+                self.clm_lines[key].measure['N'] = 10.**vmin
+                self.clm_lines[key].measure['SIGN'] = (10.**(vmin+vmax) - 10.**(vmin-vmax))/2	      
+            else:
+                self.clm_lines[key].analy['VLIM']= [vmin,vmax]
 
-                """ 
-                wl,vmin,vmax,dflag=arr[velline+2*ii+1][:-1].split()
-                wl=wl.split(',')[0]
-                vmin=wl.split(',')[0]
-                vmax=wl.split(',')[0]
-                """
-                if vmin!='  -UU' and vmax!=' LL':
-                    restwvl=wl.split('.')[0]+'.'+str(wl.split('.')[1][0:3])
-                    elem,linedic,wl=get_elem(linelist='pybund_linelist.dat', linedic=linedic, wvl=restwvl)
-                    tmpdic['FLAGS']=find_mflag(mflag), find_dflag(dflag)
-                    tmpdic['VLIM']=[float(vmin),float(vmax)]
-                    tmpdic['ELEM']=elem
-                vels[wl]=tmpdic
-        clm['VELS']=vels
-        return clm, linedic
+# Converts Flag to Instrument
+def fits_flag(idx):
+        # Standard dict
+        fits_list = dict(zip(list(map((lambda x: 2**x),range(6))),
+                             ['HIRES','ESI','UVES','XX','MIKEb','MIKEr']))
+        try:
+            return fits_list[idx]
+        except:
+            return 'Unknown'
 
+        

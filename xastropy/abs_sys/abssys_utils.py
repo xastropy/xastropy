@@ -63,17 +63,23 @@ class Absline_System(object):
     """An absorption line system
 
     Attributes:
+        name: Coordinates
         coord: Coordinates
-        dec: Declination
         epoch: Epoch (e.g. 2000.0)
     """
 
     # Init
-    def __init__(self, abs_type, zabs=0., NHI=0., epoch=2000.):
+    def __init__(self, abs_type, zabs=0., NHI=0., epoch=2000.,tree=None):
         self.zabs = zabs
         self.NHI = NHI
         self.epoch = epoch
         self.abs_type = abs_type
+        # Tree
+        try:
+            type(self.tree)
+        except:
+            if tree == None: tree = ''
+            self.tree = tree
 
     def parse_dat_file(self,dat_file,verbose=False,flg_out=None):
         # Define
@@ -100,6 +106,11 @@ class Absline_System(object):
         except:
             ras, decs = ('00 00 00', '+00 00 00')
         self.coord = SkyCoord(ras, decs, 'icrs', unit=(u.hour, u.deg))
+
+        # Name
+        self.name = ('J'+
+                    self.coord.ra.to_string(unit=u.hour,sep='',pad=True)+
+                    self.coord.dec.to_string(sep='',pad=True))
 
         # zabs
         try: 
@@ -135,8 +146,8 @@ class Absline_System(object):
                         
 
     def __repr__(self):
-        return ('[Absline_System: %s %s %s, %g, NHI=%g]' %
-                (self.abs_type,
+        return ('[Absline_System: %s %s %s %s, %g, NHI=%g]' %
+                (self.name, self.abs_type,
                  self.coord.ra.to_string(unit=u.hour,sep=':',pad=True),
                  self.coord.dec.to_string(sep=':',pad=True),
                  self.zabs, self.NHI))

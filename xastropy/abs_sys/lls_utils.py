@@ -18,6 +18,7 @@ import pdb
 from astropy.io import ascii 
 from xastropy.abs_sys.abssys_utils import Absline_System
 from xastropy.abs_sys.ionic_clm import Ionic_Clm
+from xastropy.abs_sys.ionic_clm import Ionic_Clm_File
 from astropy import units as u
 
 # Class for LLS Absorption Lines 
@@ -29,15 +30,20 @@ class LLS_System(Absline_System):
     """
 
     # Initialize with a .dat file
-    def __init__(self, dat_file=None):
+    def __init__(self, dat_file=None, tree=None):
         # Generate with type
         Absline_System.__init__(self,'LLS')
-        #
+        # Over-ride tree?
+        if tree != None: self.tree = tree
+        # Parse .dat file
         if dat_file != None:
-            self.parse_dat_file(dat_file)
+            self.parse_dat_file(tree+dat_file)
+
         # Set tau_LL
         self.tau_LL = (10.**self.NHI)*6.3391597e-18 # Should replace with photocross
         self.ionic = {}
+
+        # Name
 
     # Modify standard dat parsing
     def parse_dat_file(self,dat_file):
@@ -76,6 +82,23 @@ class LLS_System(Absline_System):
             # Encode
             self.subsys = subsys
 
+    # Generate the Ionic dictionary
+    def get_ions(self):
+        lbls= map(chr, range(65, 91))
+        # Loop on Sub-Systems
+        for kk in range(self.nsub):
+            # Read .clm file
+            tmp = Ionic_Clm_File(self.tree+self.subsys[lbls[kk]]['Abundfile'])
+            # Fill it up
+            print('lls_utils.get_ions: The next line needs to be changed!')
+            Dumb_Class = type('Dummy_Object', (object,), {})
+            self.subsys[lbls[kk]]['Ionic'] = Dumb_Class()
+            self.subsys[lbls[kk]]['Ionic'].analy = tmp # THIS NEEDS TO BE CHANGED
+            
+            #pdb.set_trace()
+            #self.ionic[lbls[kk],
+        #pdb.set_trace()
+
     # Subsystem Dict
     def subsys(self):
         keys = (['zabs','NHI','NHIsig','NH','NHsig','logx','sigx','b','bsig','Abundfile',
@@ -94,9 +117,12 @@ class LLS_System(Absline_System):
 
 if __name__ == '__main__':
     # Test Absorption System
-    tmp1 = LLS_System(dat_file='/Users/xavier/LLS/Data/UM669.z2927.dat')
+    tmp1 = LLS_System(dat_file='Data/UM669.z2927.dat',
+                      tree='/Users/xavier/LLS/')
     print(tmp1)
     print(tmp1.subsys)
-    tmp1.ionic['1215.6701'] = Ionic_Clm(1215.6701)
-    print(tmp1.ionic)
-    print(tmp1.ionic['1215.6701'].wave)
+    tmp1.get_ions()
+    #tmp1.ionic['1215.6701'] = Ionic_Clm(1215.6701)
+    #print(tmp1.ionic)
+    #print(tmp1.ionic['1215.6701'].wave)
+    

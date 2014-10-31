@@ -11,6 +11,8 @@
 #;------------------------------------------------------------------------------
 """
 
+from __future__ import print_function
+
 # Import libraries
 import barak
 import numpy as np
@@ -24,7 +26,7 @@ import os, pdb
 #  from xastropy.spec import readwrite as xsr
 #  sp = xsr.readspec('SDSSJ114435.54+095921.7_F.fits',outfil='SDSSJ114435.54+095921.7.fits')
 #
-def readspec(specfil, inflg=None, efil=None, outfil=None, show_plot=0):
+def readspec(specfil, inflg=None, efil=None, outfil=None, show_plot=0, verbose=False):
     from xastropy.spec import readwrite as rw
     from xastropy.files import general as xfg
     #from xastropy.plotting import x_guis as xpxg
@@ -42,9 +44,9 @@ def readspec(specfil, inflg=None, efil=None, outfil=None, show_plot=0):
     # Read header
     datfil = xfg.chk_for_gz(specfil,chk=chk)
     if chk == 0:
-        print 'xastropy.spec.readwrite: File does not exist ', specfil
+        print('xastropy.spec.readwrite: File does not exist ', specfil)
         return -1
-    hdulist = fits.open(datfil)
+    hdulist = fits.open(os.path.expanduser(datfil))
 
     ## #################
     # Binary FITS table?
@@ -53,7 +55,7 @@ def readspec(specfil, inflg=None, efil=None, outfil=None, show_plot=0):
         flux_tags = ['SPEC','FLUX','FLAM','FX']
         fx = rw.get_table_column(flux_tags, hdulist)
         if fx == None:
-            print 'spec.readwrite: Binary FITS Table but no Flux tag'
+            print('spec.readwrite: Binary FITS Table but no Flux tag')
             return
         # Error
         sig_tags = ['ERROR','ERR','SIGMA_FLUX','FLAM_SIG']
@@ -61,7 +63,7 @@ def readspec(specfil, inflg=None, efil=None, outfil=None, show_plot=0):
         if sig == None:
             ivar_tags = ['IVAR']
             if ivar == None:
-                print 'spec.readwrite: Binary FITS Table but no error tags'
+                print('spec.readwrite: Binary FITS Table but no error tags')
                 return
             else: 
                 sig = fltarr(ivar.size)
@@ -71,13 +73,18 @@ def readspec(specfil, inflg=None, efil=None, outfil=None, show_plot=0):
         wave_tags = ['WAVE','WAVELENGTH','LAMBDA']
         wave = rw.get_table_column(wave_tags, hdulist)
         if wave == None:
-            print 'spec.readwrite: Binary FITS Table but no wavelength tag'
+            print('spec.readwrite: Binary FITS Table but no wavelength tag')
             return
     elif hdulist[0].header['NAXIS'] == 1: # Data in the zero extension
         # Look for wavelength info
         if 'CRVAL1' in hdulist[0].header.keys():
             # Flux
-            fx = hdulist[0].data.flatten()
+            if 'BZERO' in hdulist[0].header:
+                bzero = hdulist[0].header['BZERO']
+                if verbose: print('readwrite: Subtracting off BZERO', bzero)
+            else: bzero = 0.
+            fx = hdulist[0].data.flatten() - bzero
+            #pdb.set_trace()
             # Wavelength
             wave = rw.setwave(hdulist[0].header)
             # Error
@@ -91,18 +98,17 @@ def readspec(specfil, inflg=None, efil=None, outfil=None, show_plot=0):
                     else:
                         efil = xfg.chk_for_gz(specfil[0:ipos]+'e.fits')
             if efil != None:
-                sig=fits.getdata(efil)
-            #pdb.set_trace()
+                sig=fits.getdata(os.path.expanduser(efil))
             #xpxg.plot_1d_arrays(sig)
         else:  # ASSUMING MULTI-EXTENSION
             if len(hdulist) <= 2:
-                print 'spec.readwrite: No wavelength info but only 2 extensions!'
+                print('spec.readwrite: No wavelength info but only 2 extensions!')
                 return
             fx = hdulist[0].data.flatten()
             sig = hdulist[1].data.flatten()
             wave = hdulist[2].data.flatten()
     else:  # Should not be here
-        print 'spec.readwrite: Looks like an image'
+        print('spec.readwrite: Looks like an image')
         return dat
 
     # Generate Barak output
@@ -113,7 +119,10 @@ def readspec(specfil, inflg=None, efil=None, outfil=None, show_plot=0):
     # Plot?
     if show_plot:
             xpxg.plot_1d_arrays(wave,fx,sig,co)
+    # Generate
+    hd = hdulist[0].header
     sp = bs.Spectrum(wa=wave, fl=fx, er=sig, co=co, filename=specfil)
+    sp.header = hd
 
     # Write to disk?
     if outfil != None:

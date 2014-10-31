@@ -15,6 +15,7 @@ import barak
 import xastropy
 import numpy as np
 import matplotlib.pyplot as plt
+import pdb
 
 #name = "SDSSJ114436.66+095904.9"
 #redshift = 3.1483297
@@ -23,6 +24,52 @@ import matplotlib.pyplot as plt
 #contfit(name, sp, redshift,forest_divmult=3)
 
 
+#### ###############################
+#  Grabs spectrum pixels in a velocity window
+#
+def pixminmax(spec, zabs, wrest, vmnx):
+    """Pixels in velocity range
+    """
+
+    # Constants
+    spl = 2.99792458e5       # km/s
+
+    # Create VELO
+    velo = (spec.wa-wrest*(1+zabs))*spl/( wrest*(1+zabs) )
+
+    # Locate the values
+    pixmin = np.argmin( np.fabs( velo-vmnx[0] ) )
+    pixmax = np.argmin( np.fabs( velo-vmnx[1] ) )
+    #pdb.set_trace()
+
+    # Return
+    return range(pixmin,pixmax+1), velo
+
+
+#### ###############################
+#  Calls plotvel (Crighton)
+#    Adapted from N. Tejos scripts
+#
+def velplt(specfil):
+
+    # Imports
+    from plotspec import plotvel_util as pspv
+    reload(pspv)
+    import xastropy as xa
+    from subprocess import Popen
+
+    # Initialize
+    if 'f26_fil' not in locals():
+        f26_fil = 'tmp.f26'
+        command = ['touch',f26_fil]
+        print Popen(command)
+        print 'xa.spec.analysis.velplt: Generated a dummy f26 file -- ', f26_fil
+    if 'transfil' not in locals():
+        path = xa.__path__
+        transfil = path[0]+'/spec/Data/initial_search.lines'
+    
+    # Call
+    pspv.main([specfil, 'f26='+f26_fil, 'transitions='+transfil])
 
 #### ###############################
 #  Calls Barak routines to fit the continuum
@@ -90,27 +137,3 @@ def x_contifit(specfil, outfil=None, savfil=None, redshift=0., divmult=1, forest
     ## Output
     # Data file with continuum
 
-#### ###############################
-#  Calls plotvel (Crighton)
-#    Adapted from N. Tejos scripts
-#
-def velplt(specfil):
-
-    # Imports
-    from plotspec import plotvel_util as pspv
-    reload(pspv)
-    import xastropy as xa
-    from subprocess import Popen
-
-    # Initialize
-    if 'f26_fil' not in locals():
-        f26_fil = 'tmp.f26'
-        command = ['touch',f26_fil]
-        print Popen(command)
-        print 'xa.spec.analysis.velplt: Generated a dummy f26 file -- ', f26_fil
-    if 'transfil' not in locals():
-        path = xa.__path__
-        transfil = path[0]+'/spec/Data/initial_search.lines'
-    
-    # Call
-    pspv.main([specfil, 'f26='+f26_fil, 'transitions='+transfil])
