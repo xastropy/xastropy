@@ -21,7 +21,8 @@ from astropy.coordinates import SkyCoord
 
 # Class for Absorption Line Survey
 class Absline_Survey(object):
-    """A survey of absorption line systems
+    """A survey of absorption line systems. Each system may be a
+    collection of Abs_Line
 
     Attributes:
         nsys: An integer representing the number of absorption systems
@@ -110,7 +111,7 @@ class Absline_System(object):
         # Name
         self.name = ('J'+
                     self.coord.ra.to_string(unit=u.hour,sep='',pad=True)+
-                    self.coord.dec.to_string(sep='',pad=True))
+                    self.coord.dec.to_string(sep='',pad=True,alwayssign=True))
 
         # zabs
         try: 

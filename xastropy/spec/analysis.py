@@ -35,15 +35,15 @@ def pixminmax(spec, zabs, wrest, vmnx):
     spl = 2.99792458e5       # km/s
 
     # Create VELO
-    velo = (spec.wa-wrest*(1+zabs))*spl/( wrest*(1+zabs) )
+    spec.velo = (spec.wa-wrest*(1+zabs))*spl/( wrest*(1+zabs) )
 
     # Locate the values
-    pixmin = np.argmin( np.fabs( velo-vmnx[0] ) )
-    pixmax = np.argmin( np.fabs( velo-vmnx[1] ) )
+    pixmin = np.argmin( np.fabs( spec.velo-vmnx[0] ) )
+    pixmax = np.argmin( np.fabs( spec.velo-vmnx[1] ) )
     #pdb.set_trace()
 
     # Return
-    return range(pixmin,pixmax+1), velo
+    return range(pixmin,pixmax+1)
 
 
 #### ###############################
