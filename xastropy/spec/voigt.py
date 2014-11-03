@@ -56,19 +56,24 @@ def voigtking(vin,a):
 
 
 # The primary call
-def voigt_model(wave, line, npix=None):
+def voigt_model(wave, line, Npix=None):
     # Imports
     from barak import spec as bs
     from barak import convolve as bc
-    from xastropy.abs_sys import ionic_clm
+    from xastropy.spec import abs_line
 
     # Generate a new Spectrum 
     vmodel = bs.Spectrum(wa=wave)
 
     # Line input
-    if isinstance(line,ionic_clm.Ionic_Clm):
-        par[0] = line.measure['N']
-        raise ValueError('voigt: Not ready yet')
+    if isinstance(line,abs_line.Abs_Line):
+        par = np.zeros(6)
+        par[0] = line.attrib['N']
+        par[1] = line.z
+        par[2] = line.attrib['b']
+        par[3] = line.wrest
+        par[4] = line.atomic['fval']
+        par[5] = line.atomic['gamma']
     elif isinstance(line,list): par = line
     else: 
         raise ValueError('voigt: Unknown type for voigt line')
@@ -91,8 +96,8 @@ def voigt_model(wave, line, npix=None):
     vmodel.fl = np.exp(-1.0*tau)
 
     # Convolve
-    if npix is not None:
-        vmodel.gauss_smooth(npix=npix)
+    if Npix is not None:
+        vmodel.gauss_smooth(npix=Npix)
     
     # Return
     return vmodel

@@ -67,6 +67,8 @@ class Absline_System(object):
         name: Coordinates
         coord: Coordinates
         epoch: Epoch (e.g. 2000.0)
+        NHI: 
+        sigNHI: 
     """
 
     # Init
