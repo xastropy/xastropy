@@ -98,7 +98,7 @@ def readspec(specfil, inflg=None, efil=None, outfil=None, show_plot=0, verbose=F
                     else:
                         efil = xfg.chk_for_gz(specfil[0:ipos]+'e.fits')
             if efil != None:
-                sig=fits.getdata(os.path.expanduser(efil))
+                sig=fits.getdata(os.path.expanduser(efil)) - bzero
             #xpxg.plot_1d_arrays(sig)
         else:  # ASSUMING MULTI-EXTENSION
             if len(hdulist) <= 2:

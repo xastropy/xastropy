@@ -16,6 +16,7 @@ import xastropy
 import numpy as np
 import matplotlib.pyplot as plt
 import pdb
+from astropy import constants as const
 
 #name = "SDSSJ114436.66+095904.9"
 #redshift = 3.1483297
@@ -32,7 +33,7 @@ def pixminmax(spec, zabs, wrest, vmnx):
     """
 
     # Constants
-    spl = 2.99792458e5       # km/s
+    spl = const.c.to('km/s').value 
 
     # Create VELO
     spec.velo = (spec.wa-wrest*(1+zabs))*spl/( wrest*(1+zabs) )

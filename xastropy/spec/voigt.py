@@ -66,7 +66,7 @@ def voigt_model(wave, line, Npix=None):
     vmodel = bs.Spectrum(wa=wave)
 
     # Line input
-    if isinstance(line,abs_line.Abs_Line):
+    if isinstance(line,abs_line.Abs_Line):  # Single line as a Abs_Line Class
         par = np.zeros(6)
         par[0] = line.attrib['N']
         par[1] = line.z
@@ -74,7 +74,7 @@ def voigt_model(wave, line, Npix=None):
         par[3] = line.wrest
         par[4] = line.atomic['fval']
         par[5] = line.atomic['gamma']
-    elif isinstance(line,list): par = line
+    elif isinstance(line,list): par = line  # Single line as a vector
     else: 
         raise ValueError('voigt: Unknown type for voigt line')
 

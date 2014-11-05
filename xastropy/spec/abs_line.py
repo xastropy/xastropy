@@ -26,20 +26,26 @@ class Abs_Line(object):
         wrest: Rest wavelength (Ang)
     """
     # Init
-    def __init__(self, wrest, z=0., N=0.):
+    def __init__(self, wrest, z=0., N=0., fill=True):
         self.wrest = wrest
         self.z = z
 
         # Fill in atomic data from Table (default)
-        self.atomic = abs_line_data(self.wrest) # Dict
-        self.name = self.atomic['name']
+        # Dict : fval, gamma, A, Elow, Eup, Ex, j, name, wrest 
+        if fill is True:
+            self.atomic = abs_line_data(self.wrest) # Dict
+            self.name = self.atomic['name']
+        else: self.name = ''
 
         # Attribute dict
-        self.attrib = {'N': 0., 'Nsig': 0., 'b': 0., 'bsig': 0.}
+        self.attrib = {'N': 0., 'Nsig': 0., 'flgN': 0,
+                       'b': 0., 'bsig': 0.,
+                       'EW': 0., 'EWsig': 0., 'flgEW': 0}
 
     # Printing
     def __repr__(self):
-        return '[Abs_Line: %s, %.4f]' % (self.name, self.wrest)
+        return '[%s: %s, %.4f]' % (self.__class__.__name__,
+                                   self.name, self.wrest)
 
 # Class for Absorption Line List 
 class Abs_Line_List(object):
@@ -81,7 +87,7 @@ def abs_line_data(wrest,datfil=None, ret_dict=True):
     """
     #
     if datfil == None:
-        datfil = xastropy.__path__[0]+'/spec/Data/spec_atomic_lines.fits'
+        datfil = xastropy.__path__[0]+'/data/atomic/spec_atomic_lines.fits'
     # Read
     hdu = fits.open(datfil)
     data = hdu[1].data
@@ -98,7 +104,7 @@ def abs_line_data(wrest,datfil=None, ret_dict=True):
         if ret_dict == True:
             return dict(zip(data.dtype.names,row))
         else:
-            raise Exception('abs_line_data: Not read for this..')
+            raise Exception('abs_line_data: Not ready for this..')
     else:
         raise ValueError('abs_line_data: %g appears %d times in our table %s' % (wrest,nm,datfil))
     
@@ -110,8 +116,8 @@ def llist_file(llist):
 
     # Get the right file
     if os.path.isfile(llist): fil = llist
-    elif os.path.isfile(xastropy.__path__[0]+'/spec/Data/'+llist):
-        fil = os.path.isfile(xastropy.__path__[0]+'/spec/Data/'+llist)
+    elif os.path.isfile(xastropy.__path__[0]+'/data/atomic/'+llist):
+        fil = os.path.isfile(xastropy.__path__[0]+'/data/atomic/'+llist)
     else:
         # XIDL?
         fil = os.getenv('XIDL_DIR')+'/Spec/Lines/Lists/'+llist
@@ -168,7 +174,7 @@ def mk_line_list_fits_table(outfil=None,XIDL=True):
     
     # Output file
     if outfil == None:
-        outfil = xastropy.__path__[0]+'/spec/Data/spec_atomic_lines.fits'
+        outfil = xastropy.__path__[0]+'/data/atomic/spec_atomic_lines.fits'
 
     # Header
     prihdr = fits.Header()
