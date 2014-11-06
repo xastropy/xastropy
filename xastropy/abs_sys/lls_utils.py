@@ -14,12 +14,15 @@
 from __future__ import print_function
 
 import numpy as np
-import pdb
-from astropy.io import ascii 
-from xastropy.abs_sys.abssys_utils import Absline_System
-from xastropy.abs_sys.ionic_clm import Ionic_Clm
-from xastropy.abs_sys.ionic_clm import Ionic_Clm_File
+from xastropy.xutils import xdebug as xdb
+
 from astropy import units as u
+from astropy.io import ascii 
+
+from xastropy.abs_sys.abssys_utils import Absline_System
+from xastropy.abs_sys.ionic_clm import Ionic_Clm, Ionic_Clm_File
+from xastropy.spec import abs_line, voigt
+from xastropy.atomic import ionization as xatomi
 
 # Class for LLS Absorption Lines 
 class LLS_System(Absline_System):
@@ -82,6 +85,34 @@ class LLS_System(Absline_System):
             # Encode
             self.subsys = subsys
 
+    # #############
+    def fill_lls_lines(self, bval=20.):
+        """
+        Generate a line list for an LLS.
+        Goes into self.lls_lines 
+
+        Parameters
+        ----------
+        bval : float (20.)  Doppler parameter in km/s
+        """
+        from barak import absorb as ba
+
+        atom = ba.readatom()
+        self.lls_lines = []
+        for line in atom['HI']:
+            tmp = abs_line.Abs_Line(line['wa'],fill=False)
+            # Atomic data
+            tmp.atomic = {'fval': line['osc'], 'gamma': line['gam'],
+                          'name': 'HI %s' % line['wa'], 'wrest': line['wa']}
+            tmp.name = tmp.atomic['name']
+            # Attributes
+            tmp.attrib['N'] = self.NHI
+            tmp.attrib['b'] = bval
+            tmp.z = self.zabs
+
+            self.lls_lines.append(tmp)
+            #xdb.set_trace()
+        
     # Generate the Ionic dictionary
     def get_ions(self):
         lbls= map(chr, range(65, 91))
@@ -98,6 +129,56 @@ class LLS_System(Absline_System):
             #pdb.set_trace()
             #self.ionic[lbls[kk],
         #pdb.set_trace()
+
+    # Absorption model of the LLS (HI only)
+    def flux_model(self,spec,smooth=0):
+        """
+        Generate a LLS model given an input spectrum
+        Output flux is in the .fl attribute
+
+        Parameters:
+          spec:  Barak Spectrum (will migrate to specutils.Spectrum1D)
+          smooth : (0) Number of pixels to smooth by
+        """
+        
+        # ########
+        # LLS first
+
+        # Energies in LLS rest-frame
+        wv_rest = spec.wa * u.AA / (self.zabs+1)
+        energy = wv_rest.to(u.eV, equivalencies=u.spectral())
+
+        # Get photo_cross and calcualte tau
+        tau_LL = (10.**self.NHI / u.cm**2) * xatomi.photo_cross(1,1,energy)
+
+        # ########
+        # Now the Lyman series
+
+        # Check for lines
+        if 'lls_lines' not in self.__dict__.keys():
+            self.fill_lls_lines()
+
+        #xdb.set_trace()
+        tau_Lyman = voigt.voigt_model(spec.wa, self.lls_lines, flg_ret=2)
+
+        # Combine
+        tau_model = tau_LL + tau_Lyman
+
+        # Kludge around the limit
+        pix_LL = np.argmin( np.fabs( wv_rest- 911.3*u.AA ) )
+        pix_kludge = np.where( (wv_rest > 911.5*u.AA) & (wv_rest < 912.8*u.AA) )[0]
+        tau_model[pix_kludge] = tau_model[pix_LL]
+        
+        # Fill in flux
+        spec.fl = np.exp(-1. * tau_model)
+
+        # Smooth?
+        if smooth > 0:
+            spec.gauss_smooth(npix=smooth)
+
+        #spec.qck_plot()
+        #xdb.set_trace()
+
 
     # Subsystem Dict
     def subsys(self):
@@ -116,8 +197,11 @@ class LLS_System(Absline_System):
                  self.zabs, self.NHI, self.MH))
 
 if __name__ == '__main__':
+
+    from xastropy.plotting.x_guis import plot_1d_arrays as xplot
+
     # Test Absorption System
-    tmp1 = LLS_System(dat_file='Data/UM669.z2927.dat',
+    tmp1 = LLS_System(dat_file='Data/HE0940-1050.z2916.dat',
                       tree='/Users/xavier/LLS/')
     print(tmp1)
     print(tmp1.subsys)
@@ -126,3 +210,13 @@ if __name__ == '__main__':
     #print(tmp1.ionic)
     #print(tmp1.ionic['1215.6701'].wave)
     
+    tmp1.fill_lls_lines()
+    #print(tmp1.lls_lines)
+
+    from barak import spec as bs
+    spec = bs.Spectrum(wa=np.linspace(3400.0,5000.0,10000))
+
+    tmp1.flux_model(spec, smooth=4)
+    spec.qck_plot()
+
+    print('lls_utils: All done testing..')

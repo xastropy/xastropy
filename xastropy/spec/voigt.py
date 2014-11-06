@@ -15,7 +15,10 @@ from __future__ import print_function
 
 import numpy as np
 import sys
-import os, pdb
+import os
+from xastropy.xutils import xdebug as xdb
+
+from xastropy.spec import abs_line
 
 # The standard King model
 def voigtking(vin,a):
@@ -56,15 +59,34 @@ def voigtking(vin,a):
 
 
 # The primary call
-def voigt_model(wave, line, Npix=None):
+def voigt_model(spec, line, Npix=None, flg_ret=1):
+    """Generates a Voigt model from a line or list of lines
+
+    Parameters:
+        spec: wave array or Spectrum
+        line: Abs_Line, List of Abs_line, or array of parameters
+        flg_ret : int (1)  Byte-wise Flag for return
+          1: vmodel
+          2: tau
+
+    ToDo:
+        1.  May need to more finely sample the wavelength array
+
+    JXP 01 Nov 2014
+    """
     # Imports
     from barak import spec as bs
     from barak import convolve as bc
-    from xastropy.spec import abs_line
+    import copy
 
-    # Generate a new Spectrum 
-    vmodel = bs.Spectrum(wa=wave)
-
+    # Spectrum input
+    if isinstance(spec,np.ndarray):  # Standard wavelength array
+        vmodel = bs.Spectrum(wa=spec)
+    elif isinstance(spec,bs.Spectrum):
+        vmodel = copy.deepcopy(spec)
+    else:
+        raise ValueError('voigt_model: Unknown input')
+        
     # Line input
     if isinstance(line,abs_line.Abs_Line):  # Single line as a Abs_Line Class
         par = np.zeros(6)
@@ -74,25 +96,35 @@ def voigt_model(wave, line, Npix=None):
         par[3] = line.wrest
         par[4] = line.atomic['fval']
         par[5] = line.atomic['gamma']
-    elif isinstance(line,list): par = line  # Single line as a vector
+    elif isinstance(line,list):
+        if isinstance(line[0],abs_line.Abs_Line):  # List of Abs_Line
+            tau = np.zeros(len(vmodel.wa))
+            for iline in line:
+                tau += voigt_model(vmodel.wa, iline, Npix=None, flg_ret=2) 
+                #xdb.set_trace()
+        else:
+            par = line  # Single line as a vector
     else: 
         raise ValueError('voigt: Unknown type for voigt line')
 
-    # Set
-    cold = 10.0**par[0]
-    zp1=par[1]+1.0
-    wv=par[3]*1.0e-8
-    bl=par[2]*wv/2.99792458E5
-    a=par[5]*wv*wv/(3.76730313461770655E11*bl)
-    cns=wv*wv*par[4]/(bl*2.002134602291006E12)
+    # tau
+    if 'tau' not in locals():
+        cold = 10.0**par[0]
+        zp1=par[1]+1.0
+        wv=par[3]*1.0e-8
+        bl=par[2]*wv/2.99792458E5
+        a=par[5]*wv*wv/(3.76730313461770655E11*bl)
+        cns=wv*wv*par[4]/(bl*2.002134602291006E12)
 
-    # Converting to Voigt units
-    cne=cold*cns
-    ww=(wave*1.0e-8)/zp1
-    v=wv*ww*((1.0/ww)-(1.0/wv))/bl
+        # Converting to Voigt units
+        cne=cold*cns
+        ww=(vmodel.wa*1.0e-8)/zp1
+        v=wv*ww*((1.0/ww)-(1.0/wv))/bl
 
-    # Voigt
-    tau=cne * voigtking(v,a)
+        # Voigt
+        tau = cne * voigtking(v,a)
+
+    # Flux
     vmodel.fl = np.exp(-1.0*tau)
 
     # Convolve
@@ -100,27 +132,74 @@ def voigt_model(wave, line, Npix=None):
         vmodel.gauss_smooth(npix=Npix)
     
     # Return
-    return vmodel
+    ret_val = []
+    if flg_ret % 2 == 1: ret_val.append(vmodel)
+    if flg_ret % 4 >= 2: ret_val.append(tau)
+    #xdb.set_trace()
+    if len(ret_val) == 1: ret_val = ret_val[0]
+    return ret_val
 
+
+
+
+
+
+
+
+
+
+# ##################################################
+# ##################################################
+# ##################################################
 # Command line execution for testing
+# ##################################################
 if __name__ == '__main__':
     from matplotlib import pyplot as plt
     from barak import spec as bs
 
+    flg_test = 32
+
     wave = np.linspace(1260.0,1285.0,10000)
 
-    # Parameter driven (Lya)
+    # Single line (Lya)
+    zabs = 0.05
+    line = abs_line.Abs_Line(1215.6701)
+    line.z = zabs
+    line.attrib['N'] = 20.0
+    line.attrib['b'] = 50.0
+
+    if flg_test % 2 == 1:
+        print('voigt: Single line test')
+        vmodel = voigt_model(wave, line, Npix=None)  # No smoothing
+        vmodel.qck_plot()
+
+    # Two lines (Lya)
+    line.attrib['N'] = 13.0
+    line.attrib['b'] = 20.0
+    line2 = abs_line.Abs_Line(1215.6701)
+    line2.z = zabs + 5e-3
+    line2.attrib['N'] = 13.5
+    line2.attrib['b'] = 20.0
+    lines = [line,line2]
+    if flg_test % 4 >= 2:
+        for item in lines: print('z = %g' % item.z)
+        vmodel = voigt_model(wave, lines, Npix=None)  # No smoothing
+        print('voigt: Multiple lines test')
+        vmodel.qck_plot()
+
+    # List (Lya)
     wrest=1215.6701
     fval=0.416
     gamma=6.265E8
 
-    zabs = 0.05
     NHI = 20.0
     doppler = 50.0 # km/s
 
     line = [NHI,zabs,doppler,wrest,fval,gamma]
-    vmodel = voigt_model(wave, line, npix=None)  # No smoothing
-    vmodel.qck_plot()
+    if flg_test % 8 >= 4:
+        print('voigt: Array test')
+        vmodel = voigt_model(wave, line, Npix=None)  # No smoothing
+        vmodel.qck_plot()
 
     # Ionic
     #plt.clf()
@@ -134,8 +213,25 @@ if __name__ == '__main__':
     line = [coldens,zabs,doppler,wrest,fval,gamma]
 
     plt.clf()
-    vmodel = voigt_model(wave, line, npix=None)  # No smoothing
-    vmodel.qck_plot(show=False, drawstyle='steps-mid')
-    vmodel2 = voigt_model(wave, line, npix=4.)  # Smoothing
-    vmodel2.qck_plot()
+    if flg_test % 16 >= 8:
+        vmodel = voigt_model(wave, line, Npix=None)  # No smoothing
+        vmodel.qck_plot(show=False, drawstyle='steps-mid')
+        vmodel2 = voigt_model(wave, line, Npix=4.)  # Smoothing
+        print('voigt: Smooth test')
+        vmodel2.qck_plot()
 
+    # Test pass back
+    if flg_test % 32 >= 16:
+        vmodel,tau = voigt_model(wave, line, Npix=None, flg_ret=3)  # No smoothing
+        vmodel.qck_plot()
+        xdb.xplot(wave,tau)
+        print('voigt: Passing test')
+
+    # Test spec input
+    if flg_test % 64 >= 32:
+        spec = bs.Spectrum(wa=wave)
+        vmodel = voigt_model(spec, line, Npix=None, flg_ret=1)  # No smoothing
+        vmodel.qck_plot()
+        print('voigt: Spec input test')
+
+    print('voigt: All done testing..')

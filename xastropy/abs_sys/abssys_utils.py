@@ -18,7 +18,6 @@ import pdb
 from astropy.io import ascii 
 from astropy import units as u
 from astropy.coordinates import SkyCoord
-from xastropy.spec import abs_line
 
 # Class for Absorption Line Survey
 class Absline_Survey(object):
@@ -148,23 +147,6 @@ class Absline_System(object):
             return ret_val
         
     # #############
-    def fill_lls_lines(self):
-        """
-        Generate a line list for an LLS
-        """
-        from barak import absorb as ba
-
-        atom = ba.readatom()
-        self.lls_lines = []
-        for line in atom['HI']:
-            tmp = abs_line.Abs_Line(line['wa'],fill=False)
-            tmp.atomic = {'fval': line['osc'], 'gamma': line['gam'],
-                          'name': 'HI %s' % line['wa'], 'wrest': line['wa']}
-            tmp.name = tmp.atomic['name']
-            self.lls_lines.append(tmp)
-            #pdb.set_trace()
-        
-    # #############
     def __repr__(self):
         return ('[Absline_System: %s %s %s %s, %g, NHI=%g]' %
                 (self.name, self.abs_type,
@@ -181,8 +163,6 @@ if __name__ == '__main__':
     tmp1.parse_dat_file('/Users/xavier/LLS/Data/UM669.z2927.dat')
     print(tmp1)
 
-    tmp1.fill_lls_lines()
-    print(tmp1.lls_lines)
     #pdb.set_trace()
 
     # Test the Survey

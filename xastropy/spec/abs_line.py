@@ -13,9 +13,11 @@
 from __future__ import print_function
 
 import numpy as np
-import os, pdb
+import os, pdb, imp
 from astropy.io import fits, ascii
-import xastropy
+
+# Path for xastropy
+xa_path = imp.find_module('xastropy')[1]
 
 # Class for Absorption Line 
 class Abs_Line(object):
@@ -87,7 +89,7 @@ def abs_line_data(wrest,datfil=None, ret_dict=True):
     """
     #
     if datfil == None:
-        datfil = xastropy.__path__[0]+'/data/atomic/spec_atomic_lines.fits'
+        datfil = xa_path+'/data/atomic/spec_atomic_lines.fits'
     # Read
     hdu = fits.open(datfil)
     data = hdu[1].data
@@ -116,8 +118,8 @@ def llist_file(llist):
 
     # Get the right file
     if os.path.isfile(llist): fil = llist
-    elif os.path.isfile(xastropy.__path__[0]+'/data/atomic/'+llist):
-        fil = os.path.isfile(xastropy.__path__[0]+'/data/atomic/'+llist)
+    elif os.path.isfile(xa_path+'/data/atomic/'+llist):
+        fil = os.path.isfile(xa_path+'/data/atomic/'+llist)
     else:
         # XIDL?
         fil = os.getenv('XIDL_DIR')+'/Spec/Lines/Lists/'+llist
@@ -174,7 +176,7 @@ def mk_line_list_fits_table(outfil=None,XIDL=True):
     
     # Output file
     if outfil == None:
-        outfil = xastropy.__path__[0]+'/data/atomic/spec_atomic_lines.fits'
+        outfil = xa_path+'/data/atomic/spec_atomic_lines.fits'
 
     # Header
     prihdr = fits.Header()
@@ -198,4 +200,7 @@ def mk_line_list_fits_table(outfil=None,XIDL=True):
 #  Also generates spec_lines.fits
 if __name__ == '__main__':
     # Generate spec_lines.fits
-    mk_line_list_fits_table()
+    #mk_line_list_fits_table()
+
+    # Line
+    line = Abs_Line(1215.6701)
