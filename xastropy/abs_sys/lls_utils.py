@@ -13,8 +13,9 @@
 
 from __future__ import print_function
 
+import os, copy
+
 import numpy as np
-from xastropy.xutils import xdebug as xdb
 
 from astropy import units as u
 from astropy.io import ascii 
@@ -23,6 +24,7 @@ from xastropy.abs_sys.abssys_utils import Absline_System
 from xastropy.abs_sys.ionic_clm import Ionic_Clm, Ionic_Clm_File
 from xastropy.spec import abs_line, voigt
 from xastropy.atomic import ionization as xatomi
+from xastropy.xutils import xdebug as xdb
 
 # Class for LLS Absorption Lines 
 class LLS_System(Absline_System):
@@ -134,11 +136,13 @@ class LLS_System(Absline_System):
     def flux_model(self,spec,smooth=0):
         """
         Generate a LLS model given an input spectrum
-        Output flux is in the .fl attribute
 
         Parameters:
           spec:  Barak Spectrum (will migrate to specutils.Spectrum1D)
           smooth : (0) Number of pixels to smooth by
+
+        Returns:
+          Output model is passed back as a Spectrum 
         """
         
         # ########
@@ -170,11 +174,15 @@ class LLS_System(Absline_System):
         tau_model[pix_kludge] = tau_model[pix_LL]
         
         # Fill in flux
-        spec.fl = np.exp(-1. * tau_model)
+        model = copy.deepcopy(spec)
+        model.fl = np.exp(-1. * tau_model)
 
         # Smooth?
         if smooth > 0:
-            spec.gauss_smooth(npix=smooth)
+            model.gauss_smooth(npix=smooth)
+
+        # Return
+        return model
 
         #spec.qck_plot()
         #xdb.set_trace()
@@ -191,10 +199,11 @@ class LLS_System(Absline_System):
 
     # Output
     def __repr__(self):
-        return ('[LLS_System: %s %s, %g, NHI=%g, M/H=%g]' %
-                (self.coord.ra.to_string(unit=u.hour,sep=':',pad=True),
+        return ('[%s: %s %s, %g, NHI=%g, tau=%g, M/H=%g]' %
+                (self.__class__.__name__,
+                 self.coord.ra.to_string(unit=u.hour,sep=':',pad=True),
                  self.coord.dec.to_string(sep=':',pad=True),
-                 self.zabs, self.NHI, self.MH))
+                 self.zabs, self.NHI, self.tau_LL, self.MH))
 
 if __name__ == '__main__':
 
@@ -216,7 +225,7 @@ if __name__ == '__main__':
     from barak import spec as bs
     spec = bs.Spectrum(wa=np.linspace(3400.0,5000.0,10000))
 
-    tmp1.flux_model(spec, smooth=4)
-    spec.qck_plot()
+    model = tmp1.flux_model(spec, smooth=4)
+    model.qck_plot()
 
     print('lls_utils: All done testing..')
