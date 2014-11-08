@@ -20,8 +20,8 @@ import numpy as np
 from astropy import units as u
 from astropy.io import ascii 
 
-from xastropy.abs_sys.abssys_utils import Absline_System
-from xastropy.abs_sys.ionic_clm import Ionic_Clm, Ionic_Clm_File
+from abssys_utils import Absline_System
+from ionic_clm import Ionic_Clm, Ionic_Clm_File
 from xastropy.spec import abs_line, voigt
 from xastropy.atomic import ionization as xatomi
 from xastropy.xutils import xdebug as xdb
@@ -205,13 +205,31 @@ class LLS_System(Absline_System):
                  self.coord.dec.to_string(sep=':',pad=True),
                  self.zabs, self.NHI, self.tau_LL, self.MH))
 
-if __name__ == '__main__':
 
-    from xastropy.plotting.x_guis import plot_1d_arrays as xplot
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## #################################    
+## #################################    
+## TESTING
+## #################################    
+if __name__ == '__main__':
 
     # Test Absorption System
     tmp1 = LLS_System(dat_file='Data/HE0940-1050.z2916.dat',
-                      tree='/Users/xavier/LLS/')
+                      tree=os.environ.get('LLSTREE'))
     print(tmp1)
     print(tmp1.subsys)
     tmp1.get_ions()

@@ -1,6 +1,6 @@
-import abs_sys
 import atomic
 import files
+import igm
 import obs
 import phot
 import plotting
