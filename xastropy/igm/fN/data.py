@@ -17,7 +17,10 @@ import numpy as np
 import os
 from xastropy.xutils import xdebug as xdb
 from xastropy.spec import abs_line, voigt
+from model import fN_Model
+
 from astropy.io import fits
+
 
 #from astropy.io import fits, ascii
 
@@ -131,29 +134,31 @@ def fn_data_from_fits(fits_file):
 
     # Return
     return fN_cs
-        
 
-## #################################    
-## #################################    
-## TESTING
-## #################################    
-if __name__ == '__main__':
+# Reproduce the main figure from P14 (data only)
+def tst_fn_data(fN_model=None):
+    """ Make a plot like the final figure from P14 
 
-    # Read a dataset
-    fn_file = os.environ.get('XIDL_DIR')+'IGM/fN_empirical/fn_constraints_z2.5_vanilla.fits'
-    k13r13_file = os.environ.get('XIDL_DIR')+'IGM/fN_empirical/fn_constraints_K13R13_vanilla.fits'
-    all_fN_cs = fn_data_from_fits([fn_file,k13r13_file])
-    print(all_fN_cs)
-    #for fN_c in all_fN_cs: print(fN_c)
+    Parameters:
+       noshow: boolean (False)
+          Show the plot?
 
-    # Reproduce the main figure from P14 (data only)
+    JXP 07 Nov 2014
+    """
+
     import matplotlib as mpl
-    mpl.rcParams['font.family'] = 'STIXGeneral-Regular'
-    #mpl.rcParams['font.family'] = 'stixgeneral'
+    mpl.rcParams['font.family'] = 'STIXGeneral-Regular' # Not for PDF
+    #mpl.rcParams['font.family'] = 'stixgeneral'  # For PDF
     from matplotlib import pyplot as plt
 
+    # fN data
+    fn_file = os.environ.get('XIDL_DIR')+'IGM/fN_empirical/fn_constraints_z2.5_vanilla.fits'
+    k13r13_file = os.environ.get('XIDL_DIR')+'IGM/fN_empirical/fn_constraints_K13R13_vanilla.fits'
+    n12_file = os.environ.get('XIDL_DIR')+'IGM/fN_empirical/fn_constraints_N12_vanilla.fits'
+    all_fN_cs = fn_data_from_fits([fn_file,k13r13_file,n12_file])
+
     # Remove K12
-    fN_cs = [fN_c for fN_c in all_fN_cs if fN_c.ref != 'K02']
+    fN_cs = [fN_c for fN_c in all_fN_cs if ((fN_c.ref != 'K02') & (fN_c.ref != 'PW09'))]
     fN_dtype = [fc.fN_dtype for fc in fN_cs]
 
     fig = plt.figure(figsize=(8, 5))
@@ -179,6 +184,15 @@ if __name__ == '__main__':
                              label=fN_c.ref)
     main.legend(loc='lower left', numpoints=1)
 
+    # Model?
+    if isinstance(fN_model,fN_Model):
+        xplt = 12.01 + 0.01*np.arange(1100)
+        yplt = fN_model.eval(2.4, xplt)
+        #xdb.xxp.printcol(xplt,yplt)
+        #xdb.set_trace()
+        main.plot(xplt,yplt,'-',color='black')
+        
+
     # Extras
     inset = fig.add_axes( [0.55, 0.6, 0.25, 0.25] ) # xypos, xy-size
     inset.set_ylabel('Value') # LHS
@@ -187,6 +201,7 @@ if __name__ == '__main__':
     inset.xaxis.set_major_formatter(plt.FixedFormatter(['',r'$\tau_{\rm eff}^{\rm Ly\alpha}$',
                                                         r'$\ell(X)_{\rm LLS}$',
                                                         r'$\lambda_{\rm mfp}^{912}$', '']))
+    inset.set_ylim(0., 0.6)
 
     # tau_eff
     try:
@@ -215,5 +230,23 @@ if __name__ == '__main__':
 
     # Show
     plt.show()
+        
+
+## #################################    
+## #################################    
+## TESTING
+## #################################    
+if __name__ == '__main__':
+
+    # Read a dataset
+    fn_file = os.environ.get('XIDL_DIR')+'IGM/fN_empirical/fn_constraints_z2.5_vanilla.fits'
+    k13r13_file = os.environ.get('XIDL_DIR')+'IGM/fN_empirical/fn_constraints_K13R13_vanilla.fits'
+    n12_file = os.environ.get('XIDL_DIR')+'IGM/fN_empirical/fn_constraints_N12_vanilla.fits'
+    all_fN_cs = fn_data_from_fits([fn_file,k13r13_file,n12_file])
+    print(all_fN_cs)
+    #for fN_c in all_fN_cs: print(fN_c)
+
+    # Plot
+    tst_fn_data()
 
     print('fN.data: All done testing..')
