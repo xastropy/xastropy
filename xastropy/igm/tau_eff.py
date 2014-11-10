@@ -109,7 +109,7 @@ def ew_teff_lyman(ilambda, zem, fN_model, NHI_MIN=11.5, NHI_MAX=22.0, N_eval=500
             #xdb.set_trace()
             dxdz = xigmu.cosm_xz(zeval,cosmo=cosmo,flg=1)
         else: dxdz = 1. # Code is using f(N,z)
-        print('dxdz = %g' % dxdz)
+        #print('dxdz = %g' % dxdz)
 
         # Get EW values (could pack these all together)
         idx = np.where(EW_spline['wrest'] == line)[0]
@@ -126,7 +126,7 @@ def ew_teff_lyman(ilambda, zem, fN_model, NHI_MIN=11.5, NHI_MAX=22.0, N_eval=500
         # Sum
         intgrnd = 10.**(log_fnX) * dxdz * dz * Nval
         teff_lyman[qq] = np.sum(intgrnd) * dlgN * np.log(10.)
-        xdb.set_trace()
+        #xdb.set_trace()
 
         # Debug
         if debug==True:
@@ -136,7 +136,7 @@ def ew_teff_lyman(ilambda, zem, fN_model, NHI_MIN=11.5, NHI_MAX=22.0, N_eval=500
             #writecol, 'debug_file'+strtrim(qq,2)+'.dat',  lgNval, restEW, log_fnX
             xdb.set_trace()
 
-    xdb.set_trace()
+    #xdb.set_trace()
     return np.sum(teff_lyman)
      
     
@@ -279,6 +279,6 @@ if __name__ == '__main__':
     # tau_eff
     lamb = 1215.6701*(1+2.4)
     teff = ew_teff_lyman(lamb, 2.5, fN_model, NHI_MIN=12., NHI_MAX=17.)
-    print('teff at z=2.4 = %g' % teff)
+    print('teff at z=2.4 :: %g' % teff)
     #teff = ew_teff_lyman(3400., 2.4, fN_model)
     #print('teff at 3400A = %g' % teff)
