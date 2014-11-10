@@ -17,7 +17,7 @@ import numpy as np
 import os
 from xastropy.xutils import xdebug as xdb
 from xastropy.spec import abs_line, voigt
-from model import fN_Model
+#from xastropy.igm.fN.model import fN_Model
 
 from astropy.io import fits
 
@@ -148,6 +148,8 @@ def tst_fn_data(fN_model=None):
 
     import matplotlib as mpl
     mpl.rcParams['font.family'] = 'STIXGeneral-Regular' # Not for PDF
+    mpl.rcParams['lines.linewidth'] = 2
+
     #mpl.rcParams['font.family'] = 'stixgeneral'  # For PDF
     from matplotlib import pyplot as plt
 
@@ -174,6 +176,7 @@ def tst_fn_data(fN_model=None):
             # Length
             ip = range(fN_c.data['NPT'])
             val = np.where(fN_c.data['FN'][ip] > -90)[0]
+            #xdb.set_trace()
             if len(val) > 0:
                 #xdb.set_trace()
                 ipv = np.array(ip)[val]
@@ -181,11 +184,11 @@ def tst_fn_data(fN_model=None):
                 xerror = [ fN_c.data['BINS'][1,ipv]-xval, xval-fN_c.data['BINS'][0,ipv] ]
                 yerror = [ fN_c.data['SIG_FN'][1,ipv], fN_c.data['SIG_FN'][0,ipv] ] # Inverted!
                 main.errorbar(xval, fN_c.data['FN'][ipv], xerr=xerror, yerr=yerror, fmt='o',
-                             label=fN_c.ref)
+                             label=fN_c.ref,capthick=2)
     main.legend(loc='lower left', numpoints=1)
 
     # Model?
-    if isinstance(fN_model,fN_Model):
+    if fN_model != None: #isinstance(fN_model,fN_Model):
         xplt = 12.01 + 0.01*np.arange(1100)
         yplt = fN_model.eval(2.4, xplt)
         #xdb.xxp.printcol(xplt,yplt)
@@ -194,6 +197,8 @@ def tst_fn_data(fN_model=None):
         
 
     # Extras
+    #mpl.rcParams['lines.capthick'] = 2
+
     inset = fig.add_axes( [0.55, 0.6, 0.25, 0.25] ) # xypos, xy-size
     inset.set_ylabel('Value') # LHS
     inset.xaxis.set_major_locator(plt.FixedLocator(range(5)))
@@ -203,19 +208,23 @@ def tst_fn_data(fN_model=None):
                                                         r'$\lambda_{\rm mfp}^{912}$', '']))
     inset.set_ylim(0., 0.6)
 
+
     # tau_eff
     try:
         itau = fN_dtype.index('teff') # Passes back the first one
     except:
         raise ValueError('fN.data: Missing teff type')
-    inset.errorbar(1, fN_cs[itau].data['TEFF'], yerr=fN_cs[itau].data['SIG_TEFF'], fmt='_')
+    #xdb.set_trace()
+    inset.errorbar(1, fN_cs[itau].data['TEFF'], yerr=fN_cs[itau].data['SIG_TEFF'],
+                   fmt='_', capthick=2)
 
     # LLS constraint
     try:
         iLLS = fN_dtype.index('LLS') # Passes back the first one
     except:
         raise ValueError('fN.data: Missing LLS type')
-    inset.errorbar(2, fN_cs[iLLS].data['LX'], yerr=fN_cs[iLLS].data['SIG_LX'], fmt='_')
+    inset.errorbar(2, fN_cs[iLLS].data['LX'], yerr=fN_cs[iLLS].data['SIG_LX'],
+                   fmt='_', capthick=2)
 
     # MFP constraint
     inset2 = inset.twinx()
@@ -223,7 +232,8 @@ def tst_fn_data(fN_model=None):
         iMFP = fN_dtype.index('MFP') # Passes back the first one
     except:
         raise ValueError('fN.data: Missing MFP type')
-    inset2.errorbar(3, fN_cs[iMFP].data['MFP'], yerr=fN_cs[iMFP].data['SIG_MFP'], fmt='_')
+    inset2.errorbar(3, fN_cs[iMFP].data['MFP'], yerr=fN_cs[iMFP].data['SIG_MFP'], 
+                   fmt='_', capthick=2)
     inset2.set_xlim(0,4)
     inset2.set_ylim(0,350)
     inset2.set_ylabel('(Mpc)')
@@ -232,6 +242,10 @@ def tst_fn_data(fN_model=None):
     plt.show()
         
 
+
+
+
+    
 ## #################################    
 ## #################################    
 ## TESTING
