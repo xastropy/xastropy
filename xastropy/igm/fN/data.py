@@ -17,6 +17,7 @@ import numpy as np
 import os
 from xastropy.xutils import xdebug as xdb
 from xastropy.spec import abs_line, voigt
+from xastropy.igm import tau_eff
 #from xastropy.igm.fN.model import fN_Model
 
 from astropy.io import fits
@@ -208,16 +209,27 @@ def tst_fn_data(fN_model=None):
                                                         r'$\lambda_{\rm mfp}^{912}$', '']))
     inset.set_ylim(0., 0.6)
 
-
+    ## #######
     # tau_eff
     try:
         itau = fN_dtype.index('teff') # Passes back the first one
     except:
         raise ValueError('fN.data: Missing teff type')
     #xdb.set_trace()
-    inset.errorbar(1, fN_cs[itau].data['TEFF'], yerr=fN_cs[itau].data['SIG_TEFF'],
-                   fmt='_', capthick=2)
+    teff=float(fN_cs[itau].data['TEFF'])
+    D_A = 1. - np.exp(-1. * teff)
+    SIGDA_LIMIT = 0.1  # Allows for systemtics and b-value uncertainty
+    sig_teff = np.max([fN_cs[itau].data['SIG_TEFF'], (SIGDA_LIMIT*teff)])
+    # Plot
+    inset.errorbar(1, teff, sig_teff, fmt='_', capthick=2)
+    # Model
+    if fN_model != None: 
+        model_teff = tau_eff.ew_teff_lyman(1215.6701*(1+fN_cs[itau].zeval), fN_cs[itau].zeval+0.1,
+                                     fN_model, NHI_MIN=fN_cs[itau].data['NHI_MNX'][0],
+                                     NHI_MAX=fN_cs[itau].data['NHI_MNX'][1])
+        inset.plot(1, model_teff, 'ko')
 
+    ## #######
     # LLS constraint
     try:
         iLLS = fN_dtype.index('LLS') # Passes back the first one
@@ -225,7 +237,13 @@ def tst_fn_data(fN_model=None):
         raise ValueError('fN.data: Missing LLS type')
     inset.errorbar(2, fN_cs[iLLS].data['LX'], yerr=fN_cs[iLLS].data['SIG_LX'],
                    fmt='_', capthick=2)
+    # Model
+    if fN_model != None:
+        lX = fN_model.calc_lox(fN_cs[iLLS].zeval,
+                                17.19+np.log10(fN_cs[iLLS].data['TAU_LIM']), 23.) 
+        inset.plot(2, lX, 'ko')
 
+    ## #######
     # MFP constraint
     inset2 = inset.twinx()
     try:

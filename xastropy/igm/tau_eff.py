@@ -201,7 +201,7 @@ def mk_ew_lyman_spline(bval,ew_fil=None):
         tau = 0.014971475*abl_data['fval']*vgt/vd  # Normalized to N_HI = 1 cm^-2
 
         # Flux
-        tau_array = np.outer(tau , 10.**log_NHI)
+        tau_array = np.outer(tau, 10.**log_NHI)
         fx = np.exp(-1.*tau_array)
 
         # EW
