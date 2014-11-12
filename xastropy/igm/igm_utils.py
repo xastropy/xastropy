@@ -95,45 +95,15 @@ class X_Cosmo(FlatLambdaCDM):
           Physical distance in Mpc to each input redshift.
         """
 
-        from scipy.integrate import quad
+        from astropy import units as u
+        from astropy import constants as const
+
         if not isiterable(z):
-            #xdb.set_trace()
-            return self._hubble_distance * quad(self.phys_inv_efunc, 0, z)[0]
+            return self.lookback_time(z) * const.c.to(u.Mpc/u.Gyr)
 
-        out = [quad(self.phys_inv_efunc, 0, redshift)[0] for redshift in z]
-        return self._hubble_distance * np.array(out)
-
-    def phys_inv_efunc(self, z):
-        r""" Function used to calculate :math:`\frac{1}{H_z (1+z)}`.
-
-        Parameters
-        ----------
-        z : array_like
-          Input redshifts.
-
-        Returns
-        -------
-        E/(1+z) : ndarray, or float if input scalar
-          The inverse redshift scaling of the Hubble constant.
-
-        Notes
-        -----
-        The return value, E/(1+z), is defined such that :math:`H_z = H_0 /
-        E`.
-        """
-
-        if isiterable(z):
-            z = np.asarray(z)
-        Om0, Ode0, Ok0 = self._Om0, self._Ode0, self._Ok0
-        if self._massivenu:
-            Or = self._Ogamma0 * (1 + self.nu_relative_density(z))
-        else:
-            Or = self._Ogamma0 + self._Onu0
-        zp1 = 1.0 + z
-
-        return 1.0 / np.sqrt(zp1 ** 2 * ((Or * zp1 + Om0) * zp1 + Ok0) + Ode0) / zp1
-
-
+        out = ( [(self.lookback_time(redshift)*const.c.to(u.Mpc/u.Gyr))
+                 for redshift in z] )
+        return u.Mpc * np.array( [tmp.value for tmp in out] )
 
 
 
@@ -152,3 +122,7 @@ if __name__ == '__main__':
     cosmo = X_Cosmo(H0=75.) # Vanilla
     dist = cosmo.physical_distance(z)
     print('dist to z=%g is %g Mpc' % (z, dist.value))
+    dist = cosmo.physical_distance([2., 3])
+    #xdb.set_trace()
+    #print('dist to z=(%g,%g) is (%g,%g) Mpc' %
+    #      (z, [item.value for item in dist]) )
