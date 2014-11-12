@@ -255,6 +255,10 @@ def tst_fn_data(fN_model=None):
     inset2.set_xlim(0,4)
     inset2.set_ylim(0,350)
     inset2.set_ylabel('(Mpc)')
+    # Model
+    if fN_model != None:
+        mfp = fN_model.mfp(fN_cs[iMFP].zeval)
+        inset2.plot(3, mfp, 'ko')
 
     # Show
     plt.show()

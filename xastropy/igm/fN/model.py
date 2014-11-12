@@ -195,7 +195,7 @@ class fN_Model(object):
         return log_fNX
     ##
     # Mean Free Path
-    def mfp(self, zem, neval=1000, cosmo=None, zmin=0.5):
+    def mfp(self, zem, neval=5000, cosmo=None, zmin=0.5):
         """ Calculate teff_LL 
         Effective opacity from LL absorption at z912 from zem
 
@@ -204,7 +204,7 @@ class fN_Model(object):
           Redshift of source
         cosmo: astropy.cosmology (None)
           Cosmological model to adopt (as needed)
-        neval: int (10000)
+        neval: int (5000)
           Discretization parameter
         zmin: float (0.5)
           Minimum redshift in the calculation
@@ -222,7 +222,7 @@ class fN_Model(object):
 
         # Cosmology
         if cosmo == None:
-            cosmo = cosmology.FlatLambdaCDM(H0=70, Om0=0.3) # Vanilla
+            cosmo = igmu.X_Cosmo(H0=70, Om0=0.3) # Vanilla
 
         # Calculate teff
         zval, teff_LL = self.teff_ll(zmin, zem, N_eval=neval, cosmo=cosmo)
@@ -233,13 +233,16 @@ class fN_Model(object):
             raise ValueError('fN.model.mfp: teff_LL too far from unity')
 
         # MFP
-        mfp = np.fabs( cosm_dist(zval[imn],/w05map,/physical,/silen) - $
-                        cosm_dist(mfp_strct.z_mfp, /w05map, /physical,/silen))
+        mfp = np.fabs( cosmo.physical_distance(zval[imn]) -
+                        cosmo.physical_distance(zem) ) # Mpc
+        #xdb.set_trace()
+        # Return
+        return mfp
         
 
     ##
     # teff_LL
-    def teff_ll(self, z912, zem, N_eval=10000, cosmo=None):
+    def teff_ll(self, z912, zem, N_eval=5000, cosmo=None):
         """ Calculate teff_LL 
         Effective opacity from LL absorption at z912 from zem
 
@@ -250,7 +253,7 @@ class fN_Model(object):
           Redshift of source
         cosmo: astropy.cosmology (None)
           Cosmological model to adopt (as needed)
-        N_eval: int (10000)
+        N_eval: int (5000)
           Discretization parameter
 
         Returns:
@@ -299,10 +302,11 @@ class fN_Model(object):
         sumz_first = False
         if sumz_first == False:
             #; Sum in N first
-            N_summed = np.sum(intg * np.outer(Nval, np.ones(N_eval)),  1) * dlgN * np.log(10.)
+            N_summed = np.sum(intg * np.outer(Nval, np.ones(N_eval)),  0) * dlgN * np.log(10.)
             #xdb.set_trace()
             # Sum in z
             teff_LL = (np.cumsum(N_summed[::-1]))[::-1] * dz 
+        #xdb.set_trace()
 
         # Debug
         debug=False
@@ -386,7 +390,7 @@ if __name__ == '__main__':
     from xastropy.igm.fN import data as fN_data
     from xastropy.igm.fN import model as xifm
 
-    flg_test = 16
+    flg_test = 4+32
     
     if (flg_test % 2) == 1:
         # MCMC Analysis
@@ -438,3 +442,10 @@ if __name__ == '__main__':
         fN_model = xifm.default_model()
         zval,teff_LL = fN_model.teff_ll(0.5, 2.45)
         xdb.xplot(zval,teff_LL)#,xlabel='z', ylabel=r'$\tau_{\rm LL}$')
+
+    # Check MFP
+    if (flg_test % 64) >= 32:
+        fN_model = xifm.default_model()
+        z = 2.44
+        mfp = fN_model.mfp(z)
+        print('MFP at z=%g is %g Mpc' % (z,mfp.value))
