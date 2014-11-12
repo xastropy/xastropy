@@ -14,13 +14,15 @@
 from __future__ import print_function
 
 import numpy as np
-import os
+import os, imp
 from xastropy.xutils import xdebug as xdb
 from xastropy.spec import abs_line, voigt
 #from xastropy.igm.fN.model import fN_Model
 
 from astropy.io import fits
 
+# Path for xastropy
+xa_path = imp.find_module('xastropy')[1]
 
 #from astropy.io import fits, ascii
 
@@ -154,9 +156,12 @@ def tst_fn_data(fN_model=None):
     from matplotlib import pyplot as plt
 
     # fN data
-    fn_file = os.environ.get('XIDL_DIR')+'IGM/fN_empirical/fn_constraints_z2.5_vanilla.fits'
-    k13r13_file = os.environ.get('XIDL_DIR')+'IGM/fN_empirical/fn_constraints_K13R13_vanilla.fits'
-    n12_file = os.environ.get('XIDL_DIR')+'IGM/fN_empirical/fn_constraints_N12_vanilla.fits'
+    #fn_file = os.environ.get('XIDL_DIR')+'IGM/fN_empirical/fn_constraints_z2.5_vanilla.fits'
+    #k13r13_file = os.environ.get('XIDL_DIR')+'IGM/fN_empirical/fn_constraints_K13R13_vanilla.fits'
+    #n12_file = os.environ.get('XIDL_DIR')+'IGM/fN_empirical/fn_constraints_N12_vanilla.fits'
+    fn_file = xa_path+'/igm/fN/fn_constraints_z2.5_vanilla.fits'
+    k13r13_file = xa_path+'/igm/fN/fn_constraints_K13R13_vanilla.fits'
+    n12_file = xa_path+'/igm/fN/fn_constraints_N12_vanilla.fits'
     all_fN_cs = fn_data_from_fits([fn_file,k13r13_file,n12_file])
 
     # Remove K12
@@ -253,9 +258,9 @@ def tst_fn_data(fN_model=None):
 if __name__ == '__main__':
 
     # Read a dataset
-    fn_file = os.environ.get('XIDL_DIR')+'IGM/fN_empirical/fn_constraints_z2.5_vanilla.fits'
-    k13r13_file = os.environ.get('XIDL_DIR')+'IGM/fN_empirical/fn_constraints_K13R13_vanilla.fits'
-    n12_file = os.environ.get('XIDL_DIR')+'IGM/fN_empirical/fn_constraints_N12_vanilla.fits'
+    fn_file = xa_path+'/igm/fN/fn_constraints_z2.5_vanilla.fits'
+    k13r13_file = xa_path+'/igm/fN/fn_constraints_K13R13_vanilla.fits'
+    n12_file = xa_path+'/igm/fN/fn_constraints_N12_vanilla.fits'
     all_fN_cs = fn_data_from_fits([fn_file,k13r13_file,n12_file])
     print(all_fN_cs)
     #for fN_c in all_fN_cs: print(fN_c)
