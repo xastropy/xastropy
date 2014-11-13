@@ -115,7 +115,7 @@ class Ionic_Clm_File(object):
             tmp = arr[ii].split(',') ; ii+=1
             vmin = float(tmp[1].strip())
             vmax = float(tmp[2].strip())
-            key = tmp[0].strip()
+            key = float(tmp[0].strip()) # Using a float not string!
             # Generate
             self.clm_lines[key] = Ionic_Clm(float(tmp[0]))
             self.clm_lines[key].analy['FLAGS'] = ionflg, int(tmp[3].strip())

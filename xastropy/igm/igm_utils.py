@@ -73,13 +73,11 @@ def cosm_xz(z, cosmo=None, zmin=0., flg=0):
 ####
 class X_Cosmo(FlatLambdaCDM):
     """A class for extending the astropy Class
-
     """
     # Initialize with a .dat file
     def __init__(self, H0=70, Om0=0.3):
         # Generate 
         FlatLambdaCDM.__init__(self,H0,Om0)
-
     #
     def physical_distance(self,z):
         """ Physical line-of-sight distance in Mpc at a given redshift.
