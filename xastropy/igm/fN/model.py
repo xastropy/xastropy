@@ -11,8 +11,7 @@
 #;------------------------------------------------------------------------------
 """
 
-from __future__ import print_function
-
+from __future__ import print_function, absolute_import, division, unicode_literals
 import numpy as np
 import os, pickle, imp
 from scipy import interpolate as scii
@@ -36,6 +35,7 @@ class fN_Model(object):
           Model type for the fN
            'plaw' -- Power Laws
            'Hspline' -- Hermite monotonic spline 
+           'Gamma' -- Gamma function [Following Inoue+14]
        zmnx: tuple
           Redshift range where this model applies (zmin,zmax)
        npivot: int 
@@ -52,6 +52,13 @@ class fN_Model(object):
     def __init__(self, fN_mtype, zmnx=(0.,0.), pivots=None,
                  param=None, zpivot=2.4, gamma=1.5):
         self.fN_mtype = fN_mtype  # Should probably check the choice
+
+        if fN_mtype == 'Gamma':  # I14 values
+            zmnx = (0., 10.)
+            param = ( (12., 23., 21., 28.), # Common
+                      (1., 1.),             # Bi values
+                      (500, 1.7, 1.2, 4.7, 0.2, 2.7, 4.5), # LAF
+                      (1.1, 0.9, 2.0, 1.0, 2.0) ) # DLA
         self.zmnx = zmnx  
 
         # Pivots
@@ -149,13 +156,13 @@ class fN_Model(object):
             return lX
     ##
     # Evaluate
-    def eval(self, z, NHI_values,vel_array=None):
+    def eval(self, z, NHI, vel_array=None):
         """ Evaluate the model at a set of NHI values
 
         Parameters:
         z: float
           Redshift for evaluation
-        NHI_values: array
+        NHI: array
           NHI values
 
         Returns:
@@ -169,18 +176,37 @@ class fN_Model(object):
         # Imports
         from astropy import constants as const
 
-        # Evaluate
+        # Evaluate without z dependence
         if self.fN_mtype == 'Hspline': 
-            log_fNX = self.model.__call__(NHI_values)
+            log_fNX = self.model.__call__(NHI)
+        elif self.fN_mtype == 'Gamma': 
+            log_fN = np.zeros(len(NHI))
+            Nl, Nu, Nc, bval = self.param[0]
+            Bi = self.param[1]
+            # LyaF
+            iLyaF = np.where(log_fN <= 20.3)[0]
+            #if len(iLyaF) > 0:
+            #    log
         else: 
             raise ValueError('fN.model: Not ready for this model type %s' % self.fN_mtype)
 
-        # Redshift
-        if vel_array==None:
-            log_fNX += self.gamma * np.log10((1+z)/(1+self.zpivot))
-        else:  # Here comes a grid..
+        # Redshift evolution
+        if vel_array!=None:
             z_val = z + (1+z) * vel_array/(const.c.cgs.value/1e5)
-            # 
+        else: z_val = z
+
+        # Check on zmnx
+        bad = np.where( (z_val < self.zmnx[0]) || 
+                        (z_val > self.zmnx[1]))[0]
+        if len(bad) > 0:
+            raise ValueError(
+                'fN.model.eval: z not within self.zmnx={:g},{:g}'.format(*(self.zmnx)))
+
+        # Evaluate
+        log_fNX += self.gamma * np.log10((1+z_val)/(1+self.zpivot))
+    
+        """
+            # Matrix algebra to speed things up
             lgNHI_grid = np.outer(log_fNX, np.ones(len(z_val)))
             lenfX = len(log_fNX)
             #xdb.set_trace()
@@ -190,6 +216,7 @@ class fN_Model(object):
             z_grid2 = np.outer( np.ones(lenfX)*((1./(1+self.zpivot))**self.gamma), 
                         np.ones(len(z_val))  )
             log_fNX = lgNHI_grid + np.log10(z_grid1*z_grid2) 
+        """
 
         # Return
         return log_fNX
