@@ -23,6 +23,7 @@ from xastropy.igm import igm_utils as igmu
 from xastropy.atomic import ionization as xai
 
 from astropy.io import fits
+from astropy.utils.misc import isiterable
 
 # Path for xastropy
 xa_path = imp.find_module('xastropy')[1]
@@ -49,7 +50,7 @@ class fN_Model(object):
     """
 
     # Initialize with type
-    def __init__(self, fN_mtype, zmnx=(0.,0.), pivots=None,
+    def __init__(self, fN_mtype, zmnx=(0.,0.), pivots=[0.],
                  param=None, zpivot=2.4, gamma=1.5):
         self.fN_mtype = fN_mtype  # Should probably check the choice
 
@@ -156,7 +157,7 @@ class fN_Model(object):
             return lX
     ##
     # Evaluate
-    def eval(self, z, NHI, vel_array=None):
+    def eval(self, z, NHI, vel_array=None, cosmo=None):
         """ Evaluate the model at a set of NHI values
 
         Parameters:
@@ -164,10 +165,12 @@ class fN_Model(object):
           Redshift for evaluation
         NHI: array
           NHI values
+        vel_array: array
+          Velocities relative to z
 
         Returns:
         fN: array
-          Array of f(NHI) values
+          Array of f(NHI,X) values
 
         JXP 07 Nov 2014
         """
@@ -176,53 +179,93 @@ class fN_Model(object):
         # Imports
         from astropy import constants as const
 
-        # Evaluate without z dependence
-        if self.fN_mtype == 'Hspline': 
-            log_fNX = self.model.__call__(NHI)
-        elif self.fN_mtype == 'Gamma': 
-            log_fN = np.zeros(len(NHI))
-            Nl, Nu, Nc, bval = self.param[0]
-            Bi = self.param[1]
-            # LyaF
-            iLyaF = np.where(log_fN <= 20.3)[0]
-            #if len(iLyaF) > 0:
-            #    log
-        else: 
-            raise ValueError('fN.model: Not ready for this model type %s' % self.fN_mtype)
-
-        # Redshift evolution
-        if vel_array!=None:
+        # Redshift 
+        if vel_array is not None:
             z_val = z + (1+z) * vel_array/(const.c.cgs.value/1e5)
         else: z_val = z
-
+    
         # Check on zmnx
-        bad = np.where( (z_val < self.zmnx[0]) || 
-                        (z_val > self.zmnx[1]))[0]
+        bad = np.where( (z_val < self.zmnx[0]) | (z_val > self.zmnx[1]))[0]
         if len(bad) > 0:
             raise ValueError(
                 'fN.model.eval: z not within self.zmnx={:g},{:g}'.format(*(self.zmnx)))
 
-        # Evaluate
-        log_fNX += self.gamma * np.log10((1+z_val)/(1+self.zpivot))
-    
-        """
-            # Matrix algebra to speed things up
-            lgNHI_grid = np.outer(log_fNX, np.ones(len(z_val)))
-            lenfX = len(log_fNX)
+        if self.fN_mtype == 'Hspline': 
+            # Evaluate without z dependence
+            log_fNX = self.model.__call__(NHI)
+
+
+            # Evaluate
             #xdb.set_trace()
-            # 
-            z_grid1 = 10**( np.outer(np.ones(lenfX)*self.gamma,
-                                     np.log10(1+z_val)) )  #; (1+z)^gamma
-            z_grid2 = np.outer( np.ones(lenfX)*((1./(1+self.zpivot))**self.gamma), 
-                        np.ones(len(z_val))  )
-            log_fNX = lgNHI_grid + np.log10(z_grid1*z_grid2) 
-        """
+            if not isiterable(z_val):  # scalar
+                log_fNX += self.gamma * np.log10((1+z_val)/(1+self.zpivot))
+            else:
+                # Matrix algebra to speed things up
+                lgNHI_grid = np.outer(log_fNX, np.ones(len(z_val)))
+                lenfX = len(log_fNX)
+                #xdb.set_trace()
+                # 
+                z_grid1 = 10**( np.outer(np.ones(lenfX)*self.gamma,
+                                        np.log10(1+z_val)) )  #; (1+z)^gamma
+                z_grid2 = np.outer( np.ones(lenfX)*((1./(1+self.zpivot))**self.gamma), 
+                            np.ones(len(z_val))  )
+                log_fNX = lgNHI_grid + np.log10(z_grid1*z_grid2) 
+
+        # Gamma function (e.g. Inoue+14)
+        elif self.fN_mtype == 'Gamma': 
+            Nl, Nu, Nc, bval = self.param[0]
+            #iLyaF = np.where(NHI < 20.3)[0]
+            #iDLA = np.where(NHI >= 20.3)[0]
+            # gNHI
+            log_gN = np.zeros(len(NHI))
+            Bi = self.param[1]
+            beta = [item[1] for item in self.param[2:]] 
+            for kk in range(2):
+                #if kk == 0: icut = iLyaF  
+                #else: icut = iDLA
+                #if len(icut) > 0:
+                log_gN += (np.log10(Bi[kk]) + NHI*(-1 * beta[kk])
+                            + (-1. * 10.**(NHI-Nc) / np.log(10) ) ) # log10 [ exp(-NHI/Nc) ]
+            # f(z)
+            fz = np.zeros(len(NHI))
+            # Loop on NHI
+            for kk in range(2):
+                if kk == 0: # LyaF
+                    #icut = iLyaF
+                    zcuts = self.param[2][2:4]
+                    gamma = self.param[2][4:]
+                else:       # DLA
+                    #icut = iDLA
+                    zcuts = [self.param[3][2]]
+                    gamma = self.param[3][3:]
+                #
+                #xdb.set_trace()
+                zcuts = [0] + list(zcuts) + [999.]
+                Aval = self.param[2+kk][0]
+                #if len(icut) > 0:
+                    # Cut on z
+                for ii in range(1,len(zcuts)):
+                    izcut = np.where( (z_val < zcuts[ii]) & (z_val > zcuts[ii-1]) )[0]
+                    # Evaluate (at last!)
+                    if ii <=2:
+                        fz[icut] = Aval * ( (1+z_val) / (1+zcuts[1]) )**gamma[ii-1]
+                    elif ii == 3:
+                        fz[icut] = Aval * ( ( (1+zcuts[2]) / (1+zcuts[1]) )**gamma[ii-2] * 
+                                                    ((1+z_val) / (1+zcuts[2]) )**gamma[ii-1] )
+#                            else: 
+#                                raise ValueError('fN.model.eval: Should not get here')
+            # Generate the matrix
+            log_fnz = np.log10( np.outer(10.**log_gN,fz) )
+            dXdz = igmu.cosm_xz(z_val, cosmo=cosmo, flg=1) 
+            log_fNX = log_fnz + np.log10( np.outer(np.ones(len(NHI)), dXdz) )
+        else: 
+            raise ValueError('fN.model: Not ready for this model type {:%s}'.format(self.fN_mtype))
 
         # Return
         return log_fNX
     ##
     # Mean Free Path
-    def mfp(self, zem, neval=5000, cosmo=None, zmin=0.5):
+    def mfp(self, zem, neval=5000, cosmo=None, zmin=0.6):
         """ Calculate teff_LL 
         Effective opacity from LL absorption at z912 from zem
 
@@ -417,7 +460,8 @@ if __name__ == '__main__':
     from xastropy.igm.fN import data as fN_data
     from xastropy.igm.fN import model as xifm
 
-    flg_test = 4+32
+    #flg_test = 0 + 4 + 32
+    flg_test = 64
     
     if (flg_test % 2) == 1:
         # MCMC Analysis
@@ -476,3 +520,17 @@ if __name__ == '__main__':
         z = 2.44
         mfp = fN_model.mfp(z)
         print('MFP at z=%g is %g Mpc' % (z,mfp.value))
+
+    # Check Inoue+14
+    if (flg_test % 2**7) >= 2**6:
+        fN_model = fN_Model('Gamma')
+        NHI = [12.,14.,17.,21.]
+        z = 2.5
+        fNX = fN_model.eval(z, NHI)
+        for iNHI in NHI:
+            print('I+14 At z={:g} and NHI={:g}, f(N,X) = {:g}'.format(z,iNHI,fNX[NHI.index(iNHI)]))
+        # From Akio
+          # 12 1.2e-9
+          # 14 4.9e-13
+          # 17 4.6e-18
+          # 21 6.7e-23
