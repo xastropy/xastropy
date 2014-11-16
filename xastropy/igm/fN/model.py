@@ -303,8 +303,6 @@ class fN_Model(object):
             raise ValueError('fN.model.mfp: teff_LL too far from unity')
 
         # MFP
-        #mfp = np.fabs( cosmo.physical_distance(zval[imn]) -
-        #                cosmo.physical_distance(zem) ) # Mpc
         mfp = np.fabs( cosmo.lookback_distance(zval[imn]) -
                         cosmo.lookback_distance(zem) ) # Mpc
         #xdb.set_trace()
