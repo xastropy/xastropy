@@ -292,7 +292,7 @@ class fN_Model(object):
 
         # Cosmology
         if cosmo == None:
-            cosmo = igmu.X_Cosmo(H0=70, Om0=0.3) # Vanilla
+            cosmo = cosmology.core.FlatLambdaCDM(70., 0.3)
 
         # Calculate teff
         zval, teff_LL = self.teff_ll(zmin, zem, N_eval=neval, cosmo=cosmo)
@@ -303,8 +303,10 @@ class fN_Model(object):
             raise ValueError('fN.model.mfp: teff_LL too far from unity')
 
         # MFP
-        mfp = np.fabs( cosmo.physical_distance(zval[imn]) -
-                        cosmo.physical_distance(zem) ) # Mpc
+        #mfp = np.fabs( cosmo.physical_distance(zval[imn]) -
+        #                cosmo.physical_distance(zem) ) # Mpc
+        mfp = np.fabs( cosmo.lookback_distance(zval[imn]) -
+                        cosmo.lookback_distance(zem) ) # Mpc
         #xdb.set_trace()
         # Return
         return mfp
@@ -460,8 +462,8 @@ if __name__ == '__main__':
     from xastropy.igm.fN import data as fN_data
     from xastropy.igm.fN import model as xifm
 
-    #flg_test = 0 + 4 + 32
-    flg_test = 64
+    flg_test = 0 + 4 + 32
+    #flg_test = 0 + 64
     
     if (flg_test % 2) == 1:
         # MCMC Analysis
