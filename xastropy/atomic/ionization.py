@@ -18,10 +18,37 @@ from astropy.io import fits, ascii
 from astropy import units as u 
 #from astropy import constants as const
 
+from xastropy.atomic.elements import ELEMENTS
+
 # Path for xastropy
 xa_path = imp.find_module('xastropy')[1]
 
+#def ion_name(ion):
+#def photo_cross(Z, ion, E, datfil=None, silent=False):
 
+########################## ##########################
+########################## ##########################
+def ion_name(ion):
+    """ Convert ion into a string
+    JXP on 16 Nov 2014
+
+    Parameters
+    ----------
+    ion: tuple (Z,ion)
+
+    Returns
+    -------
+    name : string , e.g. Si II
+    """
+    if isiterable(ion): 
+        elm = ELEMENTS[ion[0]]
+        str_elm = elm.symbol
+    else: 
+        raise ValueError('ionization.ion_name: Not ready for this input yet.')
+
+
+########################## ##########################
+########################## ##########################
 def photo_cross(Z, ion, E, datfil=None, silent=False):
     """ Estimate photo-ionization cross-section using Fit parameters
     from Verner et al. 1996, ApJ, 465, 487

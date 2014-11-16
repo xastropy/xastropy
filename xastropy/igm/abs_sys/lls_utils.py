@@ -11,7 +11,7 @@
 #;------------------------------------------------------------------------------
 """
 
-from __future__ import print_function
+from __future__ import print_function, absolute_import, division, unicode_literals
 
 import os, copy
 
@@ -20,11 +20,14 @@ import numpy as np
 from astropy import units as u
 from astropy.io import ascii 
 
-from abssys_utils import Absline_System
-from ionic_clm import Ionic_Clm, Ionic_Clm_File
+from xastropy.igm.abs_sys.abssys_utils import Absline_System, Absline_Survey
+from xastropy.igm.abs_sys.ionic_clm import Ionic_Clm, Ionic_Clm_File
 from xastropy.spec import abs_line, voigt
 from xastropy.atomic import ionization as xatomi
 from xastropy.xutils import xdebug as xdb
+
+#class LLS_System(Absline_System):
+#class LLS_Survey(Absline_Survey):
 
 # Class for LLS Absorption Lines 
 class LLS_System(Absline_System):
@@ -127,6 +130,9 @@ class LLS_System(Absline_System):
             Dumb_Class = type('Dummy_Object', (object,), {})
             self.subsys[lbls[kk]]['Ionic'] = Dumb_Class()
             self.subsys[lbls[kk]]['Ionic'].analy = tmp # THIS NEEDS TO BE CHANGED
+
+            # Read .all file
+            tmp = Ionic_Clm_File(self.tree+self.subsys[lbls[kk]]['Abundfile'])
             
             #pdb.set_trace()
             #self.ionic[lbls[kk],
@@ -205,8 +211,43 @@ class LLS_System(Absline_System):
                  self.coord.dec.to_string(sep=':',pad=True),
                  self.zabs, self.NHI, self.tau_LL, self.MH))
 
+# Class for LLS Survey
+class LLS_Survey(Absline_Survey):
+    """An LLS Survey class
 
+    Attributes:
+        Absline_Survey.__init__(self,'LLS')
+        
+    """
+    # Initialize with a .dat file
+    def __init__(self, dat_file, tree=None):
+        # Generate with type
+        Absline_System.__init__(self,dat_file,abs_type='LLS', tree=tree)
 
+    # Cut on NHI
+    def cut_nhi_quality(self, sig_cut=0.4):
+        """
+        Cut the LLS on NHI quality
+
+        Parameters:
+          sig_cut: float (0.4) 
+            Limit to include as quality
+
+        Returns:
+          gdNHI, bdNHI
+            Indices for those LLS that are good/bad
+            gdNHI is a numpy array of indices
+            bdNHI is a boolean array
+        """
+        # Cut
+        gdNHI = np.where( (self.sigNHI[:,0] < sig_cut)
+                        & (self.sigNHI[:,1] < sig_cut))[0] 
+        # Mask
+        bdNHI = (self.NHI == self.NHI)
+        bdNHI[gdNHI] = False
+
+        # Return
+        return gdNHI, bdNHI
 
 
 
@@ -237,8 +278,8 @@ if __name__ == '__main__':
     #print(tmp1.ionic)
     #print(tmp1.ionic['1215.6701'].wave)
     
+    # Plot the LLS
     tmp1.fill_lls_lines()
-    #print(tmp1.lls_lines)
 
     from barak import spec as bs
     spec = bs.Spectrum(wa=np.linspace(3400.0,5000.0,10000))
@@ -246,4 +287,10 @@ if __name__ == '__main__':
     model = tmp1.flux_model(spec, smooth=4)
     model.qck_plot()
 
+    # LLS Survey
+    lls = abssys.LLS_Survey('Lists/lls_metals.lst', tree='/Users/xavier/LLS/')
+    xgui.plot_hist(lls.NHI, binsz=0.30)
+
+
+    # All done
     print('lls_utils: All done testing..')
