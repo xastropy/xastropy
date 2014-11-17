@@ -196,7 +196,7 @@ def tst_fn_data(fN_model=None):
     # Model?
     if fN_model != None: #isinstance(fN_model,fN_Model):
         xplt = 12.01 + 0.01*np.arange(1100)
-        yplt = fN_model.eval(2.4, xplt)
+        yplt = fN_model.eval(xplt, 2.4)
         #xdb.xxp.printcol(xplt,yplt)
         #xdb.set_trace()
         main.plot(xplt,yplt,'-',color='black')
@@ -260,8 +260,10 @@ def tst_fn_data(fN_model=None):
     inset2.set_xlim(0,4)
     inset2.set_ylim(0,350)
     inset2.set_ylabel('(Mpc)')
+
     # Model
     if fN_model != None:
+        #fN_model.zmnx = (0.1, 20.) # Reset for MFP calculation
         mfp = fN_model.mfp(fN_cs[iMFP].zeval)
         inset2.plot(3, mfp, 'ko')
 

@@ -57,7 +57,7 @@ class fN_Model(object):
         if fN_mtype == 'Gamma':  # I14 values
             zmnx = (0., 10.)
             param = ( (12., 23., 21., 28.), # Common
-                      (1., 1.),             # Bi values
+                      (1.75828e8, 9.62288e-4),             # Bi values
                       (500, 1.7, 1.2, 4.7, 0.2, 2.7, 4.5), # LAF
                       (1.1, 0.9, 2.0, 1.0, 2.0) ) # DLA
         self.zmnx = zmnx  
@@ -114,19 +114,18 @@ class fN_Model(object):
             nz = len(z)
         except:
             nz=1
-            z = [z]
+            z = np.array([z])
 
         # Brute force (should be good to ~0.5%)
         lgNHI = NHI_min + (NHI_max-NHI_min)*np.arange(neval)/(neval-1.)
         dlgN = lgNHI[1]-lgNHI[0]
 
         # Evaluate f(N,X)
-        lgfNX = np.zeros((neval,nz))
-        lX = np.zeros(nz)
-        for ii in range(nz): 
-            lgfNX[:,ii] = self.eval(z[ii], lgNHI)
+        lgfNX = self.eval(lgNHI, z)
+        #xdb.set_trace()
 
         # Sum
+        lX = np.zeros(nz)
         for ii in range(nz): 
             lX[ii] = np.sum(10.**(lgfNX[:,ii]+lgNHI)) * dlgN * np.log(10.)
         if cumul==True: 
@@ -157,11 +156,11 @@ class fN_Model(object):
             return lX
     ##
     # Evaluate
-    def eval(self, z, NHI, vel_array=None, cosmo=None):
+    def eval(self, NHI, z, vel_array=None, cosmo=None):
         """ Evaluate the model at a set of NHI values
 
         Parameters:
-        z: float
+        z: float or array
           Redshift for evaluation
         NHI: array
           NHI values
@@ -169,8 +168,10 @@ class fN_Model(object):
           Velocities relative to z
 
         Returns:
-        fN: array
-          Array of f(NHI,X) values
+        log_fNX: float or array  
+          f(NHI,X)[z] values
+          Float if given one NHI,z value each. Otherwise 2D array
+          If 2D, it is [NHI,z] on the axes
 
         JXP 07 Nov 2014
         """
@@ -182,13 +183,20 @@ class fN_Model(object):
         # Redshift 
         if vel_array is not None:
             z_val = z + (1+z) * vel_array/(const.c.cgs.value/1e5)
-        else: z_val = z
+        else: z_val = np.array(z)
+        if isiterable(z_val): lenz = len(z_val)
+        else: lenz = 1
+
+        # NHI
+        if isiterable(NHI): NHI = np.array(NHI) # Insist on array
+        else: NHI = np.array([NHI]) 
+        lenNHI = len(NHI)
     
         # Check on zmnx
         bad = np.where( (z_val < self.zmnx[0]) | (z_val > self.zmnx[1]))[0]
         if len(bad) > 0:
             raise ValueError(
-                'fN.model.eval: z not within self.zmnx={:g},{:g}'.format(*(self.zmnx)))
+                'fN.model.eval: z={:g} not within self.zmnx={:g},{:g}'.format(z_val[bad[0]],*(self.zmnx)))
 
         if self.fN_mtype == 'Hspline': 
             # Evaluate without z dependence
@@ -217,17 +225,18 @@ class fN_Model(object):
             #iLyaF = np.where(NHI < 20.3)[0]
             #iDLA = np.where(NHI >= 20.3)[0]
             # gNHI
-            log_gN = np.zeros(len(NHI))
+            log_gN = np.zeros((lenNHI,2))
             Bi = self.param[1]
             beta = [item[1] for item in self.param[2:]] 
             for kk in range(2):
                 #if kk == 0: icut = iLyaF  
                 #else: icut = iDLA
                 #if len(icut) > 0:
-                log_gN += (np.log10(Bi[kk]) + NHI*(-1 * beta[kk])
-                            + (-1. * 10.**(NHI-Nc) / np.log(10) ) ) # log10 [ exp(-NHI/Nc) ]
+                #xdb.set_trace()
+                log_gN[:,kk] += (np.log10(Bi[kk]) + NHI*(-1 * beta[kk])
+                                + (-1. * 10.**(NHI-Nc) / np.log(10) ) ) # log10 [ exp(-NHI/Nc) ]
             # f(z)
-            fz = np.zeros(len(NHI))
+            fz = np.zeros((lenz,2))
             # Loop on NHI
             for kk in range(2):
                 if kk == 0: # LyaF
@@ -248,21 +257,26 @@ class fN_Model(object):
                     izcut = np.where( (z_val < zcuts[ii]) & (z_val > zcuts[ii-1]) )[0]
                     # Evaluate (at last!)
                     if ii <=2:
-                        fz[icut] = Aval * ( (1+z_val) / (1+zcuts[1]) )**gamma[ii-1]
+                        fz[izcut,kk] = Aval * ( (1+z_val) / (1+zcuts[1]) )**gamma[ii-1]
                     elif ii == 3:
-                        fz[icut] = Aval * ( ( (1+zcuts[2]) / (1+zcuts[1]) )**gamma[ii-2] * 
+                        fz[izcut,kk] = Aval * ( ( (1+zcuts[2]) / (1+zcuts[1]) )**gamma[ii-2] * 
                                                     ((1+z_val) / (1+zcuts[2]) )**gamma[ii-1] )
 #                            else: 
 #                                raise ValueError('fN.model.eval: Should not get here')
             # Generate the matrix
-            log_fnz = np.log10( np.outer(10.**log_gN,fz) )
+            fnz = np.zeros((lenNHI,lenz))
+            for kk in range(2):
+                fnz += np.outer(10.**log_gN[:,kk],fz[:,kk])
+            # Finish up
             dXdz = igmu.cosm_xz(z_val, cosmo=cosmo, flg=1) 
-            log_fNX = log_fnz + np.log10( np.outer(np.ones(len(NHI)), dXdz) )
+            log_fNX = np.log10(fnz) + np.log10( np.outer(np.ones(lenNHI), dXdz) )
         else: 
             raise ValueError('fN.model: Not ready for this model type {:%s}'.format(self.fN_mtype))
 
         # Return
-        return log_fNX
+        if (lenNHI + lenz) == 2:
+            return log_fNX.flatten()[0] # scalar
+        else: return log_fNX
     ##
     # Mean Free Path
     def mfp(self, zem, neval=5000, cosmo=None, zmin=0.6):
@@ -354,7 +368,7 @@ class fN_Model(object):
         # Evaluate f(N,X)
         velo = (zval-zem)/(1+zem) * (const.c.cgs.value/1e5) # Kludge for eval [km/s]
 
-        log_fnX = self.eval(zem, lgNval, vel_array=velo)  
+        log_fnX = self.eval(lgNval, zem, vel_array=velo)  
         log_fnz = log_fnX + np.outer(np.ones(N_eval), np.log10(dXdz))
 
         # Evaluate tau(z,N)
@@ -460,7 +474,10 @@ if __name__ == '__main__':
     from xastropy.igm.fN import data as fN_data
     from xastropy.igm.fN import model as xifm
 
-    flg_test = 0 + 4 + 32
+    flg_test = 0 
+    #flg_test += 4 # Data
+    #flg_test += 8 # l(X)
+    flg_test += 64 # Akio
     #flg_test = 0 + 64
     
     if (flg_test % 2) == 1:
@@ -526,9 +543,10 @@ if __name__ == '__main__':
         fN_model = fN_Model('Gamma')
         NHI = [12.,14.,17.,21.]
         z = 2.5
-        fNX = fN_model.eval(z, NHI)
+        dXdz = igmu.cosm_xz(z, flg=1) 
+        log_fNX = fN_model.eval(NHI,z)
         for iNHI in NHI:
-            print('I+14 At z={:g} and NHI={:g}, f(N,X) = {:g}'.format(z,iNHI,fNX[NHI.index(iNHI)]))
+            print('I+14 At z={:g} and NHI={:g}, f(N,z) = {:g}'.format(z,iNHI,10.**log_fNX[NHI.index(iNHI),0] / dXdz))
         # From Akio
           # 12 1.2e-9
           # 14 4.9e-13

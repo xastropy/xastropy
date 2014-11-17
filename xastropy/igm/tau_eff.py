@@ -121,7 +121,7 @@ def ew_teff_lyman(ilambda, zem, fN_model, NHI_MIN=11.5, NHI_MAX=22.0, N_eval=500
         dz = (restEW*u.AA) * (1+zeval) / line
 
         # Evaluate f(N,X)
-        log_fnX = fN_model.eval(zeval,lgNval)
+        log_fnX = fN_model.eval(lgNval,zeval)
 
         # Sum
         intgrnd = 10.**(log_fnX) * dxdz * dz * Nval
