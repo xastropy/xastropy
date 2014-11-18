@@ -183,9 +183,10 @@ class fN_Model(object):
         # Redshift 
         if vel_array is not None:
             z_val = z + (1+z) * vel_array/(const.c.cgs.value/1e5)
-        else: z_val = np.array(z)
-        if isiterable(z_val): lenz = len(z_val)
-        else: lenz = 1
+        else: z_val = z
+        if isiterable(z_val): z_val = np.array(z_val)
+        else: z_val = np.array([z_val])
+        lenz = len(z_val)
 
         # NHI
         if isiterable(NHI): NHI = np.array(NHI) # Insist on array
@@ -229,9 +230,6 @@ class fN_Model(object):
             Bi = self.param[1]
             beta = [item[1] for item in self.param[2:]] 
             for kk in range(2):
-                #if kk == 0: icut = iLyaF  
-                #else: icut = iDLA
-                #if len(icut) > 0:
                 #xdb.set_trace()
                 log_gN[:,kk] += (np.log10(Bi[kk]) + NHI*(-1 * beta[kk])
                                 + (-1. * 10.**(NHI-Nc) / np.log(10) ) ) # log10 [ exp(-NHI/Nc) ]
@@ -240,27 +238,24 @@ class fN_Model(object):
             # Loop on NHI
             for kk in range(2):
                 if kk == 0: # LyaF
-                    #icut = iLyaF
                     zcuts = self.param[2][2:4]
                     gamma = self.param[2][4:]
                 else:       # DLA
-                    #icut = iDLA
                     zcuts = [self.param[3][2]]
                     gamma = self.param[3][3:]
-                #
-                #xdb.set_trace()
                 zcuts = [0] + list(zcuts) + [999.]
                 Aval = self.param[2+kk][0]
-                #if len(icut) > 0:
-                    # Cut on z
+                # Cut on z
                 for ii in range(1,len(zcuts)):
                     izcut = np.where( (z_val < zcuts[ii]) & (z_val > zcuts[ii-1]) )[0]
+                    liz = len(izcut)
                     # Evaluate (at last!)
-                    if ii <=2:
-                        fz[izcut,kk] = Aval * ( (1+z_val) / (1+zcuts[1]) )**gamma[ii-1]
-                    elif ii == 3:
+                    #xdb.set_trace()
+                    if (ii <=2) & (liz > 0):
+                        fz[izcut,kk] = Aval * ( (1+z_val[izcut]) / (1+zcuts[1]) )**gamma[ii-1]
+                    elif (ii == 3) & (liz > 0):
                         fz[izcut,kk] = Aval * ( ( (1+zcuts[2]) / (1+zcuts[1]) )**gamma[ii-2] * 
-                                                    ((1+z_val) / (1+zcuts[2]) )**gamma[ii-1] )
+                                                    ((1+z_val[izcut]) / (1+zcuts[2]) )**gamma[ii-1] )
 #                            else: 
 #                                raise ValueError('fN.model.eval: Should not get here')
             # Generate the matrix
@@ -552,3 +547,4 @@ if __name__ == '__main__':
           # 14 4.9e-13
           # 17 4.6e-18
           # 21 6.7e-23
+        fN_data.tst_fn_data(fN_model=fN_model)
