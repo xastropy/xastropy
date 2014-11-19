@@ -14,11 +14,13 @@
 from __future__ import print_function, absolute_import, division, unicode_literals
 
 import numpy as np
+from abc import ABCMeta, abstractmethod
 
 from astropy.io import ascii 
 from astropy import units as u
 from astropy.coordinates import SkyCoord
 
+from xastropy.igm.abs_sys.ionic_clm import Ions_Clm, Ionic_Clm_File
 from xastropy.xutils import xdebug as xdb
 
 ###################### ######################
@@ -38,7 +40,10 @@ class Absline_System(object):
           Log10 of the HI column density
         sigNHI:  np.array(2)
           Log10 error of the HI column density (-/+)
+        ions:  Ions_Clm Class
     """
+
+    __metaclass__ = ABCMeta
 
     # Init
     def __init__(self, abs_type, zabs=0., NHI=0., epoch=2000., dat_file=None, tree=None):
@@ -66,6 +71,7 @@ class Absline_System(object):
             print('absys_utils: Reading %s file' % dat_file)
             self.parse_dat_file(dat_file)
 
+    # Read a .dat file
     def parse_dat_file(self,dat_file,verbose=False,flg_out=None):
         # Define
         datdic = {}
@@ -127,7 +133,22 @@ class Absline_System(object):
             if (flg_out % 2) == 1: ret_val = [datdic]
             else: ret_val = [0]
             return ret_val
-        
+
+    # Parse the ion files
+    def get_ions(self,clm_fil):
+        # Read .clm file
+        self.clm_analy = Ionic_Clm_File(clm_fil)
+
+        # Read .all file
+        #xdb.set_trace()
+        all_fil = self.tree+self.clm_analy.ion_fil.split('.ion')[0]+'.all'
+        self.ions = Ions_Clm(all_fil)
+            
+    @abstractmethod
+    def print_abs_type(self):
+        """"Return a string representing the type of vehicle this is."""
+        pass
+
     # #############
     def __repr__(self):
         return ('[Absline_System: %s %s %s %s, %g, NHI=%g]' %
@@ -137,66 +158,35 @@ class Absline_System(object):
                  self.zabs, self.NHI))
 
 
-# Class for Absorption Line Survey
-class Absline_Survey(object):
-    """A survey of absorption line systems. Each system may be a
-    collection of Absline_System's
+# Class for Generic Absorption Line System
+class Generic_System(Absline_System):
+    """A simple absorption system
 
-    Attributes:
-        nsys: An integer representing the number of absorption systems
-        abs_type: Type of Absorption system (DLA, LLS)
-        ref: Reference to the Survey
     """
+    def print_abs_type(self):
+        """"Return a string representing the type of vehicle this is."""
+        return 'Generic'
 
-    # Init
-    def __init__(self, flist, abs_type=None, tree='', ref=None):
-        # Expecting a list of files describing the absorption systems
-        """  Initiator
+# Class for Generic Absorption Line System
+class Abs_Sub_System(Absline_System):
+    """A simple absorption system
 
-        Parameters
-        ----------
-        flist : string
-          ASCII file giving a list of systems (usually .dat files)
-        abs_type : string
-          Type of Abs Line System, e.g.  MgII, DLA, LLS
-        ref : string
-          Reference(s) for the survey
-        """
-        data = ascii.read(tree+flist, data_start=0, guess=False,format='no_header')
+    """
+    def print_abs_type(self):
+        """"Return a string representing the type of vehicle this is."""
+        return 'SubSystem'
 
-        self.flist = flist
-        self.dat_files = list(data['col1'])
-        self.nsys = len(self.dat_files)
-        self.tree = tree
-        print('Read %d files from %s in the tree %s' % (self.nsys, self.flist, self.tree))
 
-        # Generate AbsSys list
-        self.abs_sys = []
-        for dat_file in self.dat_files:
-            self.abs_sys.append(Absline_System(abs_type,dat_file=tree+dat_file))
 
-        # Other
-        self.abs_type = abs_type
-        self.ref = ref
-        #
 
-    # Get attributes
-    def __getattr__(self, k):
-        return np.array( [getattr(abs_sys,k) for abs_sys in self.abs_sys] )
 
-    # NHI
-    @property
-    def nhi(self):
-        #xdb.set_trace()
-        return np.array( [abs_sys.NHI for abs_sys in self.abs_sys] )
 
-    # Printing
-    def __repr__(self):
-        return '[Absline_Survey: %s %s, %d, %s, %s]' % (self.tree, self.flist,
-                                                        self.nsys, self.abs_type, self.ref)
-
-######################
+    
+###################### ###################### ######################
+###################### ###################### ######################
+###################### ###################### ######################
 # Testing
+###################### ###################### ######################
 if __name__ == '__main__':
 
     # Test Absorption System

@@ -106,6 +106,10 @@ def plot_hist(*args,**kwargs):
         # Histogram
         hist, edges = np.histogram(arr, range=rng, bins=nbin)
         ax.bar(edges[:-1], hist, width=kwargs['binsz'])
+        # Labels
+        if 'xlabel' in kwargs:
+            if not 'ax' in kwargs:
+                ax.xlabel(kwargs['xlabel'])
     else: 
         pdb.set_trace() # Not ready for this yet
         for kk in range(1,len(args)):

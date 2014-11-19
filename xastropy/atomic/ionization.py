@@ -19,6 +19,7 @@ from astropy import units as u
 #from astropy import constants as const
 
 from xastropy.atomic.elements import ELEMENTS
+from xastropy.outils import roman
 
 # Path for xastropy
 xa_path = imp.find_module('xastropy')[1]
@@ -45,6 +46,11 @@ def ion_name(ion):
         str_elm = elm.symbol
     else: 
         raise ValueError('ionization.ion_name: Not ready for this input yet.')
+
+    # Ion state
+    str_ion = roman.toRoman(ion[1])
+
+    return str_elm+str_ion
 
 
 ########################## ##########################
