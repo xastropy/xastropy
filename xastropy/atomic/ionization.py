@@ -21,6 +21,8 @@ from astropy import units as u
 from xastropy.atomic.elements import ELEMENTS
 from xastropy.outils import roman
 
+from astropy.utils.misc import isiterable
+
 # Path for xastropy
 xa_path = imp.find_module('xastropy')[1]
 
@@ -29,7 +31,7 @@ xa_path = imp.find_module('xastropy')[1]
 
 ########################## ##########################
 ########################## ##########################
-def ion_name(ion):
+def ion_name(ion,flg=0):
     """ Convert ion into a string
     JXP on 16 Nov 2014
 
@@ -39,7 +41,7 @@ def ion_name(ion):
 
     Returns
     -------
-    name : string , e.g. Si II
+    name : string , e.g. Si II, {\rm Si}^{+}
     """
     if isiterable(ion): 
         elm = ELEMENTS[ion[0]]
@@ -48,9 +50,25 @@ def ion_name(ion):
         raise ValueError('ionization.ion_name: Not ready for this input yet.')
 
     # Ion state
-    str_ion = roman.toRoman(ion[1])
+    if flg == 0: # Roman
+        str_ion = roman.toRoman(ion[1]) 
+        outp = str_elm+str_ion
+    elif flg == 1: # LaTeX
+        if ion[1] == 0:
+            raise ValueError('ionization.ion_name: Not ready for this input yet.')
+        elif ion[1] == 1:
+            str_ion = '^0'
+        elif ion[1] == 2:
+            str_ion = '^{+}'
+        elif ion[1] == 3:
+            str_ion = '^{++}'
+        else:
+            str_ion = '^{+'+str(ion[1]-1)+'}'
+        outp = '{\\rm '+str_elm+'}'+str_ion
+    else:
+        raise ValueError('ionization.ion_name: Not ready for this flg.')
 
-    return str_elm+str_ion
+    return outp
 
 
 ########################## ##########################

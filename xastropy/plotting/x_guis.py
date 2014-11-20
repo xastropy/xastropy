@@ -108,7 +108,9 @@ def plot_hist(*args,**kwargs):
         ax.bar(edges[:-1], hist, width=kwargs['binsz'])
         # Labels
         if 'xlabel' in kwargs:
-            if not 'ax' in kwargs:
+            try:
+                ax.set_xlabel(kwargs['xlabel'])
+            except: 
                 ax.xlabel(kwargs['xlabel'])
     else: 
         pdb.set_trace() # Not ready for this yet
