@@ -139,7 +139,7 @@ def fn_data_from_fits(fits_file):
     return fN_cs
 
 # Reproduce the main figure from P14 (data only)
-def tst_fn_data(fN_model=None):
+def tst_fn_data(fN_model=None, model_two=None):
     """ Make a plot like the final figure from P14 
 
     Parameters:
@@ -176,6 +176,8 @@ def tst_fn_data(fN_model=None):
     # f(N) data
     main.set_ylabel(r'$\log f(N_{\rm HI})$')
     main.set_xlabel(r'$\log N_{\rm HI}$')
+    main.set_xlabel(r'$\log N_{\rm HI}$')
+    main.set_ylim(-25., -9)
 
     for fN_c in fN_cs: 
         if fN_c.fN_dtype == 'fN':
@@ -194,12 +196,14 @@ def tst_fn_data(fN_model=None):
     main.legend(loc='lower left', numpoints=1)
 
     # Model?
-    if fN_model != None: #isinstance(fN_model,fN_Model):
+    if fN_model is not None: 
         xplt = 12.01 + 0.01*np.arange(1100)
         yplt = fN_model.eval(xplt, 2.4)
-        #xdb.xxp.printcol(xplt,yplt)
-        #xdb.set_trace()
         main.plot(xplt,yplt,'-',color='black')
+    if model_two is not None: 
+        xplt = 12.01 + 0.01*np.arange(1100)
+        yplt = model_two.eval(xplt, 2.4)
+        main.plot(xplt,yplt,'-',color='gray')
         
 
     # Extras
@@ -233,6 +237,7 @@ def tst_fn_data(fN_model=None):
                                      fN_model, NHI_MIN=fN_cs[itau].data['NHI_MNX'][0],
                                      NHI_MAX=fN_cs[itau].data['NHI_MNX'][1])
         inset.plot(1, model_teff, 'ko')
+        #xdb.set_trace()
 
     ## #######
     # LLS constraint

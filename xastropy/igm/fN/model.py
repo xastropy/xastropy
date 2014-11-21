@@ -264,7 +264,7 @@ class fN_Model(object):
                 fnz += np.outer(10.**log_gN[:,kk],fz[:,kk])
             # Finish up
             dXdz = igmu.cosm_xz(z_val, cosmo=cosmo, flg=1) 
-            log_fNX = np.log10(fnz) + np.log10( np.outer(np.ones(lenNHI), dXdz) )
+            log_fNX = np.log10(fnz) - np.log10( np.outer(np.ones(lenNHI), dXdz) )
         else: 
             raise ValueError('fN.model: Not ready for this model type {:%s}'.format(self.fN_mtype))
 
@@ -470,7 +470,7 @@ if __name__ == '__main__':
     from xastropy.igm.fN import model as xifm
 
     flg_test = 0 
-    #flg_test += 4 # Data
+    flg_test += 4 # Data
     #flg_test += 8 # l(X)
     flg_test += 64 # Akio
     #flg_test = 0 + 64
@@ -541,10 +541,11 @@ if __name__ == '__main__':
         dXdz = igmu.cosm_xz(z, flg=1) 
         log_fNX = fN_model.eval(NHI,z)
         for iNHI in NHI:
-            print('I+14 At z={:g} and NHI={:g}, f(N,z) = {:g}'.format(z,iNHI,10.**log_fNX[NHI.index(iNHI),0] / dXdz))
+            print('I+14 At z={:g} and NHI={:g}, f(N,z) = {:g}'.format(z,iNHI,10.**log_fNX[NHI.index(iNHI),0] * dXdz))
         # From Akio
           # 12 1.2e-9
           # 14 4.9e-13
           # 17 4.6e-18
           # 21 6.7e-23
-        fN_data.tst_fn_data(fN_model=fN_model)
+        JXP_model = xifm.default_model()
+        fN_data.tst_fn_data(fN_model=fN_model, model_two=JXP_model)
