@@ -13,13 +13,14 @@
 from __future__ import print_function
 
 import numpy as np
-import os, pdb, imp
+import os, imp
 from astropy.io import fits, ascii
 from astropy import units as u 
 #from astropy import constants as const
 
 from xastropy.atomic.elements import ELEMENTS
 from xastropy.outils import roman
+from xastropy.xutils import xdebug as xdb
 
 from astropy.utils.misc import isiterable
 
