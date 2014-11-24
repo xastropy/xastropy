@@ -7,5 +7,6 @@ import phot
 import plotting
 import spec
 import tests
+import xguis
 import xutils
 import PH136

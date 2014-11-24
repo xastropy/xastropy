@@ -46,6 +46,8 @@ class Absline_Survey(object):
           ASCII file giving a list of systems (usually .dat files)
         abs_type : string
           Type of Abs Line System, e.g.  MgII, DLA, LLS
+        mask : Boolean array
+          Mask for the systems
         ref : string
           Reference(s) for the survey
         """
@@ -67,7 +69,8 @@ class Absline_Survey(object):
             else: # Generic
                 from xastropy.igm.abs_sys.abssys_utils import Generic_System
                 self.abs_sys.append(Generic_System(abs_type,dat_file=tree+dat_file))
-
+        # Mask
+        self.mask = (np.ones(self.nsys) == np.ones(self.nsys))
         # Other
         self.abs_type = abs_type
         self.ref = ref
@@ -75,7 +78,7 @@ class Absline_Survey(object):
 
     # Get attributes
     def __getattr__(self, k):
-        return np.array( [getattr(abs_sys,k) for abs_sys in self.abs_sys] )
+        return np.array( [getattr(abs_sys,k) for abs_sys in self.abs_sys] )[self.mask]
 
     # Get ions
     def fill_ions(self):
@@ -109,6 +112,9 @@ class Absline_Survey(object):
 
         # Loop on systems
         for abs_sys in self.abs_sys:
+            # Mask?
+            if not self.mask[self.abs_sys.index(abs_sys)]: 
+                continue
             # Grab
             try:
                 idict = abs_sys.ions[iZion]
@@ -124,9 +130,29 @@ class Absline_Survey(object):
         # Return
         return t
 
+    # Mask
+    def upd_mask(self, msk, increment=False):
+        '''
+        Update the Mask for the abs_sys
+
+        Parameters
+        ----------
+        msk : array (usually Boolean)
+           Mask of systems 
+        increment : Boolean (False)
+           Increment the mask (i.e. keep False as False)
+        '''
+        if len(msk) == len(self.abs_sys):  # Boolean mask
+            if increment is False:
+                self.mask = msk
+            else:
+                self.mask = (self.mask == True) & (msk == True)
+        else:
+            raise ValueError('abs_survey: Needs developing!')
+
     # Printing
     def __repr__(self):
-        return '[Absline_Survey: {s} {s}, nsys={d}, type={s}, ref={s}]'.format(self.tree, self.flist,
+        return '[Absline_Survey: {:s} {:s}, nsys={:d}, type={:s}, ref={:s}]'.format(self.tree, self.flist,
                                                             self.nsys, self.abs_type, self.ref)
 
 

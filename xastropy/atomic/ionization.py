@@ -10,7 +10,7 @@
 #;-
 #;------------------------------------------------------------------------------
 """
-from __future__ import print_function
+from __future__ import print_function, absolute_import, division, unicode_literals
 
 import numpy as np
 import os, imp
@@ -32,13 +32,15 @@ xa_path = imp.find_module('xastropy')[1]
 
 ########################## ##########################
 ########################## ##########################
-def ion_name(ion,flg=0):
+def ion_name(ion,flg=0,nspace=None):
     """ Convert ion into a string
     JXP on 16 Nov 2014
 
     Parameters
     ----------
     ion: tuple (Z,ion)
+    nspace: int  (0)
+      Number of spaces to insert
 
     Returns
     -------
@@ -52,8 +54,10 @@ def ion_name(ion,flg=0):
 
     # Ion state
     if flg == 0: # Roman
+        if nspace is None: nspace = 0
         str_ion = roman.toRoman(ion[1]) 
-        outp = str_elm+str_ion
+        spc = ' '*nspace
+        outp = str_elm+spc+str_ion
     elif flg == 1: # LaTeX
         if ion[1] == 0:
             raise ValueError('ionization.ion_name: Not ready for this input yet.')

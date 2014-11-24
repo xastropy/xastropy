@@ -11,7 +11,7 @@
 #;-
 #;------------------------------------------------------------------------------
 """
-from __future__ import print_function
+from __future__ import print_function, absolute_import, division, unicode_literals
 
 import numpy as np
 import sys
@@ -75,14 +75,15 @@ def voigt_model(spec, line, Npix=None, flg_ret=1):
     JXP 01 Nov 2014
     """
     # Imports
-    from barak import spec as bs
+    #from barak import spec as bs
     from barak import convolve as bc
     import copy
+    from specutils.spectrum1d import Spectrum1D
 
     # Spectrum input
     if isinstance(spec,np.ndarray):  # Standard wavelength array
-        vmodel = bs.Spectrum(wa=spec)
-    elif isinstance(spec,bs.Spectrum):
+        vmodel = Spectrum1D.from_array(spec, np.zeros(len(spec)))
+    elif isinstance(spec,Spectrum1D):
         vmodel = copy.deepcopy(spec)
     else:
         raise ValueError('voigt_model: Unknown input')
@@ -98,9 +99,9 @@ def voigt_model(spec, line, Npix=None, flg_ret=1):
         par[5] = line.atomic['gamma']
     elif isinstance(line,list):
         if isinstance(line[0],abs_line.Abs_Line):  # List of Abs_Line
-            tau = np.zeros(len(vmodel.wa))
+            tau = np.zeros(len(vmodel.flux))
             for iline in line:
-                tau += voigt_model(vmodel.wa, iline, Npix=None, flg_ret=2) 
+                tau += voigt_model(vmodel.dispersion, iline, Npix=None, flg_ret=2) 
                 #xdb.set_trace()
         else:
             par = line  # Single line as a vector
@@ -118,14 +119,14 @@ def voigt_model(spec, line, Npix=None, flg_ret=1):
 
         # Converting to Voigt units
         cne=cold*cns
-        ww=(vmodel.wa*1.0e-8)/zp1
+        ww=(vmodel.dispersion*1.0e-8)/zp1
         v=wv*ww*((1.0/ww)-(1.0/wv))/bl
 
         # Voigt
         tau = cne * voigtking(v,a)
 
     # Flux
-    vmodel.fl = np.exp(-1.0*tau)
+    vmodel.flux = np.exp(-1.0*tau)
 
     # Convolve
     if Npix is not None:
@@ -157,7 +158,13 @@ if __name__ == '__main__':
     from matplotlib import pyplot as plt
     from barak import spec as bs
 
-    flg_test = 32
+    flg_test = 0
+    flg_test += 2**0
+    flg_test += 2**1
+    flg_test += 2**2
+    flg_test += 2**3
+    flg_test += 2**4
+    flg_test += 2**5
 
     wave = np.linspace(1260.0,1285.0,10000)
 
@@ -224,14 +231,15 @@ if __name__ == '__main__':
     if flg_test % 32 >= 16:
         vmodel,tau = voigt_model(wave, line, Npix=None, flg_ret=3)  # No smoothing
         vmodel.qck_plot()
+        print('voigt: Passing test. Tau plot')
         xdb.xplot(wave,tau)
-        print('voigt: Passing test')
 
     # Test spec input
     if flg_test % 64 >= 32:
-        spec = bs.Spectrum(wa=wave)
+        from specutils.spectrum1d import Spectrum1D
+        spec = Spectrum1D.from_array(wave, np.zeros(len(wave)))
         vmodel = voigt_model(spec, line, Npix=None, flg_ret=1)  # No smoothing
-        vmodel.qck_plot()
         print('voigt: Spec input test')
+        vmodel.qck_plot()
 
     print('voigt: All done testing..')

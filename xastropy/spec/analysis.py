@@ -36,7 +36,7 @@ def pixminmax(spec, zabs, wrest, vmnx):
     spl = const.c.to('km/s').value 
 
     # Create VELO
-    spec.velo = (spec.wa-wrest*(1+zabs))*spl/( wrest*(1+zabs) )
+    spec.velo = (spec.dispersion-wrest*(1+zabs))*spl/( wrest*(1+zabs) )
 
     # Locate the values
     pixmin = np.argmin( np.fabs( spec.velo-vmnx[0] ) )
@@ -52,6 +52,8 @@ def pixminmax(spec, zabs, wrest, vmnx):
 #    Adapted from N. Tejos scripts
 #
 def velplt(specfil):
+    ''' Soon to be deprecated..
+    '''
 
     # Imports
     from plotspec import plotvel_util as pspv

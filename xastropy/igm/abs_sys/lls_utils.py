@@ -176,7 +176,7 @@ class LLS_System(Absline_System):
         # LLS first
 
         # Energies in LLS rest-frame
-        wv_rest = spec.wa * u.AA / (self.zabs+1)
+        wv_rest = spec.dispersion * u.AA / (self.zabs+1)
         energy = wv_rest.to(u.eV, equivalencies=u.spectral())
 
         # Get photo_cross and calcualte tau
@@ -190,7 +190,7 @@ class LLS_System(Absline_System):
             self.fill_lls_lines()
 
         #xdb.set_trace()
-        tau_Lyman = voigt.voigt_model(spec.wa, self.lls_lines, flg_ret=2)
+        tau_Lyman = voigt.voigt_model(spec.dispersion, self.lls_lines, flg_ret=2)
 
         # Combine
         tau_model = tau_LL + tau_Lyman
@@ -202,7 +202,7 @@ class LLS_System(Absline_System):
         
         # Fill in flux
         model = copy.deepcopy(spec)
-        model.fl = np.exp(-1. * tau_model)
+        model.flux = np.exp(-1. * tau_model).value
 
         # Smooth?
         if smooth > 0:
@@ -296,9 +296,9 @@ class LLS_Survey(Absline_Survey):
 if __name__ == '__main__':
 
     flg_test = 1  # ions
-    #flg_test += 2 # LLS plot
+    flg_test += 2 # LLS plot
     #flg_test += 4 # LLS Survey NHI
-    flg_test += 8 # LLS Survey ions
+    #flg_test += 8 # LLS Survey ions
 
     # Test Absorption System
     print('-------------------------')
@@ -318,11 +318,13 @@ if __name__ == '__main__':
         print('-------------------------')
         tmp1.fill_lls_lines()
 
-        from barak import spec as bs
-        spec = bs.Spectrum(wa=np.linspace(3400.0,5000.0,10000))
+        from specutils.spectrum1d import Spectrum1D
+        wa=np.linspace(3400.0,5000.0,10000)
+        spec = Spectrum1D.from_array(wa,np.ones(len(wa)))
 
         model = tmp1.flux_model(spec, smooth=4)
         model.qck_plot()
+        #xdb.set_trace()
 
     # LLS Survey
     if (flg_test % 2**3) >= 2**2:

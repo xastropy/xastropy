@@ -12,5 +12,5 @@
 """
 from pdb import *
 from xastropy.xutils.printing import printcol as xpcol
-from xastropy.plotting.x_guis import plot_1d_arrays as xplot
-from xastropy.plotting.x_guis import plot_hist as xhist
+from xastropy.plotting.simple import plot_1d_arrays as xplot
+from xastropy.plotting.simple import plot_hist as xhist
