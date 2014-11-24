@@ -67,7 +67,7 @@ def ew_teff_lyman(ilambda, zem, fN_model, NHI_MIN=11.5, NHI_MAX=22.0, N_eval=500
     """
     # Lambda
     if not isinstance(ilambda,float):
-        raise ValueError('igm.tau_eff: ilambda must be a flaat for now')
+        raise ValueError('igm.tau_eff: ilambda must be a flaat for now') # Will need to not flatten eval otherwise
     Lambda = ilambda
     if not isinstance(Lambda,u.quantity.Quantity):
         Lambda = Lambda * u.AA # Ang
@@ -100,7 +100,7 @@ def ew_teff_lyman(ilambda, zem, fN_model, NHI_MIN=11.5, NHI_MAX=22.0, N_eval=500
     for qq,line in enumerate(gd_Lyman): # Would be great to do this in parallel... 
                              # (Can pack together and should)
         # Redshift
-        zeval = (Lambda / line) - 1
+        zeval = ((Lambda / line) - 1).value
         if fNz is False:
             if cosmo not in locals():
                 cosmo = FlatLambdaCDM(H0=70, Om0=0.3) # Vanilla
@@ -118,10 +118,11 @@ def ew_teff_lyman(ilambda, zem, fN_model, NHI_MIN=11.5, NHI_MAX=22.0, N_eval=500
         restEW = interpolate.splev(lgNval, EW_spline['tck'][idx], der=0)
 
         # dz
-        dz = (restEW*u.AA) * (1+zeval) / line
+        dz = ((restEW*u.AA) * (1+zeval) / line).value
 
-        # Evaluate f(N,X)
-        log_fnX = fN_model.eval(lgNval,zeval)
+        # Evaluate f(N,X) at zeval
+        log_fnX = fN_model.eval(lgNval,zeval).flatten()
+        #xdb.set_trace()
 
         # Sum
         intgrnd = 10.**(log_fnX) * dxdz * dz * Nval
