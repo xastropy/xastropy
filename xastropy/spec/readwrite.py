@@ -11,7 +11,7 @@
 #;------------------------------------------------------------------------------
 """
 
-from __future__ import print_function
+from __future__ import print_function, absolute_import, division, unicode_literals
 
 # Import libraries
 import numpy as np
@@ -60,25 +60,28 @@ def readspec(specfil, inflg=None, efil=None, outfil=None, show_plot=0,
     if hdulist[0].header['NAXIS'] == 0:
         # Flux 
         flux_tags = ['SPEC','FLUX','FLAM','FX']
-        fx = rw.get_table_column(flux_tags, hdulist)
+        fx, fx_tag = rw.get_table_column(flux_tags, hdulist)
         if fx == None:
             print('spec.readwrite: Binary FITS Table but no Flux tag')
             return
         # Error
         sig_tags = ['ERROR','ERR','SIGMA_FLUX','FLAM_SIG']
-        sig = rw.get_table_column(sig_tags, hdulist)
+        sig, sig_tag = rw.get_table_column(sig_tags, hdulist)
         if sig == None:
             ivar_tags = ['IVAR']
+            ivar, ivar_tag = rw.get_table_column(ivar_tags, hdulist)
             if ivar == None:
                 print('spec.readwrite: Binary FITS Table but no error tags')
                 return
             else: 
-                sig = fltarr(ivar.size)
-                gdi = np.where( ivar > 0.)
-                sig[gdi] = sqrt(1./strct.ivar[gdi])
+                sig = np.zeros(ivar.size)
+                gdi = np.where( ivar > 0.)[0]
+                sig[gdi] = np.sqrt(1./ivar[gdi])
         # Wavelength
-        wave_tags = ['WAVE','WAVELENGTH','LAMBDA']
-        wave = rw.get_table_column(wave_tags, hdulist)
+        wave_tags = ['WAVE','WAVELENGTH','LAMBDA','LOGLAM']
+        wave, wave_tag = rw.get_table_column(wave_tags, hdulist)
+        if wave_tag == 'LOGLAM':
+            wave = 10.**wave
         if wave == None:
             print('spec.readwrite: Binary FITS Table but no wavelength tag')
             return
@@ -295,7 +298,10 @@ def get_table_column(tags, hdulist):
         else:
             ii = ii + 1
     # Return
-    return dat.flatten()
+    if dat != None:
+        return dat.flatten(), tags[ii]
+    else: 
+        return dat, 'NONE'
 
 
 
