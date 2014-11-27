@@ -170,7 +170,8 @@ class Ionic_Clm_File(object):
         self.ion_fil=arr[ii].strip() ; ii+=1
         # NHI
         tmp = arr[ii].split(',') ; ii+=1
-        if len(tmp) != 2: raise ValueError('ionic_clm: Bad formatting {:s} in {:s}'
+        if len(tmp) != 2:
+            raise ValueError('ionic_clm: Bad formatting {:s} in {:s}'
                                            .format(arr[ii-1],self.clm_fil))
         self.NHI=float(tmp[0])
         self.sigNHI=float(tmp[1])

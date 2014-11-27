@@ -407,7 +407,7 @@ class fN_Model(object):
                  self.fN_mtype, self.zmnx[0], self.zmnx[1] ) )
 
 #########
-def default_model(recalc=False, pckl_fil=None, use_mcmc=False):
+def default_model(recalc=False, pckl_fil=None, use_mcmc=False, write=False):
     """
     Pass back a default fN_model from Prochaska+13
       Tested against XIDL code by JXP on 09 Nov 2014
@@ -417,6 +417,8 @@ def default_model(recalc=False, pckl_fil=None, use_mcmc=False):
       Recalucate the default model
     use_mcmc: boolean (False)
       Use the MCMC chain to generate the model
+    write: boolean (False)
+      Write out the model
     """
     if pckl_fil==None:
         pckl_fil = xa_path+'/igm/fN/fN_model_P13.p'
@@ -445,8 +447,9 @@ def default_model(recalc=False, pckl_fil=None, use_mcmc=False):
                             pivots=np.array(fN_data['LGN']).flatten(),
                             param=np.array(fN_data['FN']).flatten())
         # Write
-        print('default_model: Writing %s' % pckl_fil)
-        pickle.dump( fN_model, open( pckl_fil, "wb" ), -1)
+        if write is True:
+            print('default_model: Writing %s' % pckl_fil)
+            pickle.dump( fN_model, open( pckl_fil, "wb" ), -1)
     else: fN_model = pickle.load( open( pckl_fil, "rb" ) )
         
     # Return
