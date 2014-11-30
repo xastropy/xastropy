@@ -78,6 +78,7 @@ def load(flg=0, data_file=None,cosh_dct=None, pckl_fil=None):
                 zgal=cosh_dct['megastruct'][kk]['galaxy']['zspec'][0]
                 ))
     elif flg == 1: # Pickle
+        xdb.set_trace()  # NOT GOING TO WORK
         try:
             pfil = open(data_file, "rb")
         except IOError:
@@ -90,6 +91,7 @@ def load(flg=0, data_file=None,cosh_dct=None, pckl_fil=None):
 
     # Pickle?
     if pckl_fil is not None:
+        xdb.set_trace()  # NOT GOING TO WORK
         pfil = open(pckl_fil, "wb")
         sys.setrecursionlimit(20000)
         pickle.dump(cos_halos,pfil,-1)
