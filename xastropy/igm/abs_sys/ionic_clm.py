@@ -54,7 +54,7 @@ class Ion_Clm(object):
 
 # Class for Ionic columns -- one ion at at time
 class Ions_Clm(object):
-    """Set of Ionic column densities
+    """Set of Ionic column densities for a given system
 
     Attributes:
     

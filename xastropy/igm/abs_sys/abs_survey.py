@@ -51,30 +51,35 @@ class Absline_Survey(object):
         ref : string
           Reference(s) for the survey
         """
-        data = ascii.read(tree+flist, data_start=0, guess=False,format='no_header')
-
         self.flist = flist
-        self.dat_files = list(data['col1'])
-        self.nsys = len(self.dat_files)
-        self.tree = tree
-        print('Read %d files from %s in the tree %s' % (self.nsys, self.flist, self.tree))
-
-        # Generate AbsSys list
-        self.abs_sys = []
-        for dat_file in self.dat_files:
-            if abs_type == 'LLS':
-                from xastropy.igm.abs_sys.lls_utils import LLS_System
-                #xdb.set_trace()
-                self.abs_sys.append(LLS_System(dat_file=dat_file,tree=tree))
-            else: # Generic
-                from xastropy.igm.abs_sys.abssys_utils import Generic_System
-                self.abs_sys.append(Generic_System(abs_type,dat_file=tree+dat_file))
-        # Mask
-        self.mask = (np.ones(self.nsys) == np.ones(self.nsys))
-        # Other
         self.abs_type = abs_type
         self.ref = ref
-        #
+        self.abs_sys = []
+
+        # Load up (if possible)
+        if len(flist) > 0:  # Should improve this..
+            data = ascii.read(tree+flist, data_start=0, guess=False,format='no_header')
+
+            self.dat_files = list(data['col1'])
+            self.nsys = len(self.dat_files)
+            self.tree = tree
+            print('Read {:d} files from {:s} in the tree {:s}'.format(
+                self.nsys, self.flist, self.tree))
+            # Generate AbsSys list
+            for dat_file in self.dat_files:
+                if abs_type == 'LLS':
+                    from xastropy.igm.abs_sys.lls_utils import LLS_System
+                    #xdb.set_trace()
+                    self.abs_sys.append(LLS_System(dat_file=dat_file,tree=tree))
+                else: # Generic
+                    from xastropy.igm.abs_sys.abssys_utils import Generic_System
+                    self.abs_sys.append(Generic_System(abs_type,dat_file=tree+dat_file))
+            # Mask
+            self.mask = (np.ones(self.nsys) == np.ones(self.nsys))
+        else:
+            self.nsys = 0 
+            self.mask = None
+
 
     # Get attributes
     def __getattr__(self, k):

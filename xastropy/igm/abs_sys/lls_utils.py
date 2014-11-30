@@ -37,10 +37,6 @@ class LLS_System(Absline_System):
     Attributes:
         tau_ll: Opacity at the Lyman limit
     """
-
-#lls.ions[(6,4)]['clm']
-#lls.subsys['A'].ions[(6,2)]['clm'] -- Done!
-
     # Initialize with a .dat file
     def __init__(self, dat_file=None, tree=None):
         # Generate with type
@@ -276,11 +272,12 @@ class LLS_Survey(Absline_Survey):
         # Return
         return gdNHI, bdNHI
 
-    # Cut on NHI
+    # Default sample of LLS (high-z)
     @classmethod
     def default_sample(cls):
         # Local
-        sys.path.append(os.path.abspath(os.environ.get('LLSPAP')+"/Optical/Data/Analysis/py"))
+        sys.path.append(os.path.abspath(os.environ.get('LLSPAP')+
+                                        "/Optical/Data/Analysis/py"))
         import lls_sample as lls_s
 
         lls = cls('Lists/lls_metals.lst', tree=os.environ.get('LLSTREE'))

@@ -33,7 +33,6 @@ class Absline_System(object):
     Attributes:
         name: Coordinates
         coord: Coordinates
-        epoch: Epoch (e.g. 2000.0)
         zabs : float
           Absorption redshift
         NHI:  float
@@ -46,29 +45,30 @@ class Absline_System(object):
     __metaclass__ = ABCMeta
 
     # Init
-    def __init__(self, abs_type, zabs=0., NHI=0., epoch=2000., dat_file=None, tree=None):
+    def __init__(self, abs_type, zabs=0., NHI=0., MH=0., dat_file=None, tree=None):
         """  Initiator
 
         Parameters
         ----------
         abs_type : string
-          Type of Abs Line System, e.g.  MgII, DLA, LLS
+          Type of Abs Line System, e.g.  MgII, DLA, LLS, CGM
         dat_file : string
           ASCII .dat file summarizing the system
         """
         self.zabs = zabs
         self.NHI = NHI
-        self.epoch = epoch
+        self.MH = MH
         # Abs type
         if abs_type == None:
             self.abs_type = 'NONE'
-        else: self.abs_type = abs_type
+        else:
+            self.abs_type = abs_type
         # Tree
         if tree == None: tree = ''
         self.tree = tree
         # Fill in
         if dat_file != None:
-            print('absys_utils: Reading %s file' % dat_file)
+            print('absys_utils: Reading {:s} file'.format(dat_file))
             self.parse_dat_file(dat_file)
 
     # Read a .dat file
