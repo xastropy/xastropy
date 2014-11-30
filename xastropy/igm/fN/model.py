@@ -68,7 +68,8 @@ class fN_Model(object):
         self.npivot = len(pivots)
 
         # Param
-        if param == None: self.param = np.zeros(self.npivot)
+        if param is None:
+            self.param = np.zeros(self.npivot)
         else:
             self.param = param
             #if np.amax(self.pivots) < 99.:

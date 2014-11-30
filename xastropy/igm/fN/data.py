@@ -250,7 +250,7 @@ def tst_fn_data(fN_model=None, model_two=None):
     # Model
     if fN_model != None:
         lX = fN_model.calc_lox(fN_cs[iLLS].zeval,
-                                17.19+np.log10(fN_cs[iLLS].data['TAU_LIM']), 23.) 
+                                17.19+np.log10(fN_cs[iLLS].data['TAU_LIM']), 22.) 
         inset.plot(2, lX, 'ko')
 
     ## #######

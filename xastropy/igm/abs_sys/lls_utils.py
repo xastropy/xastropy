@@ -13,7 +13,7 @@
 
 from __future__ import print_function, absolute_import, division, unicode_literals
 
-import os, copy
+import os, copy, sys
 
 import numpy as np
 
@@ -276,7 +276,20 @@ class LLS_Survey(Absline_Survey):
         # Return
         return gdNHI, bdNHI
 
+    # Cut on NHI
+    @classmethod
+    def default_sample(cls):
+        # Local
+        sys.path.append(os.path.abspath(os.environ.get('LLSPAP')+"/Optical/Data/Analysis/py"))
+        import lls_sample as lls_s
 
+        lls = cls('Lists/lls_metals.lst', tree=os.environ.get('LLSTREE'))
+        # Mask
+        msk = lls_s.hdlls(lls)
+        lls.upd_mask(msk)
+
+        # Return
+        return lls
 
 
 

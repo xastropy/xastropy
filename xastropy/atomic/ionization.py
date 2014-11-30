@@ -44,7 +44,8 @@ def ion_name(ion,flg=0,nspace=None):
 
     Returns
     -------
-    name : string , e.g. Si II, {\rm Si}^{+}
+    name : string
+      e.g. Si II, {\rm Si}^{+}
     """
     if isiterable(ion): 
         elm = ELEMENTS[ion[0]]
