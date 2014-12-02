@@ -24,7 +24,17 @@ import matplotlib.pyplot as plt
 #### ###############################
 #  Simplest quick plot
 #   Plot a series of arrays (as many as you want!!)
-def plot_1d_arrays(*args):
+def plot_1d_arrays(*args,**kwargs):
+    """
+    Plot arrays
+
+    Parameters
+    ----------
+    xtwo= : float 
+      x-values for a second array
+    ytwo= : float 
+      y-values for a second array
+    """
     # Error checking
     if len(args) == 0:
         print 'x_guis.simple_splot: No arguments!'
@@ -43,9 +53,10 @@ def plot_1d_arrays(*args):
         for kk in range(1,len(args)):
             plt.plot(args[0].flatten(),args[kk].flatten())
 
-    # Finish
-    #mng = plt.get_current_fig_manager()
-    #mng.full_screen_toggle() # Mac specific?! Not working anyhow
+    # Second array?
+    if ('xtwo' in kwargs) & ('ytwo' in kwargs):
+        plt.plot(kwargs['xtwo'], kwargs['ytwo'])
+    # Show
     plt.show()
 
     return
