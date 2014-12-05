@@ -60,6 +60,7 @@ class LLS_System(Absline_System):
         datdic = out_list[0]
 
         # LLS keys
+        self.qso = datdic['QSOname']
         self.MH = float(datdic['[M/H]ave'])
         self.nsub = int(datdic['Nsubsys'])
         self.cldyfil = datdic['CloudyGridFile']
