@@ -69,8 +69,10 @@ class Absline_Survey(object):
             for dat_file in self.dat_files:
                 if abs_type == 'LLS':
                     from xastropy.igm.abs_sys.lls_utils import LLS_System
-                    #xdb.set_trace()
                     self.abs_sys.append(LLS_System(dat_file=dat_file,tree=tree))
+                elif abs_type == 'DLA':
+                    from xastropy.igm.abs_sys.dla_utils import DLA_System
+                    self.abs_sys.append(DLA_System(dat_file=dat_file,tree=tree))
                 else: # Generic
                     from xastropy.igm.abs_sys.abssys_utils import Generic_System
                     self.abs_sys.append(Generic_System(abs_type,dat_file=tree+dat_file))
@@ -86,12 +88,12 @@ class Absline_Survey(object):
         return np.array( [getattr(abs_sys,k) for abs_sys in self.abs_sys] )[self.mask]
 
     # Get ions
-    def fill_ions(self):
+    def fill_ions(self): # This may be overloaded!
         '''
         Loop on systems to fill in ions
         '''
         for abs_sys in self.abs_sys:
-            abs_sys.fill_ions()  # This may be overloaded!
+            abs_sys.get_ions(self.tree+abs_sys.clm_fil)
 
     # Get ions
     def ions(self,iZion, skip_null=False):

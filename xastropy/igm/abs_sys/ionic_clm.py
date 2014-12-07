@@ -17,6 +17,7 @@ import numpy as np
 from astropy.io import fits, ascii
 
 from xastropy.atomic import ionization as xai
+from xastropy.spec import abs_line as xsabs
 from xastropy.xutils import xdebug as xdb
 
 #class Ion_Clm(object):
@@ -52,7 +53,8 @@ class Ion_Clm(object):
         self.clm = 0.
         self.sigclm = 0.
 
-# Class for Ionic columns -- one ion at at time
+# ###################
+# Class for Ionic columns 
 class Ions_Clm(object):
     """Set of Ionic column densities for a given system
 
@@ -61,18 +63,28 @@ class Ions_Clm(object):
     """
 
     # Initialize with wavelength
-    def __init__(self, in_file):
+    def __init__(self, in_file, trans_file=None):
         '''
-        in_fil -- Input file
+        in_file -- Input file
+           File for ionic column values 
            Generally a .all file for parsing
+        trans_file -- string
+           File for transition-by-transition measurements
+           Usually has extension .ion
         '''
         # Generate -- Other options will appear
         self.in_file = in_file
         self.read_all_file(in_file)
+        # Transitions?
+        if trans_file is not None:
+            self.read_ion_file(trans_file)
 
     # Access the data and return a dict
     def __getitem__(self, iZion):
-        return self.ion_data[iZion] 
+        try:
+            return self.ion_data[iZion] 
+        except KeyError:
+           raise KeyError 
 
     # Read a .all file
     def read_all_file(self,all_fil):
@@ -82,6 +94,7 @@ class Ions_Clm(object):
         to see if it is properly formatted.
         """
         # Read
+        print('Reading {:s}'.format(all_fil))
         names=('Z', 'ion', 'clm', 'sig_clm', 'flg_clm', 'flg_inst') 
         table = ascii.read(all_fil, format='no_header', names=names) 
         # Convert to dict
@@ -94,6 +107,28 @@ class Ions_Clm(object):
                 tmp[(row['Z'],row['ion'])][key] = row[key]
         # Write
         self.ion_data = tmp
+
+    # Read a .ion file (transitions)
+    def read_ion_file(self,ion_fil):
+        """ 
+        Read in the .ion file in an appropriate manner
+        """
+        # Read
+        names=('wrest', 'clm', 'sig_clm', 'flg_clm', 'flg_inst') 
+        table = ascii.read(ion_fil, format='no_header', names=names) 
+
+        # Get ion info
+        adata = xsabs.abs_line_data( table['wrest'], ret_flg=1)
+
+        # Add
+        from astropy.table import Column
+        Z = Column(adata['Z'], name='Z') # Atomic number
+        ion = Column(adata['ion'], name='ion') # Atomic number
+        table.add_columns([Z,ion])
+
+        # Save
+        self.trans = table
+
 
     # Printing
     def __repr__(self):
@@ -179,11 +214,11 @@ class Ionic_Clm_File(object):
         numhand=int(arr[ii][:-1]) ; ii+=1
         self.fixabund={}
         if numhand>0:
-            for ii in range(ii,ii+numhand):
+            for jj in range(numhand):
                 # Atomic number
                 atom=int(arr[ii][:-1]) ; ii+=1
                 # Values
-                tmp = arr[ii].split(',')
+                tmp = arr[ii].strip().split(',') ; ii+=1
                 self.fixabund[atom]= float(tmp[0]), float(tmp[1]), int(tmp[2])
         # Loop on lines
         self.clm_lines = {}
@@ -237,3 +272,7 @@ class Line_Clm(object):
         self.analy = {} # Analysis inputs (from .clm file)
         self.measure = {} # Measured quantities
 
+    # Output
+    def __repr__(self):
+        return ('[{:s}: wrest={:g}'.format(
+                self.__class__.__name__, self.wave))

@@ -14,8 +14,8 @@
 from __future__ import print_function, absolute_import, division, unicode_literals
 
 import os, copy, sys
-
 import numpy as np
+import yaml
 
 from astropy import units as u
 from astropy.io import ascii 
@@ -42,14 +42,19 @@ class LLS_System(Absline_System):
         # Generate with type
         Absline_System.__init__(self,'LLS')
         # Over-ride tree?
-        if tree != None: self.tree = tree
+        if tree != None:
+            self.tree = tree
+        else:
+            self.tree = ''
         # Parse .dat file
         if dat_file != None:
-            self.parse_dat_file(tree+dat_file)
+            self.parse_dat_file(self.tree+dat_file)
+            self.dat_file = self.tree+dat_file
 
         # Set tau_LL
         self.tau_LL = (10.**self.NHI)*6.3391597e-18 # Should replace with photocross
-        self.ionic = {}
+        self.ions = None
+        self.zpeak = None
 
         # Name
 
@@ -57,22 +62,22 @@ class LLS_System(Absline_System):
     def parse_dat_file(self,dat_file):
         # Standard Call
         out_list = Absline_System.parse_dat_file(self,dat_file,flg_out=1)
-        datdic = out_list[0]
 
         # LLS keys
-        self.qso = datdic['QSOname']
-        self.MH = float(datdic['[M/H]ave'])
-        self.nsub = int(datdic['Nsubsys'])
-        self.cldyfil = datdic['CloudyGridFile']
+        self.qso = self.datdict['QSO name']
+        self.zqso = float(self.datdict['QSO zem'])
+        self.MH = float(self.datdict['[M/H] ave'])
+        self.nsub = int(self.datdict['N subsys'])
+        self.cldyfil = self.datdict['Cloudy Grid File']
 
         # LLS Subsystems
         if self.nsub > 0:
             self.subsys = {}
             lbls= map(chr, range(65, 91))
             # Dict
-            keys = (['zabs','NHI','NHIsig','NH','NHsig','logx','sigx','b','bsig','Abundfile',
+            keys = (['zabs','NHI','NHIsig','NH','NHsig','log x','sigx','b','bsig','Abund file',
                      'U','Usig','flg_low','flg_alpha','[alpha/H]','sig[a/H]',
-                     'flg_Fe','[Fe/H]','sig[Fe/H]','VPFITfile'])
+                     'flg_Fe','[Fe/H]','sig[Fe/H]','VPFIT file'])
             att = (['zabs','NHI','NHIsig','NH','NHsig','logx','sigx','bval','bsig','clm_file',
                      'U','Usig','flg_low','flg_alpha','alpha_H','sig_a_H',
                      'flg_Fe','Fe_H','sig_Fe_H','VPFIT_file'])
@@ -89,7 +94,7 @@ class LLS_System(Absline_System):
                 # Fill in
                 for ii,key in enumerate(keys):
                     try:
-                        tmpc = datdic[lbls[i]+key]
+                        tmpc = self.datdict[lbls[i]+' '+key]
                     except:
                         raise ValueError('lls_utils: Key "{:s}" not found in {:s}'
                                          .format(lbls[i]+key,dat_file))
@@ -101,6 +106,7 @@ class LLS_System(Absline_System):
                         else: # Single value
                             setattr(self.subsys[lbls[i]], att[ii], (map(type(val),[tmpc]))[0] )
 
+    # Fill up the ions
     def fill_ions(self):
         """
         Parse the ions for each Subsystem
@@ -119,13 +125,15 @@ class LLS_System(Absline_System):
         # Combine
         if self.nsub == 1:
             self.ions = self.subsys['A'].ions
+            self.clm_analy = self.subsys['A'].clm_analy
             #xdb.set_trace()
         elif self.nsub == 0:
             raise ValueError('lls_utils.fill_ions: Cannot have 0 subsystems..')
         else:
             self.ions = self.subsys['A'].ions
-            print('lls_utils.fill_ions: Need to update multiple subsystems!!')
-            
+            self.clm_analy = self.subsys['A'].clm_analy
+            print('lls_utils.fill_ions: Need to update multiple subsystems!! Taking A.')
+
 
     # #############
     def fill_lls_lines(self, bval=20.):
@@ -208,25 +216,78 @@ class LLS_System(Absline_System):
         # Return
         return model
 
-        #spec.qck_plot()
-        #xdb.set_trace()
+    # 
+    def get_zpeak(self):
+        ''' Measure zpeak from an ionic transition
+        '''
+        if self.ions is None:
+            print('get_zpeak: Need to fill ions with fill_ions first.')
+            return
 
+        # Ions for analysis
+        low_ions = [ (14,2), (6,2), (13,2), (26,2), (13,3)]
+        high_ions= [(14,4), (6,4)]
 
-    ''' Deprecated
-    # Subsystem Dict
-    def subsys(self):
-        keys = (['zabs','NHI','NHIsig','NH','NHsig','logx','sigx','b','bsig','Abundfile',
-                'U','Usig','flg_low','flg_alpha','[alpha/H]','sig[a/H]',
-                'flg_Fe','[Fe/H]','sig[Fe/H]','VPFITfile'])
-        values = ([0., 0., np.zeros(2), 0., np.zeros(2), 0., np.zeros(2), 0., 0.,
-                   '', 0., np.zeros(2), 0, 0, 0., 0., 0, 0., 0., ''])
-        return dict(zip(keys,values))
-    '''
+        for tt in range(4):
+            if tt == 0:
+                ions = low_ions
+                iflg = 1 # Standard
+            elif tt == 1:
+                ions = low_ions
+                iflg = 2 # Saturated
+            elif tt == 2:
+                ions = high_ions
+                iflg = 1 # Standard
+            elif tt == 3:
+                ions = high_ions
+                iflg = 2 # Standard
+            else:
+                raise ValueError('Bad value')
+
+            # Search 
+            for ion in ions:
+                try:
+                    t = self.ions[ion]
+                except KeyError:
+                    continue
+                # Measurement?
+                if t['flg_clm'] == iflg:
+                # Identify the transition
+                    gdi = np.where( (self.ions.trans['Z'] == ion[0]) &
+                                (self.ions.trans['ion'] == ion[1]) &
+                                (self.ions.trans['flg_clm'] <= iflg) )[0]
+                    # Take the first one
+                    gdt = self.ions.trans[gdi[0]]
+                    wrest = gdt['wrest']
+                    flgs = self.clm_analy.clm_lines[wrest].analy['FLAGS']
+                    spec_file = self.clm_analy.fits_files[flgs[1] % 64]
+                    # Generate an Abs_Line with spectrum
+                    line = abs_line.Abs_Line(wrest, z=self.clm_analy.zsys, spec_file=spec_file)
+                    # vpeak
+                    from astropy.relativity import velocities as arv
+                    vpeak = line.vpeak()
+                    self.zpeak = arv.z_from_v(self.clm_analy.zsys, vpeak)
+                    if tt == 3:
+                        print('zpeak WARNING: Using saturated high-ions!!')
+                    break
+            else:
+                continue
+            # get out
+            break
+
+        # Error catching
+        if self.zpeak is None:
+            # Skip primordial LLS
+            print('lls_utils.zpeak: No transition in {:s}'.format(self.clm_analy.clm_fil))
+            xdb.set_trace()
+            return (0,0), 0.
+        # Return
+        return ion, vpeak
 
     # Output
     def __repr__(self):
-        return ('[%s: %s %s, %g, NHI=%g, tau=%g, M/H=%g]' %
-                (self.__class__.__name__,
+        return ('[{:s}: {:s} {:s}, {:g}, NHI={:g}, tau={:g}, M/H={:g}]'.format(
+                self.__class__.__name__,
                  self.coord.ra.to_string(unit=u.hour,sep=':',pad=True),
                  self.coord.dec.to_string(sep=':',pad=True),
                  self.zabs, self.NHI, self.tau_LL, self.MH))
@@ -235,6 +296,9 @@ class LLS_System(Absline_System):
         """"Return a string representing the type of vehicle this is."""
         return 'LLS'
 
+# #######################################################################
+# #######################################################################
+# #######################################################################
 # Class for LLS Survey
 class LLS_Survey(Absline_Survey):
     """An LLS Survey class
@@ -306,10 +370,14 @@ class LLS_Survey(Absline_Survey):
 ## #################################    
 if __name__ == '__main__':
 
-    flg_test = 1  # ions
-    flg_test += 2 # LLS plot
-    #flg_test += 4 # LLS Survey NHI
-    #flg_test += 8 # LLS Survey ions
+    flg_test = 0
+    #flg_test = 1  # ions
+    #flg_test += 2 # LLS plot
+    #flg_test += 2**2 # zpeak
+    flg_test += 2**3 # YAML .dat file
+    #
+    #flg_test += 2**9 # LLS Survey NHI
+    #flg_test += 2**10 # LLS Survey ions
 
     # Test Absorption System
     print('-------------------------')
@@ -323,6 +391,7 @@ if __name__ == '__main__':
         tmp1.fill_ions()
         print('C IV: ')
         print(tmp1.ions[(6,4)])
+        print(tmp1.ions.trans[5]) # CIV 1550
     
     # Plot the LLS
     if (flg_test % 2**2) >= 2**1:
@@ -337,15 +406,35 @@ if __name__ == '__main__':
         model.qck_plot()
         #xdb.set_trace()
 
-    # LLS Survey
+    # Test zpeak
     if (flg_test % 2**3) >= 2**2:
         print('-------------------------')
-        lls = LLS_Survey('Lists/lls_metals.lst', tree='/Users/xavier/LLS/')
+        tmp1.fill_ions()
+        ion,vpeak = tmp1.get_zpeak()
+        print('zpeak = {:g}'.format(tmp1.zpeak))
+
+    # Write .dat
+    if (flg_test % 2**4) >= 2**3:
+        tmp1.write_dat_file()
+        '''
+        with open('tmp.yml', 'w') as outfile:
+            outfile.write( yaml.safe_dump(tmp1.datdic, default_flow_style=False))
+        dd = {'A':'a', 'B':{'C':'c', 'D':'d', 'E':'e'}}
+        with open('result.yml', 'w') as yaml_file:
+            yaml_file.write( yaml.safe_dump(dd, default_flow_style=False))
+        xdb.set_trace()
+        '''
+
+    # #############################
+    # LLS Survey
+    if (flg_test % 2**10) >= 2**9:
+        print('-------------------------')
+        lls = LLS_Survey('Lists/lls_metals.lst', tree=os.environ.get('LLSTREE'))
         xdb.xhist(lls.NHI, binsz=0.30)
 
     # LLS Survey ions
-    if (flg_test % 2**4) >= 2**3:
-        lls = LLS_Survey('Lists/lls_metals.lst', tree='/Users/xavier/LLS/')
+    if (flg_test % 2**11) >= 2**10:
+        lls = LLS_Survey('Lists/lls_metals.lst', tree=os.environ.get('LLSTREE'))
         lls.fill_ions()
         xdb.xhist(lls.ions((6,4),skip_null=True)['clm'], binsz=0.3,
                   xlabel=r'$\log_{10} N({\rm C}^{+3})$')

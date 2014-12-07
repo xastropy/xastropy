@@ -13,7 +13,7 @@
 from __future__ import print_function, absolute_import, division, unicode_literals
 
 import numpy as np
-import os, imp, pickle, sys
+import os, imp, pickle, sys, glob
 from astropy.io import fits, ascii
 from astropy import units as u 
 #from astropy import constants as const
@@ -43,7 +43,7 @@ def load(flg=0, data_file=None,cosh_dct=None, pckl_fil=None):
     flg: integer
       Flag indicating how to load the data
       0 = IDL mega structure
-      1 = Python pickle file
+      1 = FITS files
     data_file: string
       Name of data file
     pckl_fil: string
@@ -77,15 +77,20 @@ def load(flg=0, data_file=None,cosh_dct=None, pckl_fil=None):
                 g_decs=cosh_dct['megastruct'][kk]['galaxy']['dec'][0],
                 zgal=cosh_dct['megastruct'][kk]['galaxy']['zspec'][0]
                 ))
-    elif flg == 1: # Pickle
-        xdb.set_trace()  # NOT GOING TO WORK
-        try:
-            pfil = open(data_file, "rb")
-        except IOError:
-            raise ValueError('cos_halos.load: Need to set data_file')
-        sys.setrecursionlimit(20000)
-        cos_halos = pickle.load(pfil)
-        pfil.close()
+    elif flg == 1: # FITS files
+        fits_path = os.path.abspath(os.environ.get('DROPBOX_DIR')+'/COS-Halos/lowions/FITS/')
+        # Loop
+        cos_files = glob.glob(fits_path+'J*.fits')
+        # Setup
+        cos_halos = xcc.CGM_Abs_Survey()
+        cos_halos.nsys = len(cos_files)
+        # Read
+        for fil in cos_files:
+            hdu = fits.open(fil)
+            summ = hdu[0].data
+            galx = hdu[1].data
+            xdb.set_trace()
+        
     else:
         raise ValueError('cos_halos.load: Not read for this flag {:d}'.format(flg))
 
@@ -107,9 +112,7 @@ def load(flg=0, data_file=None,cosh_dct=None, pckl_fil=None):
 if __name__ == '__main__':
 
     # Load pickle
-    data_file = os.path.abspath(os.environ.get('DROPBOX_DIR')+'/COS-Halos/lowions/'+
-                                'coshalos.p')
-    cos_halos = load(flg=1, data_file=data_file)
+    cos_halos = load(flg=1)
     print(cos_halos)
     
     #

@@ -10,25 +10,40 @@
 #;-
 #;------------------------------------------------------------------------------
 """
-from __future__ import print_function
+from __future__ import print_function, absolute_import, division, unicode_literals
 
 import numpy as np
-import os, pdb, imp
+import os, imp
+from astropy import units as u
 from astropy.io import fits, ascii
+from astropy.utils.misc import isiterable
+
+from xastropy.outils import roman
+from xastropy.atomic.elements import ELEMENTS
+from xastropy.xutils import xdebug as xdb
+from xastropy.spec import readwrite as xspec_rw
+from xastropy.spec import analysis as xspec_anly
 
 # Path for xastropy
 xa_path = imp.find_module('xastropy')[1]
+
+#class Abs_Line(object):
+#def mk_line_list_fits_table(outfil=None,XIDL=True):
 
 # Class for Absorption Line 
 class Abs_Line(object):
     """An absorption line
 
     Attributes:
-        name: Name of transition
-        wrest: Rest wavelength (Ang)
+        name: string
+          Name of transition
+        wrest: float
+          Rest wavelength (Ang)
+        z: float
+          Redshift
     """
     # Init
-    def __init__(self, wrest, z=0., N=0., fill=True):
+    def __init__(self, wrest, z=0., N=0., fill=True, spec_file=None):
         self.wrest = wrest
         self.z = z
 
@@ -41,9 +56,48 @@ class Abs_Line(object):
 
         # Attribute dict
         self.attrib = {'N': 0., 'Nsig': 0., 'flgN': 0,
-                       'b': 0., 'bsig': 0.,
+                       'b': 0., 'bsig': 0., 'vmin': 0., 'vmax': 0., 
                        'EW': 0., 'EWsig': 0., 'flgEW': 0}
 
+        # Spectrum info (optional)
+        if spec_file is None:
+            self.spec = None
+        else:
+            self.spec = xspec_rw.readspec(spec_file)
+
+    # Method to find the flux-weighted optical-depth velocity (requires spectrum)
+    def vpeak(self, smooth=0):
+        '''
+        Parameters:
+        smooth: int (0)
+          Number of pixels to smooth over
+
+        Returns:
+        vpeak: float [km/s]
+          Flux-weighted velocity of optical depth (aka, minimum flux)
+
+        JXP 06 Dec 2014
+        '''
+        # Get pixels covering the line
+        pix = xspec_anly.pixminmax(self.spec, self.z, self.wrest,
+                                    (self.attrib['vmin'],self.attrib['vmax']))
+        # Smooth?
+        if smooth > 0:
+            raise ValueError('abs_line.vpeak: Not ready for smoothing')
+
+        # Good data
+        gdp = np.where(self.spec.sig[pix] > 0)[0]
+        gdpix = np.array(pix)[gdp]
+
+        # Set tau with a floor of 0.05 in the flux
+        tau = -1.* np.log( np.maximum( self.spec.flux[gdpix], 0.05*np.ones(len(gdp)) ) )
+
+        # Weight
+        vpeak = np.sum(self.spec.velo[gdpix] * tau) / np.sum( tau ) 
+
+        # Return with units
+        return vpeak * u.Unit('km/s')
+            
     # Printing
     def __repr__(self):
         return '[%s: %s, %.4f]' % (self.__class__.__name__,
@@ -71,7 +125,7 @@ class Abs_Line_List(object):
         # Read with Fixed Format (astropy Table)
         self.data = ascii.read(llist_file(llist), format='fixed_width_no_header',data_start=1,
                         names=('wrest', 'name', 'fval'),
-                        col_starts=(0,10,22), col_ends=(8,20,32))
+                        col_starts=(0,9,22), col_ends=(8,20,32))
         return
 
     # Add additional atomic data
@@ -82,33 +136,56 @@ class Abs_Line_List(object):
 
 ## ##############
 # Grab atomic data
-def abs_line_data(wrest,datfil=None, ret_dict=True):
+def abs_line_data(wrest, datfil=None, ret_flg=0, tol=2e-3):
     """
-    wrest : float -- Input wavelength (Ang)
-    ret_dict : Bool (False) -- return dictionary
+    wrest : float or array
+      -- Input wavelength (Ang)
+    tol : float (2e-3)
+      Tolerance for finding a match in wrest
+    ret_flg : int (0)
+      0: Return a dictionary
+      1: Return an astropy Table
     """
-    #
+    # Data file
     if datfil == None:
         datfil = xa_path+'/data/atomic/spec_atomic_lines.fits'
     # Read
     hdu = fits.open(datfil)
     data = hdu[1].data
-    # Find
-    mt = np.where(np.fabs(data['wrest']-wrest) < 1e-4)[0]
-    nm = len(mt)
-    if nm == 0:
-        raise ValueError('abs_line_data: %g not in our table %s' % (wrest,datfil))
-    elif nm == 1:
-        # Grab
-        row = data[mt[0]]
-        #pdb.set_trace()
-        # Turn to dict
-        if ret_dict == True:
-            return dict(zip(data.dtype.names,row))
+
+    if not isiterable(wrest):
+        wrest = [wrest]
+
+    # Loop
+    all_row = []
+    for iwrest in wrest:
+        mt = np.where(np.fabs(data['wrest']-iwrest) < tol)[0]
+        nm = len(mt)
+        # Found?
+        if nm == 0:
+            raise ValueError('abs_line_data: {:g} not in our table {:s}'.format(iwrest,datfil))
+        elif nm == 1:
+            # Grab
+            all_row.append(mt[0])
         else:
-            raise Exception('abs_line_data: Not ready for this..')
+            raise ValueError('abs_line_data: {:g} appears {:d} times in our table {:s}'.format(
+                iwrest,nm,datfil))
+
+    tab = data[all_row]
+
+    # Return
+    if ret_flg == 0: # Dictionary(ies)
+        adict = []
+        for row in all_row:
+            adict.append(dict(zip(data.dtype.names,data[row])))
+        if len(wrest) == 1:
+            return adict[0]
+        else:
+            return adict
+    elif ret_flg == 1:
+        return tab
     else:
-        raise ValueError('abs_line_data: %g appears %d times in our table %s' % (wrest,nm,datfil))
+        raise Exception('abs_line_data: Not ready for this..')
     
 
 
@@ -148,8 +225,36 @@ def mk_line_list_fits_table(outfil=None,XIDL=True):
     Ex = Column(np.zeros(ndata),name='Ex') # Excitation energy (cm^-1)
     Elow = Column(np.zeros(ndata),name='Elow') # Energy of lower level
     Eup = Column(np.zeros(ndata),name='Eup') # Energy of upper level
+    Z = Column(np.zeros(ndata,dtype='int'),name='Z') # Atomic number
+    ion = Column(np.zeros(ndata,dtype='int'),name='ion') # Ionic state
 
-    llist.data.add_columns([gamma,A,j,Ex,Elow,Eup])
+    llist.data.add_columns([gamma,A,j,Ex,Elow,Eup,Z,ion])
+
+    # Z,ion
+    for ii in range(ndata):
+        nm = llist.data['name'][ii]
+        # Z
+        if nm[1] == 'I' or nm[1] == 'V': 
+            ielm = 1
+        else:
+            ielm = 2
+        elm = nm[:ielm]
+        try:
+            Zv = ELEMENTS[elm].number
+        except KeyError:
+            if elm in ['CO','CC','HH']: # Molecules
+                Zv = 999
+            else:
+                xdb.set_trace()
+        llist.data['Z'][ii] = Zv
+        # ion
+        ispc = nm.find(' ')
+        cion = nm[ielm:ispc].strip('*')
+        if len(cion) == 0:
+            ionv =0
+        else:
+            ionv = roman.fromRoman(cion)
+        llist.data['ion'][ii] = ionv
 
     # #######
     # Fill in matches
@@ -175,7 +280,7 @@ def mk_line_list_fits_table(outfil=None,XIDL=True):
             llist.data['A'][ii] = fdata['A'][mt[0]] # Takes the first match
     
     # Output file
-    if outfil == None:
+    if outfil is None:
         outfil = xa_path+'/data/atomic/spec_atomic_lines.fits'
 
     # Header
@@ -192,15 +297,45 @@ def mk_line_list_fits_table(outfil=None,XIDL=True):
     # Write
     thdulist = fits.HDUList([prihdu, table_hdu])
     thdulist.writeto(outfil,clobber=True)
+    print('mk_line_list: Wrote {:s}'.format(outfil))
 
-    #llist.data.write(outfil, format='fits', write_comment='blah')
 
 ## ##############
 # Test.
 #  Also generates spec_lines.fits
 if __name__ == '__main__':
+
+    flg_test = 0
+    #flg_test = 1  # Generate Line list
+    #flg_test += 2 # Abs_Line Class
+    flg_test += 2**2 # Abs_Line with spectra
+    #flg_test += 2**3 # abs_line_data
+    #
+    #flg_test += 2**9 # LLS Survey NHI
+    #flg_test += 2**10 # LLS Survey ions
+
+    
     # Generate spec_lines.fits
-    #mk_line_list_fits_table()
+    if (flg_test % 2**1) >= 2**0:
+        mk_line_list_fits_table()
 
     # Line
-    line = Abs_Line(1215.6701)
+    if (flg_test % 2**2) >= 2**1:
+        line = Abs_Line(1215.6701)
+        print(line)
+
+    # Spectrum tests for Abs_Line
+    if (flg_test % 2**3) >= 2**2:
+        spec_fil = '/Users/xavier/Keck/HIRES/RedData/PH957/PH957_f.fits'
+        line = Abs_Line(1608.4511, z=2.309, spec_file=spec_fil)
+        line.attrib['vmin'] = -20.
+        line.attrib['vmax'] = 90.
+        print(line.vpeak())
+
+    # abs_line_data
+    if (flg_test % 2**4) >= 2**3:
+        lines = abs_line_data([1215.6701,1206.500])
+        print(lines)
+        lines = abs_line_data([1215.6701,1206.500], ret_flg=1)
+        print(lines)
+

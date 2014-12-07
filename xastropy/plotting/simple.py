@@ -43,6 +43,11 @@ def plot_1d_arrays(*args,**kwargs):
     if not isinstance(args[0],np.ndarray):
         print 'x_guis: Input array is not a numpy.ndarray!'
         return
+    # Options
+    if ('scatter' in kwargs):
+        kwargs['marker'] = 'o'
+        kwargs['linestyle'] = 'None'
+        kwargs.pop('scatter')
 
     # Clear
     plt.clf()
@@ -51,7 +56,7 @@ def plot_1d_arrays(*args,**kwargs):
         plt.plot(args[0].flatten())
     else: 
         for kk in range(1,len(args)):
-            plt.plot(args[0].flatten(),args[kk].flatten())
+            plt.plot(args[0].flatten(),args[kk].flatten(), **kwargs)
 
     # Second array?
     if ('xtwo' in kwargs) & ('ytwo' in kwargs):
@@ -134,3 +139,29 @@ def plot_hist(*args,**kwargs):
 
     return
     
+
+
+
+
+
+
+## #################################    
+## #################################    
+## TESTING
+## #################################    
+if __name__ == '__main__':
+
+    flg_test = 0
+    flg_test = 1  # simple plots
+    #flg_test += 2 # LLS plot
+    #flg_test += 2**2 # zpeak
+    #
+    #flg_test += 2**9 # LLS Survey NHI
+    #flg_test += 2**10 # LLS Survey ions
+
+    # simple plots
+    if (flg_test % 2**1) >= 2**0:
+        xval = np.arange(10)
+        yval = xval**2
+        #plot_1d_arrays(xval, yval) # line
+        plot_1d_arrays(xval, yval, scatter='True') #marker='o', linestyle='None') # dots

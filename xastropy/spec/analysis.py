@@ -10,6 +10,7 @@
 #;-
 #;------------------------------------------------------------------------------
 """
+from __future__ import print_function, absolute_import, division, unicode_literals
 
 import barak
 import xastropy
@@ -18,11 +19,8 @@ import matplotlib.pyplot as plt
 import pdb
 from astropy import constants as const
 
-#name = "SDSSJ114436.66+095904.9"
-#redshift = 3.1483297
-#sp = read(name + ".fits")
-##sp = read(name + ".fits")
-#contfit(name, sp, redshift,forest_divmult=3)
+
+#def pixminmax(spec, zabs, wrest, vmnx):
 
 
 #### ###############################
@@ -65,8 +63,8 @@ def velplt(specfil):
     if 'f26_fil' not in locals():
         f26_fil = 'tmp.f26'
         command = ['touch',f26_fil]
-        print Popen(command)
-        print 'xa.spec.analysis.velplt: Generated a dummy f26 file -- ', f26_fil
+        print(Popen(command))
+        print('xa.spec.analysis.velplt: Generated a dummy f26 file -- ', f26_fil)
     if 'transfil' not in locals():
         path = xa.__path__
         transfil = path[0]+'/spec/Data/initial_search.lines'
@@ -133,7 +131,7 @@ def x_contifit(specfil, outfil=None, savfil=None, redshift=0., divmult=1, forest
     if confirm == 'y':
         fits.writeto(outfil, sp, clobber=True)
     else:
-        print 'Writing to tmp.fits anyhow!'
+        print('Writing to tmp.fits anyhow!')
         fits.writeto('tmp.fits', sp, clobber=True)
     #print name
 

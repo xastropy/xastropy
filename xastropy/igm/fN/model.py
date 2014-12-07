@@ -24,6 +24,7 @@ from xastropy.atomic import ionization as xai
 
 from astropy.io import fits
 from astropy.utils.misc import isiterable
+from astropy import units as u
 
 # Path for xastropy
 xa_path = imp.find_module('xastropy')[1]
@@ -297,7 +298,6 @@ class fN_Model(object):
         """
         # Imports
         from astropy import constants as const
-        from astropy import units as u
         from astropy import cosmology 
 
         # Cosmology
@@ -344,7 +344,6 @@ class fN_Model(object):
         """
         # Imports
         from astropy import constants as const
-        from astropy import units as u
 
         # NHI array
         lgNval = 11.5 + 10.5*np.arange(N_eval)/(N_eval-1.) #; This is base 10 [Max at 22]

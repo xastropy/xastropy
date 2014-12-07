@@ -15,6 +15,7 @@ from __future__ import print_function, absolute_import, division, unicode_litera
 
 import numpy as np
 from abc import ABCMeta, abstractmethod
+from collections import OrderedDict
 
 from astropy.io import ascii 
 from astropy import units as u
@@ -66,33 +67,43 @@ class Absline_System(object):
         # Tree
         if tree == None: tree = ''
         self.tree = tree
+
         # Fill in
         if dat_file != None:
             print('absys_utils: Reading {:s} file'.format(dat_file))
             self.parse_dat_file(dat_file)
+            self.dat_file = dat_file
 
     # Read a .dat file
     def parse_dat_file(self,dat_file,verbose=False,flg_out=None):
+        '''
+        Parameters
+        flg_out: int
+          1: Return the dictionary
+        '''
         # Define
-        datdic = {}
+        datdict = OrderedDict()
         # Open
         f=open(dat_file,'r')
         for line in f:
-            tmp=line.split(' ! ')
+            tmp=line.split('! ')
             tkey=tmp[1].strip()
-            key=tkey.replace(' ','')
+            key=tkey
+            #key=tkey.replace(' ','')
             val=tmp[0].strip()
-            datdic[key]=val
+            datdict[key]=val
         f.close()
         #pdb.set_trace()
+
+        self.datdict = datdict
 
         #  #########
         # Pull attributes
 
         # RA/DEC
         try:
-            ras,decs = (datdic['RA(2000)'], datdic['DEC(2000)'])
-            #print(datdic['RA(2000)'], datdic['DEC(2000)'])
+            ras,decs = (datdict['RA (2000)'], datdict['DEC (2000)'])
+            #print(datdict['RA(2000)'], datdict['DEC(2000)'])
             #pdb.set_trace()
         except:
             ras, decs = ('00 00 00', '+00 00 00')
@@ -105,45 +116,65 @@ class Absline_System(object):
 
         # zabs
         try: 
-            self.zabs = float(datdic['zabs'])
+            self.zabs = float(datdict['zabs'])
         except: self.zabs=0.
 
         # NHI
         try: 
-            self.NHI = float(datdic['NHI']) # DLA format
+            self.NHI = float(datdict['NHI']) # DLA format
         except:
             try:
-                self.NHI = float(datdic['NHItot']) # LLS format
+                self.NHI = float(datdict['NHI tot']) # LLS format
             except: self.NHI=0.
 
         # NHIsig
         try: 
-            key_sigNHI = datdic['sig(NHI)'] # DLA format
+            key_sigNHI = datdict['sig(NHI)'] # DLA format
         except:
             try:
-                key_sigNHI = datdic['NHIsig'] # LLS format
-            except: key_sigNHI='0.0 0.0'
-        #pdb.set_trace()
+                key_sigNHI = datdict['NHI sig'] # LLS format
+            except:
+                key_sigNHI='0.0 0.0'
         self.sigNHI = np.array(map(float,key_sigNHI.split()))
-        #print('sigNHI: ', self.sigNHI)
+
+        # Abund file
+        try: 
+            key_clmfil = datdict['Abund file'] # DLA format
+        except:
+            key_clmfil=''
+        self.clm_fil = key_clmfil.strip()
+        #xdb.set_trace()
 
         # Finish
-        if verbose: print(datdic)
+        if verbose: print(datdict)
         if flg_out != None:
-            if (flg_out % 2) == 1: ret_val = [datdic]
+            if (flg_out % 2) == 1: ret_val = [datdict]
             else: ret_val = [0]
             return ret_val
 
+    # Write a .dat file
+    def write_dat_file(self):
+        # Assuming an OrderedDict
+        f=open(self.dat_file,'w')
+        for key in self.datdict:
+            sv = '{:60s}! {:s}\n'.format(self.datdict[key],key)
+            f.write(str(sv)) # Avoids unicode
+        f.close()
+        print('abssys_utils.write_dat_file: Wrote {:s}'.format(self.dat_file))
+
+
+    # #################
     # Parse the ion files
     def get_ions(self,clm_fil):
         # Read .clm file
         self.clm_analy = Ionic_Clm_File(clm_fil)
 
-        # Read .all file
         #xdb.set_trace()
-        all_fil = self.tree+self.clm_analy.ion_fil.split('.ion')[0]+'.all'
-        self.ions = Ions_Clm(all_fil)
-            
+        # Read .all file
+        ion_fil = self.tree+self.clm_analy.ion_fil # Should check for existence
+        all_fil = ion_fil.split('.ion')[0]+'.all'
+        self.ions = Ions_Clm(all_fil, trans_file=ion_fil)
+
     @abstractmethod
     def print_abs_type(self):
         """"Return a string representing the type of vehicle this is."""
