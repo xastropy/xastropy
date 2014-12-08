@@ -22,7 +22,7 @@ from astropy.io import ascii
 
 from xastropy.igm.abs_sys.abssys_utils import Absline_System, Abs_Sub_System
 from xastropy.igm.abs_sys.abs_survey import Absline_Survey
-from xastropy.igm.abs_sys.ionic_clm import Ionic_Clm_File
+from xastropy.igm.abs_sys.ionic_clm import Ionic_Clm_File, Ions_Clm
 from xastropy.spec import abs_line, voigt
 from xastropy.atomic import ionization as xatomi
 from xastropy.xutils import xdebug as xdb
@@ -107,7 +107,7 @@ class LLS_System(Absline_System):
                             setattr(self.subsys[lbls[i]], att[ii], (map(type(val),[tmpc]))[0] )
 
     # Fill up the ions
-    def fill_ions(self):
+    def get_ions(self):
         """
         Parse the ions for each Subsystem
         And put them together for the full system
@@ -119,8 +119,10 @@ class LLS_System(Absline_System):
         for ii in range(self.nsub):
             clm_fil = self.tree+self.subsys[lbls[ii]].clm_file
             # Parse .clm and .all files
-            self.subsys[lbls[ii]].get_ions(clm_fil) 
-            #xdb.set_trace()
+            self.subsys[lbls[ii]].clm_analy = Ionic_Clm_File(clm_fil)
+            ion_fil = self.tree+self.subsys[lbls[ii]].clm_analy.ion_fil 
+            all_fil = ion_fil.split('.ion')[0]+'.all'
+            self.subsys[lbls[ii]].ions = Ions_Clm(all_fil, trans_file=ion_fil)
 
         # Combine
         if self.nsub == 1:
@@ -374,10 +376,10 @@ if __name__ == '__main__':
     #flg_test = 1  # ions
     #flg_test += 2 # LLS plot
     #flg_test += 2**2 # zpeak
-    flg_test += 2**3 # YAML .dat file
+    #flg_test += 2**3 # output .dat file
     #
     #flg_test += 2**9 # LLS Survey NHI
-    #flg_test += 2**10 # LLS Survey ions
+    flg_test += 2**10 # LLS Survey ions
 
     # Test Absorption System
     print('-------------------------')

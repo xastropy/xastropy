@@ -59,13 +59,14 @@ class Ions_Clm(object):
     """Set of Ionic column densities for a given system
 
     Attributes:
+    ion_data -- Dict containing the Ion info
     
     """
 
     # Initialize with wavelength
-    def __init__(self, in_file, trans_file=None):
+    def __init__(self, all_file=None, trans_file=None):
         '''
-        in_file -- Input file
+        all_file -- .all file
            File for ionic column values 
            Generally a .all file for parsing
         trans_file -- string
@@ -73,8 +74,14 @@ class Ions_Clm(object):
            Usually has extension .ion
         '''
         # Generate -- Other options will appear
-        self.in_file = in_file
-        self.read_all_file(in_file)
+
+        # Dictionary stuff
+        self.keys= ('clm', 'sig_clm', 'flg_clm', 'flg_inst') 
+        self.key_dtype=('f4','f4','i4','i4')
+        if all_file is not None:
+            self.read_all_file(all_file)
+            self.all_file = all_file
+
         # Transitions?
         if trans_file is not None:
             self.read_ion_file(trans_file)
@@ -99,8 +106,6 @@ class Ions_Clm(object):
         table = ascii.read(all_fil, format='no_header', names=names) 
         # Convert to dict
         tmp = {}
-        self.keys=names[2:]
-        self.key_dtype=('f4','f4','i4','i4')
         for row in table:
             tmp[(row['Z'],row['ion'])] = {}
             for key in self.keys:

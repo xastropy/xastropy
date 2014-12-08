@@ -87,6 +87,7 @@ class Absline_System(object):
         f=open(dat_file,'r')
         for line in f:
             tmp=line.split('! ')
+            #tmp=line.split(' ! ')
             tkey=tmp[1].strip()
             key=tkey
             #key=tkey.replace(' ','')
@@ -165,11 +166,10 @@ class Absline_System(object):
 
     # #################
     # Parse the ion files
-    def get_ions(self,clm_fil):
+    def get_ions(self):
         # Read .clm file
+        clm_fil=self.tree+self.clm_fil
         self.clm_analy = Ionic_Clm_File(clm_fil)
-
-        #xdb.set_trace()
         # Read .all file
         ion_fil = self.tree+self.clm_analy.ion_fil # Should check for existence
         all_fil = ion_fil.split('.ion')[0]+'.all'

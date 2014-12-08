@@ -22,6 +22,7 @@ from xastropy.igm.abs_sys.abssys_utils import Absline_System
 from xastropy.galaxy.core import Galaxy
 #from xastropy.cgm.core import CGM_Abs, CGM_Abs_Survey
 from xastropy.igm.abs_sys.abs_survey import Absline_Survey
+from xastropy.igm.abs_sys.ionic_clm import Ions_Clm
 
 from xastropy.xutils import xdebug as xdb
 
@@ -78,18 +79,45 @@ def load(flg=0, data_file=None,cosh_dct=None, pckl_fil=None):
                 zgal=cosh_dct['megastruct'][kk]['galaxy']['zspec'][0]
                 ))
     elif flg == 1: # FITS files
-        fits_path = os.path.abspath(os.environ.get('DROPBOX_DIR')+'/COS-Halos/lowions/FITS/')
+        fits_path = os.path.abspath(os.environ.get('DROPBOX_DIR')+'/COS-Halos/lowions/FITS')
         # Loop
-        cos_files = glob.glob(fits_path+'J*.fits')
+        cos_files = glob.glob(fits_path+'/J*.fits')
         # Setup
         cos_halos = xcc.CGM_Abs_Survey()
         cos_halos.nsys = len(cos_files)
         # Read
         for fil in cos_files:
+            print('cos_halos: Reading {:s}'.format(fil))
+            mm = cos_files.index(fil)
             hdu = fits.open(fil)
-            summ = hdu[0].data
-            galx = hdu[1].data
-            xdb.set_trace()
+            summ = hdu[1].data
+            galx = hdu[2].data
+            cos_halos.abs_sys.append(xcc.CGM_Abs(
+                ras=galx['qsora'][0],
+                decs=galx['qsodec'][0],
+                g_ras=galx['ra'][0],
+                g_decs=galx['dec'][0],
+                zgal=galx['zspec'][0]
+                ))
+            # Ions
+            cos_halos.abs_sys[mm].ions = Ions_Clm()
+            cos_halos.abs_sys[mm].ions.ion_data = {}
+            for jj in range(summ['nion'][0]):
+                iont = hdu[3+jj].data
+                zion = (iont['zion'][0][0], iont['zion'][0][1])
+                cos_halos.abs_sys[mm].ions.ion_data[zion] = {}
+                for key in cos_halos.abs_sys[mm].ions.keys:
+                    try:
+                        cos_halos.abs_sys[mm].ions.ion_data[zion][key] = iont[key][0]
+                    except KeyError:
+                        if key == 'flg_inst':
+                            cos_halos.abs_sys[mm].ions.ion_data[zion][key] = 0
+                        else:
+                            xdb.set_trace()
+            # NHI
+            cos_halos.abs_sys[mm].NHI = cos_halos.abs_sys[mm].ions.ion_data[(1,1)]['clm']
+        # Mask
+        cos_halos.mask = np.ones(cos_halos.nsys, dtype=bool)
         
     else:
         raise ValueError('cos_halos.load: Not read for this flag {:d}'.format(flg))
@@ -111,9 +139,18 @@ def load(flg=0, data_file=None,cosh_dct=None, pckl_fil=None):
 # Testing
 if __name__ == '__main__':
 
-    # Load pickle
-    cos_halos = load(flg=1)
-    print(cos_halos)
+    flg_fig = 0 
+    #flg_fig += 1  # Load FITS
+    flg_fig += 2  # NHI plot
+
+    # Load FITS
+    if (flg_fig % 2) == 1:
+        cos_halos = load(flg=1)
+        print(cos_halos)
     
+    # Simple rho vs NHI plot
+    if (flg_fig % 2**2) >= 2**1:
+        cos_halos = load(flg=1)
+        xdb.xplot(cos_halos.rho, cos_halos.NHI,scatter=True)
     #
     print('All done')

@@ -50,6 +50,7 @@ class DLA_System(Absline_System):
         # Parse .dat file
         if dat_file != None:
             self.dat_file = self.tree+dat_file
+            print('dla_utils: Reading {:s}'.format(self.dat_file))
             self.parse_dat_file(self.dat_file)
             # QSO keys
             self.qso = self.datdict['QSO name']
@@ -119,7 +120,7 @@ class DLA_Survey(Absline_Survey):
 if __name__ == '__main__':
 
     flg_test = 0
-    flg_test = 1  # ions
+    #flg_test = 1  # ions
     #
     #flg_test += 2**9 # DLA Survey NHI
     flg_test += 2**10 # DLA Survey ions
@@ -134,7 +135,7 @@ if __name__ == '__main__':
     if (flg_test % 2**1) >= 2**0:
         print('-------------------------')
         clm_fil = tmp1.tree+tmp1.datdict['Abund file']
-        tmp1.get_ions(clm_fil)
+        tmp1.get_ions()
         # Print
         print('Si II: ')
         print(tmp1.ions[(14,2)])
@@ -146,12 +147,13 @@ if __name__ == '__main__':
     # DLA Survey
     if (flg_test % 2**10) >= 2**9:
         print('-------------------------')
-        dla = DLA_Survey('Lists/Neeleman13.lst', tree=os.environ.get('DLA'))
+        dla = DLA_Survey('Lists/metal_MAR_all.lst', tree=os.environ.get('DLA'))
+        dla.fill_ions()
         xdb.xhist(dla.NHI, binsz=0.10)
 
     # DLA Survey ions
     if (flg_test % 2**11) >= 2**10:
-        dla = DLA_Survey('Lists/Neeleman13.lst', tree=os.environ.get('DLA'))
+        dla = DLA_Survey('Lists/metal_MAR_all.lst', tree=os.environ.get('DLA'))
         dla.fill_ions()
         xdb.xhist(dla.ions((6,4),skip_null=True)['clm'], binsz=0.3,
                   xlabel=r'$\log_{10} N({\rm C}^{+3})$')

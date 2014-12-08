@@ -98,10 +98,17 @@ class CGM_Abs_Survey(Absline_Survey):
         # Generate with type
         Absline_Survey.__init__(self, '', abs_type='CGM', tree=tree)
 
-        # Galaxies
         self.galaxies = []
 
-#dct['megastruct']['ion'][2]['lognion'][2][6]
+    '''
+    # Extend attributes
+    def __getattr__(self, k):
+        # Try AbsLine first
+        try:
+            return np.array( [getattr(abs_sys,k) for abs_sys in self.abs_sys] )[self.mask]
+        except ValueError:
+            xdb.set_trace()
+    '''
 
 # ###################### #######################
 # Testing
