@@ -10,8 +10,7 @@
 #;-
 #;------------------------------------------------------------------------------
 """
-
-from __future__ import print_function
+from __future__ import print_function, absolute_import, division, unicode_literals
 
 import numpy as np
 import os
@@ -87,6 +86,10 @@ def chain_stats(chain_file, burn_frac=0.3, cl=0.683):
     return outp
 
 
+# For Alix
+def test():
+    import time
+    return time.time()
 
 
     
