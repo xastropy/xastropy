@@ -93,6 +93,10 @@ def plot_hist(*args,**kwargs):
         return
 
     # Bin size
+    if not 'alpha' in kwargs:
+        kwargs['alpha'] = 1.
+
+    # Bin size
     if not 'binsz' in kwargs:
         kwargs['binsz'] = float(np.std(args[0].flatten())/5.)
 
@@ -121,7 +125,7 @@ def plot_hist(*args,**kwargs):
         nbin = i1-i0
         # Histogram
         hist, edges = np.histogram(arr, range=rng, bins=nbin)
-        ax.bar(edges[:-1], hist, width=kwargs['binsz'])
+        ax.bar(edges[:-1], hist, width=kwargs['binsz'], alpha=kwargs['alpha'])
         # Labels
         if 'xlabel' in kwargs:
             try:

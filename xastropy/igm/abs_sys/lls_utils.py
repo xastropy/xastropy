@@ -130,11 +130,11 @@ class LLS_System(Absline_System):
             self.clm_analy = self.subsys['A'].clm_analy
             #xdb.set_trace()
         elif self.nsub == 0:
-            raise ValueError('lls_utils.fill_ions: Cannot have 0 subsystems..')
+            raise ValueError('lls_utils.get_ions: Cannot have 0 subsystems..')
         else:
             self.ions = self.subsys['A'].ions
             self.clm_analy = self.subsys['A'].clm_analy
-            print('lls_utils.fill_ions: Need to update multiple subsystems!! Taking A.')
+            print('lls_utils.get_ions: Need to update multiple subsystems!! Taking A.')
 
 
     # #############
@@ -223,7 +223,7 @@ class LLS_System(Absline_System):
         ''' Measure zpeak from an ionic transition
         '''
         if self.ions is None:
-            print('get_zpeak: Need to fill ions with fill_ions first.')
+            print('get_zpeak: Need to fill ions with get_ions first.')
             return
 
         # Ions for analysis
@@ -373,7 +373,7 @@ class LLS_Survey(Absline_Survey):
 if __name__ == '__main__':
 
     flg_test = 0
-    #flg_test = 1  # ions
+    flg_test = 1  # ions
     #flg_test += 2 # LLS plot
     #flg_test += 2**2 # zpeak
     #flg_test += 2**3 # output .dat file
@@ -390,7 +390,7 @@ if __name__ == '__main__':
     # Test ions
     if (flg_test % 2**1) >= 2**0:
         print('-------------------------')
-        tmp1.fill_ions()
+        tmp1.get_ions()
         print('C IV: ')
         print(tmp1.ions[(6,4)])
         print(tmp1.ions.trans[5]) # CIV 1550
