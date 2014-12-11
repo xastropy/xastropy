@@ -21,6 +21,7 @@ from astropy.coordinates import SkyCoord
 
 from xastropy.igm.abs_sys.ionic_clm import Ions_Clm, Ionic_Clm_File
 from xastropy.xutils import xdebug as xdb
+from xastropy.xutils import arrays as xarray
 
 ###################### ######################
 ###################### ######################
@@ -90,17 +91,8 @@ class Absline_Survey(object):
         except ValueError:
             raise ValueError
 
-        # Convert to array?
-        if isinstance(lst[0],u.quantity.Quantity):
-            #Mask and create an array
-            unit = lst[0].unit
-            newlst= []
-            for ii in range(len(self.mask)):
-                if self.mask[ii]: 
-                    newlst.append(lst[ii].value)
-            return np.array(newlst) * unit
-        else:
-            return np.array(lst)[self.mask]
+        return xu_array.lst_to_array(lst,mask=self.mask)
+
 
     # Get ions
     def fill_ions(self): # This may be overloaded!
@@ -149,6 +141,10 @@ class Absline_Survey(object):
             if idict['flg_clm'] > 0:
                 row = [abs_sys.name] + [idict[key] for key in keys[1:]]
                 t.add_row( row )   # This could be slow
+            else:
+                if skip_null is False:
+                    row = [abs_sys.name] + [0 for key in keys[1:]]
+                    t.add_row( row )   
         # Return
         return t
 

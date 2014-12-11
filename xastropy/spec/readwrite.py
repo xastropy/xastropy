@@ -26,14 +26,13 @@ from specutils.spectrum1d import Spectrum1D
 from xastropy.xutils import xdebug as xdb
 
 #### ###############################
-#  Read Spectrum from FITS file
-#  Return Barak-favored Table
+#  Read Spectrum1D from FITS file
 #  from xastropy.spec import readwrite as xsr
 #  sp = xsr.readspec('SDSSJ114435.54+095921.7_F.fits',outfil='SDSSJ114435.54+095921.7.fits')
 #
 def readspec(specfil, inflg=None, efil=None, outfil=None, show_plot=0,
-             use_barak=False, verbose=False):
-    ''' Deprecated already!
+             use_barak=False, verbose=False, flux_tags=None, sig_tags=None):
+    ''' 
     '''
     from xastropy.spec import readwrite as rw
     from xastropy.files import general as xfg
@@ -59,18 +58,21 @@ def readspec(specfil, inflg=None, efil=None, outfil=None, show_plot=0,
     # Binary FITS table?
     if hdulist[0].header['NAXIS'] == 0:
         # Flux 
-        flux_tags = ['SPEC','FLUX','FLAM','FX']
+        if flux_tags is None:
+            flux_tags = ['SPEC', 'FLUX','FLAM','FX']
         fx, fx_tag = rw.get_table_column(flux_tags, hdulist)
-        if fx == None:
+        #xdb.set_trace()
+        if fx is None:
             print('spec.readwrite: Binary FITS Table but no Flux tag')
             return
         # Error
-        sig_tags = ['ERROR','ERR','SIGMA_FLUX','FLAM_SIG']
+        if sig_tags is None:
+            sig_tags = ['ERROR','ERR','SIGMA_FLUX','FLAM_SIG']
         sig, sig_tag = rw.get_table_column(sig_tags, hdulist)
-        if sig == None:
+        if sig is None:
             ivar_tags = ['IVAR']
             ivar, ivar_tag = rw.get_table_column(ivar_tags, hdulist)
-            if ivar == None:
+            if ivar is None:
                 print('spec.readwrite: Binary FITS Table but no error tags')
                 return
             else: 
@@ -82,7 +84,7 @@ def readspec(specfil, inflg=None, efil=None, outfil=None, show_plot=0,
         wave, wave_tag = rw.get_table_column(wave_tags, hdulist)
         if wave_tag == 'LOGLAM':
             wave = 10.**wave
-        if wave == None:
+        if wave is None:
             print('spec.readwrite: Binary FITS Table but no wavelength tag')
             return
     elif hdulist[0].header['NAXIS'] == 1: # Data in the zero extension
@@ -298,7 +300,7 @@ def get_table_column(tags, hdulist):
         else:
             ii = ii + 1
     # Return
-    if dat != None:
+    if dat is not None:
         return dat.flatten(), tags[ii]
     else: 
         return dat, 'NONE'

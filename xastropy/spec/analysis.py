@@ -21,6 +21,7 @@ from astropy import constants as const
 
 
 #def pixminmax(spec, zabs, wrest, vmnx):
+#def x_contifit(specfil, outfil=None, savfil=None, redshift=0., divmult=1, forest_divmult=1):
 
 
 #### ###############################
@@ -28,13 +29,24 @@ from astropy import constants as const
 #
 def pixminmax(spec, zabs, wrest, vmnx):
     """Pixels in velocity range
+    Parameters
+    ----------
+    spec: Spectrum1D class
+      Input spectrum
+      velo is expected to have been filled already
+    vmnx: Tuple of 2 floats
+      vmin, vmax in km/s
+
+    Returns:
+    pix: array
+      Integer list of pixels
     """
 
     # Constants
-    spl = const.c.to('km/s').value 
+    #spl = const.c.to('km/s').value 
 
     # Create VELO
-    spec.velo = (spec.dispersion-wrest*(1+zabs))*spl/( wrest*(1+zabs) )
+    spec.velo = spec.relative_vel(wrest*(1+zabs))
 
     # Locate the values
     pixmin = np.argmin( np.fabs( spec.velo-vmnx[0] ) )
@@ -42,7 +54,7 @@ def pixminmax(spec, zabs, wrest, vmnx):
     #pdb.set_trace()
 
     # Return
-    return range(pixmin,pixmax+1)
+    return np.arange(pixmin,pixmax+1)
 
 
 #### ###############################

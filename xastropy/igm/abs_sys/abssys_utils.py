@@ -23,6 +23,7 @@ from astropy.coordinates import SkyCoord
 
 from xastropy.igm.abs_sys.ionic_clm import Ions_Clm, Ionic_Clm_File
 from xastropy.xutils import xdebug as xdb
+from xastropy import kinematics as xkin
 
 ###################### ######################
 ###################### ######################
@@ -67,6 +68,9 @@ class Absline_System(object):
         # Tree
         if tree == None: tree = ''
         self.tree = tree
+
+        # Kinematics
+        self.kin = {}
 
         # Fill in
         if dat_file != None:
@@ -174,6 +178,13 @@ class Absline_System(object):
         ion_fil = self.tree+self.clm_analy.ion_fil # Should check for existence
         all_fil = ion_fil.split('.ion')[0]+'.all'
         self.ions = Ions_Clm(all_fil, trans_file=ion_fil)
+
+    # #################
+    # Load low_ion kinematics
+    def load_low_kin(self):
+        # Grab spectrum from ions
+        xdb.set_trace()
+        out_kin = xkin.orig_kin(spec, vmnx)
 
     @abstractmethod
     def print_abs_type(self):

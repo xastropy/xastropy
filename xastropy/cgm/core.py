@@ -27,6 +27,7 @@ from xastropy.galaxy.core import Galaxy
 
 from xastropy.atomic.elements import ELEMENTS
 from xastropy.xutils import xdebug as xdb
+from xastropy.xutils import arrays as xu_array
 
 from astropy.utils.misc import isiterable
 
@@ -35,8 +36,9 @@ from astropy.utils.misc import isiterable
 
 ########################## ##########################
 ########################## ##########################
-class CGM_Abs(Absline_System):
-    """ Class for CGM absorption system
+class CGM_Sys(object):
+    """ Class for a CGM absorption system
+    Combines absorption lines with a Galaxy
 
     Attributes
     ----------
@@ -51,13 +53,13 @@ class CGM_Abs(Absline_System):
                  g_ras='02 26 12.98', g_decs='+00 15 29.1', zgal=0.227):
 
         # Absorption system
-        Absline_System.__init__(self,'CGM')
+        self.abs_sys = CGM_Abs()
 
-        self.coord = SkyCoord(ras, decs, 'icrs', unit=(u.hour, u.deg))
+        self.abs_sys.coord = SkyCoord(ras, decs, 'icrs', unit=(u.hour, u.deg))
         # Name
         self.name = ('J'+
-                    self.coord.ra.to_string(unit=u.hour,sep='',pad=True)+
-                    self.coord.dec.to_string(sep='',pad=True,alwayssign=True))
+                    self.abs_sys.coord.ra.to_string(unit=u.hour,sep='',pad=True)+
+                    self.abs_sys.coord.dec.to_string(sep='',pad=True,alwayssign=True))
         # Galaxy
         self.galaxy = Galaxy(ra=g_ras, dec=g_decs)
         self.galaxy.z = zgal
@@ -66,7 +68,7 @@ class CGM_Abs(Absline_System):
         if cosmo is None:
             from astropy.cosmology import WMAP9 as cosmo
             print('cgm.core: Using WMAP9 cosmology')
-        ang_sep = self.coord.separation(self.galaxy.coord).to('arcmin')
+        ang_sep = self.abs_sys.coord.separation(self.galaxy.coord).to('arcmin')
         kpc_amin = cosmo.kpc_comoving_per_arcmin( self.galaxy.z ) # kpc per arcmin
         self.rho = ang_sep * kpc_amin / (1+self.galaxy.z) # Physical
         #xdb.set_trace()
@@ -84,31 +86,101 @@ class CGM_Abs(Absline_System):
                  self.coord.dec.to_string(sep=':',pad=True),
                  self.galaxy.z, self.rho, self.NHI, self.MH))
 
+# Class for DLA Absorption Lines 
+class CGM_Abs(Absline_System):
+    """A CGM absorption system
+
+    Attributes:
+    """
+    def __init__(self): 
+        # Generate with type
+        Absline_System.__init__(self,'CGM')
+
+        # Init
+        self.ions = None
+
+    # Output
+    def __repr__(self):
+        return ('[{:s}: {:s} {:s}, {:g}, NHI={:g}, M/H={:g}]'.format(
+                self.__class__.__name__,
+                 self.coord.ra.to_string(unit=u.hour,sep=':',pad=True),
+                 self.coord.dec.to_string(sep=':',pad=True),
+                 self.zabs, self.NHI, self.MH))
+
+    def print_abs_type(self):
+        """"Return a string representing the type of vehicle this is."""
+        return 'CGM'
+
+
 # Class for CGM Survey
-class CGM_Abs_Survey(Absline_Survey):
+class CGM_Abs_Survey(object):
     """A CGM Survey class in absorption
 
     Attributes:
     """
     # Initialize with a .dat file
-    def __init__(self, tree=None):
+    def __init__(self, tree=None, survey=''):
 
         from xastropy.igm.abs_sys.abs_survey import Absline_Survey
 
+        # Name of survey
+        self.survey = ''
+        self.ref = ''
+        self.nsys = 0
+
         # Generate with type
-        Absline_Survey.__init__(self, '', abs_type='CGM', tree=tree)
+        #Absline_Survey.__init__(self, '', abs_type='CGM', tree=tree)
 
-        self.galaxies = []
+        self.cgm_abs = []
 
-    '''
     # Extend attributes
     def __getattr__(self, k):
-        # Try AbsLine first
+        # Try Self first
         try:
-            return np.array( [getattr(abs_sys,k) for abs_sys in self.abs_sys] )[self.mask]
-        except ValueError:
-            xdb.set_trace()
-    '''
+            lst = [getattr(cgm_abs,k) for cgm_abs in self.cgm_abs]
+        except AttributeError:
+            # Try AbsLine_Sys next
+            try:
+                lst = [getattr(cgm_abs.abs_sys,k) for cgm_abs in self.cgm_abs] 
+            except AttributeError:
+                xdb.set_trace()
+        return xu_array.lst_to_array(lst,mask=self.mask)
+
+    # Kinematics (for convenience)
+    def abs_kin(self, lbl):
+        """  Create a Table of the Kinematic info
+
+        Parameters
+        ----------
+        lbl : string
+          Label for the Kinematics dict
+        """
+        from astropy.table import Table
+
+        keys = self.cgm_abs[0].abs_sys.kin[lbl].keys
+        t = Table(names=keys,
+                  dtype=self.cgm_abs[0].abs_sys.kin[lbl].key_dtype)
+
+        for cgm_abs in self.cgm_abs:
+            try:
+                kdict = cgm_abs.abs_sys.kin[lbl]
+            except KeyError:
+                # No dict.  Filling in zeros
+                row =  [0 for key in keys]
+                t.add_row( row )   
+                continue
+            # Filling
+            row = [kdict[key] for key in keys]
+            t.add_row( row )   
+        return t
+
+    # Printing
+    def __repr__(self):
+        str1 = '[CGM_Survey: {:s} nsys={:d}, ref={:s}]\n'.format(self.survey, self.nsys, self.ref) 
+        for ii in range(self.nsys):
+            str1 = str1+self.cgm_abs[ii].abs_sys.__repr__()+'\n'
+        return str1
+
 
 # ###################### #######################
 # Testing

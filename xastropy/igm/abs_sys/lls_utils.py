@@ -378,8 +378,8 @@ if __name__ == '__main__':
     #flg_test += 2**2 # zpeak
     #flg_test += 2**3 # output .dat file
     #
-    #flg_test += 2**9 # LLS Survey NHI
-    flg_test += 2**10 # LLS Survey ions
+    flg_test += 2**9 # LLS Survey NHI
+    #flg_test += 2**10 # LLS Survey ions
 
     # Test Absorption System
     print('-------------------------')
