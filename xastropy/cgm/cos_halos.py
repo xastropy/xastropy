@@ -53,7 +53,7 @@ class COS_Halos(CGM_Abs_Survey):
 
     # Load from mega structure
     def load_mega(self,flg=1, data_file=None,cosh_dct=None, pckl_fil=None,
-                  skip_ions=False):
+                  skip_ions=False, test=False):
         """ Load the data for COS-Halos
 
         Paramaeters
@@ -99,8 +99,10 @@ class COS_Halos(CGM_Abs_Survey):
         elif flg == 1: # FITS files
             fits_path = os.path.abspath(os.environ.get('DROPBOX_DIR')+'/COS-Halos/lowions/FITS')
             # Loop
-            cos_files = glob.glob(fits_path+'/J*.fits')
-            #cos_files = glob.glob(fits_path+'/J091*.fits') # For testing
+            if test is True:
+                cos_files = glob.glob(fits_path+'/J091*.fits') # For testing
+            else:
+                cos_files = glob.glob(fits_path+'/J*.fits')
             # Setup
             self.nsys = len(cos_files)
             # Read
@@ -120,6 +122,9 @@ class COS_Halos(CGM_Abs_Survey):
                 # COS-Halos naming
                 self.cgm_abs[mm].field = galx['field'][0]
                 self.cgm_abs[mm].gal_id = galx['galid'][0]
+                # Galxy properties
+                self.cgm_abs[mm].galaxy.halo_mass = summ['LOGMHALO'][0] 
+                self.cgm_abs[mm].galaxy.stellar_mass = summ['LOGMFINAL'][0] 
                 # Ions
                 if skip_ions is True:
                     continue
@@ -140,7 +145,7 @@ class COS_Halos(CGM_Abs_Survey):
                 # NHI
                 self.cgm_abs[mm].abs_sys.NHI = self.cgm_abs[mm].abs_sys.ions.ion_data[(1,1)]['clm']
             # Mask
-            self.mask = np.ones(cos_halos.nsys, dtype=bool)
+            self.mask = np.ones(self.nsys, dtype=bool)
         else:
             raise ValueError('cos_halos.load: Not ready for this flag {:d}'.format(flg))
 
@@ -201,7 +206,7 @@ class COS_Halos(CGM_Abs_Survey):
                     vmnx = (kin_init['L_vmn'][mt], kin_init['L_vmx'][mt]) 
                     # Process
                     cgm_abs.abs_sys.kin['Metal'] = Kin_Abs(wrest, vmnx)
-                    cgm_abs.abs_sys.kin['Metal'].orig_kin(spec)
+                    cgm_abs.abs_sys.kin['Metal'].fill_kin(spec, per=0.07)
                 else:
                     # Fill with zeros (for the keys)
                     cgm_abs.abs_sys.kin['Metal'] = Kin_Abs(0., (0., 0.))
@@ -215,7 +220,7 @@ class COS_Halos(CGM_Abs_Survey):
                     vmnx = (kin_init['HIvmn'][mt], kin_init['HIvmx'][mt]) 
                     # Process
                     cgm_abs.abs_sys.kin['HI'] = Kin_Abs(wrest, vmnx)
-                    cgm_abs.abs_sys.kin['HI'].orig_kin(spec)
+                    cgm_abs.abs_sys.kin['HI'].fill_kin(spec, per=0.07)
                 else:
                     # Fill with zeros (for the keys)
                     cgm_abs.abs_sys.kin['HI'] = Kin_Abs(0., (0., 0.))
@@ -290,14 +295,14 @@ if __name__ == '__main__':
     # Simple kinematics
     if (flg_fig % 2**3) >= 2**2:
         cos_halos = COS_Halos()
-        cos_halos.load_mega()
+        cos_halos.load_mega()#test=True)
         cos_halos.load_abskin()
         # Plot
         mtl_kin = cos_halos.abs_kin('Metal')
-        gd = np.where(mtl_kin['flg'] == 1)
+        gd = np.where(mtl_kin['flg'] > 0)
         xdb.xplot(cos_halos.NHI[gd], mtl_kin['Dv'][gd], scatter=True)
 
         HI_kin = cos_halos.abs_kin('HI')
-        gd = np.where(HI_kin['flg'] == 1)
+        gd = np.where(HI_kin['flg'] > 0)
         xdb.xplot(cos_halos.NHI[gd], HI_kin['Dv'][gd], scatter=True)
     print('All done')

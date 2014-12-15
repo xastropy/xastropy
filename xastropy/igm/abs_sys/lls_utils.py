@@ -102,7 +102,8 @@ class LLS_System(Absline_System):
                         val = null_dict[key]
                         #pdb.set_trace()
                         if val.__class__ == np.ndarray:  
-                            setattr(self.subsys[lbls[i]], att[ii], np.array(map(float,tmpc.split())) )
+                            setattr(self.subsys[lbls[i]], att[ii],
+                                    np.array(map(float,tmpc.split())) )
                         else: # Single value
                             setattr(self.subsys[lbls[i]], att[ii], (map(type(val),[tmpc]))[0] )
 

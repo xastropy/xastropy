@@ -14,3 +14,10 @@ from pdb import *
 from xastropy.xutils.printing import printcol as xpcol
 from xastropy.plotting.simple import plot_1d_arrays as xplot
 from xastropy.plotting.simple import plot_hist as xhist
+
+""" Didn't work
+def pyqt_trace():
+    from PyQt4.QtCore import pyqtRemoveInputHook
+    pyqtRemoveInputHook()
+    set_trace()
+"""

@@ -50,7 +50,7 @@ class CGM_Sys(object):
 
     # Initialize 
     def __init__(self, ras='02 26 14.5', decs='+00 15 29.8', cosmo=None,
-                 g_ras='02 26 12.98', g_decs='+00 15 29.1', zgal=0.227):
+                 g_ras='02 26 12.98', g_decs='+00 15 29.1', zgal=0.227, verbose=False):
 
         # Absorption system
         self.abs_sys = CGM_Abs()
@@ -67,7 +67,8 @@ class CGM_Sys(object):
         # Calcualte rho
         if cosmo is None:
             from astropy.cosmology import WMAP9 as cosmo
-            print('cgm.core: Using WMAP9 cosmology')
+            if verbose is True:
+                print('cgm.core: Using WMAP9 cosmology')
         ang_sep = self.abs_sys.coord.separation(self.galaxy.coord).to('arcmin')
         kpc_amin = cosmo.kpc_comoving_per_arcmin( self.galaxy.z ) # kpc per arcmin
         self.rho = ang_sep * kpc_amin / (1+self.galaxy.z) # Physical
@@ -143,7 +144,13 @@ class CGM_Abs_Survey(object):
             try:
                 lst = [getattr(cgm_abs.abs_sys,k) for cgm_abs in self.cgm_abs] 
             except AttributeError:
-                xdb.set_trace()
+                # Galaxy?
+                try:
+                    lst = [getattr(cgm_abs.galaxy,k) for cgm_abs in self.cgm_abs] 
+                except AttributeError:
+                    print('cgm.core: Attribute not found!')
+                    xdb.set_trace()
+        # Return array
         return xu_array.lst_to_array(lst,mask=self.mask)
 
     # Kinematics (for convenience)
