@@ -139,7 +139,7 @@ def fn_data_from_fits(fits_file):
     return fN_cs
 
 # Reproduce the main figure from P14 (data only)
-def tst_fn_data(fN_model=None, model_two=None):
+def tst_fn_data(fN_model=None, model_two=None, data_list=None, outfil=None):
     """ Make a plot like the final figure from P14 
 
     Parameters:
@@ -152,9 +152,14 @@ def tst_fn_data(fN_model=None, model_two=None):
     import matplotlib as mpl
     mpl.rcParams['font.family'] = 'STIXGeneral-Regular' # Not for PDF
     mpl.rcParams['lines.linewidth'] = 2
+    from matplotlib import pyplot as plt
+    #from matplotlib.backends.backend_pdf import PdfPages
+
+    # Output
+    #if outfil != None:
+    #    pp = PdfPages(outfil)
 
     #mpl.rcParams['font.family'] = 'stixgeneral'  # For PDF
-    from matplotlib import pyplot as plt
 
     # fN data
     #fn_file = os.environ.get('XIDL_DIR')+'IGM/fN_empirical/fn_constraints_z2.5_vanilla.fits'
@@ -166,8 +171,14 @@ def tst_fn_data(fN_model=None, model_two=None):
     all_fN_cs = fn_data_from_fits([fn_file,k13r13_file,n12_file])
 
     # Remove K12
-    fN_cs = [fN_c for fN_c in all_fN_cs if ((fN_c.ref != 'K02') & (fN_c.ref != 'PW09'))]
+    data_list = ['K13R13','OPB07', 'N12']
+    #outfil = 'tmp.png'
+    if data_list is None:
+        fN_cs = [fN_c for fN_c in all_fN_cs if ((fN_c.ref != 'K02') & (fN_c.ref != 'PW09'))]
+    else:
+        fN_cs = [fN_c for fN_c in all_fN_cs if fN_c.ref in data_list]
     fN_dtype = [fc.fN_dtype for fc in fN_cs]
+    #xdb.set_trace()
 
     fig = plt.figure(figsize=(8, 5))
     fig.clf()
@@ -220,60 +231,74 @@ def tst_fn_data(fN_model=None, model_two=None):
 
     ## #######
     # tau_eff
+    flg_teff = 1
     try:
         itau = fN_dtype.index('teff') # Passes back the first one
     except:
-        raise ValueError('fN.data: Missing teff type')
+        #raise ValueError('fN.data: Missing teff type')
+        flg_teff = 0    
+    
     #xdb.set_trace()
-    teff=float(fN_cs[itau].data['TEFF'])
-    D_A = 1. - np.exp(-1. * teff)
-    SIGDA_LIMIT = 0.1  # Allows for systemtics and b-value uncertainty
-    sig_teff = np.max([fN_cs[itau].data['SIG_TEFF'], (SIGDA_LIMIT*teff)])
-    # Plot
-    inset.errorbar(1, teff, sig_teff, fmt='_', capthick=2)
-    # Model
-    if fN_model != None: 
-        model_teff = tau_eff.ew_teff_lyman(1215.6701*(1+fN_cs[itau].zeval), fN_cs[itau].zeval+0.1,
-                                     fN_model, NHI_MIN=fN_cs[itau].data['NHI_MNX'][0],
-                                     NHI_MAX=fN_cs[itau].data['NHI_MNX'][1])
-        inset.plot(1, model_teff, 'ko')
+    if flg_teff: 
+        teff=float(fN_cs[itau].data['TEFF'])
+        D_A = 1. - np.exp(-1. * teff)
+        SIGDA_LIMIT = 0.1  # Allows for systemtics and b-value uncertainty
+        sig_teff = np.max([fN_cs[itau].data['SIG_TEFF'], (SIGDA_LIMIT*teff)])
+        # Plot
+        inset.errorbar(1, teff, sig_teff, fmt='_', capthick=2)
+        # Model
+        if fN_model != None: 
+            model_teff = tau_eff.ew_teff_lyman(1215.6701*(1+fN_cs[itau].zeval), fN_cs[itau].zeval+0.1,
+                                        fN_model, NHI_MIN=fN_cs[itau].data['NHI_MNX'][0],
+                                        NHI_MAX=fN_cs[itau].data['NHI_MNX'][1])
+            inset.plot(1, model_teff, 'ko')
         #xdb.set_trace()
 
     ## #######
     # LLS constraint
+    flg_LLS = 1    
     try:
         iLLS = fN_dtype.index('LLS') # Passes back the first one
     except:
-        raise ValueError('fN.data: Missing LLS type')
-    inset.errorbar(2, fN_cs[iLLS].data['LX'], yerr=fN_cs[iLLS].data['SIG_LX'],
-                   fmt='_', capthick=2)
-    # Model
-    if fN_model != None:
-        lX = fN_model.calc_lox(fN_cs[iLLS].zeval,
+        #raise ValueError('fN.data: Missing LLS type')
+        flg_LLS = 0    
+    if flg_LLS: 
+        inset.errorbar(2, fN_cs[iLLS].data['LX'], yerr=fN_cs[iLLS].data['SIG_LX'],
+                    fmt='_', capthick=2)
+        # Model
+        if fN_model != None:
+            lX = fN_model.calc_lox(fN_cs[iLLS].zeval,
                                 17.19+np.log10(fN_cs[iLLS].data['TAU_LIM']), 22.) 
-        inset.plot(2, lX, 'ko')
+            inset.plot(2, lX, 'ko')
 
     ## #######
     # MFP constraint
-    inset2 = inset.twinx()
+    flg_MFP = 1
     try:
         iMFP = fN_dtype.index('MFP') # Passes back the first one
     except:
-        raise ValueError('fN.data: Missing MFP type')
-    inset2.errorbar(3, fN_cs[iMFP].data['MFP'], yerr=fN_cs[iMFP].data['SIG_MFP'], 
-                   fmt='_', capthick=2)
-    inset2.set_xlim(0,4)
-    inset2.set_ylim(0,350)
-    inset2.set_ylabel('(Mpc)')
+        #raise ValueError('fN.data: Missing MFP type')
+        flg_MFP = 0
 
-    # Model
-    if fN_model != None:
-        #fN_model.zmnx = (0.1, 20.) # Reset for MFP calculation
-        mfp = fN_model.mfp(fN_cs[iMFP].zeval)
-        inset2.plot(3, mfp, 'ko')
+    if flg_MFP:
+        inset2 = inset.twinx()
+        inset2.errorbar(3, fN_cs[iMFP].data['MFP'], yerr=fN_cs[iMFP].data['SIG_MFP'], 
+                    fmt='_', capthick=2)
+        inset2.set_xlim(0,4)
+        inset2.set_ylim(0,350)
+        inset2.set_ylabel('(Mpc)')
+
+        # Model
+        if fN_model != None:
+            #fN_model.zmnx = (0.1, 20.) # Reset for MFP calculation
+            mfp = fN_model.mfp(fN_cs[iMFP].zeval)
+            inset2.plot(3, mfp, 'ko')
 
     # Show
-    plt.show()
+    if outfil != None:
+        plt.savefig(outfil,bbox_inches='tight')
+    else: 
+        plt.show()
         
 
 

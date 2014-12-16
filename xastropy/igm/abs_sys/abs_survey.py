@@ -91,7 +91,7 @@ class Absline_Survey(object):
         except ValueError:
             raise ValueError
 
-        return xu_array.lst_to_array(lst,mask=self.mask)
+        return xarray.lst_to_array(lst,mask=self.mask)
 
 
     # Get ions
