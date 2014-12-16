@@ -20,9 +20,30 @@ import pdb
 from astropy import constants as const
 
 
+#class Spectral_Line(object):
 #def pixminmax(spec, zabs, wrest, vmnx):
 #def x_contifit(specfil, outfil=None, savfil=None, redshift=0., divmult=1, forest_divmult=1):
 
+# Class for Ionic columns of a given line
+class Spectral_Line(object):
+    """Class for analysis of a given spectral line
+
+    Attributes:
+        wrest: float
+          Rest wavelength of the spectral feature
+    """
+
+    # Initialize with wavelength
+    def __init__(self, wrest, clm_file=None):
+        self.wrest = wrest
+        self.atomic = {} # Atomic Data
+        self.analy = {} # Analysis inputs (from .clm file)
+        self.measure = {} # Measured quantities (e.g. column, EW, centroid)
+
+    # Output
+    def __repr__(self):
+        return ('[{:s}: wrest={:g}]'.format(
+                self.__class__.__name__, self.wrest))
 
 #### ###############################
 #  Grabs spectrum pixels in a velocity window

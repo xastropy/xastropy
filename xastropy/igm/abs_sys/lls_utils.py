@@ -37,6 +37,15 @@ class LLS_System(Absline_System):
     Attributes:
         tau_ll: Opacity at the Lyman limit
     """
+    # Create instance with a AbsID file
+    @classmethod
+    def from_absid_fil(cls, abs_fil):
+        lls = cls() # Empty
+        # Parse abs_fil
+        lls.parse_absid_fil(abs_fil)
+        # Return
+        return lls
+
     # Initialize with a .dat file
     def __init__(self, dat_file=None, tree=None):
         # Generate with type
@@ -56,7 +65,6 @@ class LLS_System(Absline_System):
         self.ions = None
         self.zpeak = None
 
-        # Name
 
     # Modify standard dat parsing
     def parse_dat_file(self,dat_file):
@@ -374,12 +382,13 @@ class LLS_Survey(Absline_Survey):
 if __name__ == '__main__':
 
     flg_test = 0
-    flg_test = 1  # ions
+    #flg_test = 1  # ions
     #flg_test += 2 # LLS plot
     #flg_test += 2**2 # zpeak
     #flg_test += 2**3 # output .dat file
+    flg_test += 2**4 # read AbsID
     #
-    flg_test += 2**9 # LLS Survey NHI
+    #flg_test += 2**9 # LLS Survey NHI
     #flg_test += 2**10 # LLS Survey ions
 
     # Test Absorption System
@@ -419,14 +428,12 @@ if __name__ == '__main__':
     # Write .dat
     if (flg_test % 2**4) >= 2**3:
         tmp1.write_dat_file()
-        '''
-        with open('tmp.yml', 'w') as outfile:
-            outfile.write( yaml.safe_dump(tmp1.datdic, default_flow_style=False))
-        dd = {'A':'a', 'B':{'C':'c', 'D':'d', 'E':'e'}}
-        with open('result.yml', 'w') as yaml_file:
-            yaml_file.write( yaml.safe_dump(dd, default_flow_style=False))
-        xdb.set_trace()
-        '''
+
+    # Read AbsID
+    if (flg_test % 2**5) >= 2**4:
+        abs_fil = '/Users/xavier/paper/LLS/Optical/Data/Analysis/MAGE/SDSSJ1004+0018_z2.746_id.fits'
+        lls = LLS_System.from_absid_fil(abs_fil)
+        #xdb.set_trace()
 
     # #############################
     # LLS Survey

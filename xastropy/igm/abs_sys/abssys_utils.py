@@ -17,12 +17,13 @@ import numpy as np
 from abc import ABCMeta, abstractmethod
 from collections import OrderedDict
 
-from astropy.io import ascii 
+from astropy.io import ascii, fits 
 from astropy import units as u
 from astropy.coordinates import SkyCoord
 
 from xastropy.igm.abs_sys.ionic_clm import Ions_Clm, Ionic_Clm_File
 from xastropy.xutils import xdebug as xdb
+from xastropy import spec as xspec 
 from xastropy import kinematics as xkin
 
 ###################### ######################
@@ -69,14 +70,23 @@ class Absline_System(object):
         if tree == None: tree = ''
         self.tree = tree
 
+        # Lines
+        self.lines = {}  # Dict of Spectra_Line classes
+
         # Kinematics
         self.kin = {}
+        self.coord = None
 
         # Fill in
         if dat_file != None:
             print('absys_utils: Reading {:s} file'.format(dat_file))
             self.parse_dat_file(dat_file)
             self.dat_file = dat_file
+
+        # Initialize coord
+        if self.coord is None:
+            ras, decs = ('00 00 00', '+00 00 00')
+            self.coord = SkyCoord(ras, decs, 'icrs', unit=(u.hour, u.deg))
 
     # Read a .dat file
     def parse_dat_file(self,dat_file,verbose=False,flg_out=None):
@@ -167,6 +177,28 @@ class Absline_System(object):
         f.close()
         print('abssys_utils.write_dat_file: Wrote {:s}'.format(self.dat_file))
 
+    # ##
+    # Parse AbsID file
+    def parse_absid_fil(self, abs_fil):
+        # FITS binary table
+        hdu = fits.open(abs_fil)
+        table = hdu[1].data
+        newz = table[0]['ZABS']
+        if (self.zabs > 0.) & (np.abs(self.zabs-newz) > 1e-4):
+            print('WARNING: Updating zabs from {:s}'.format(abs_fil))
+        self.zabs = newz
+        self.absid_fil = abs_fil
+
+        # Load up lines
+        for row in table:
+            self.lines[row['WREST']] = xspec.analysis.Spectral_Line(row['WREST'])
+            # Velocity limits and flags
+            self.lines[row['WREST']].analy['VLIM'] = row['DV']
+            self.lines[row['WREST']].analy['FLG_ANLY'] = row['FLG_ANLY']
+            self.lines[row['WREST']].analy['FLG_EYE'] = row['FLG_EYE']
+            self.lines[row['WREST']].analy['FLG_LIMIT'] = row['FLG_LIMIT']
+            self.lines[row['WREST']].analy['DATFIL'] = row['DATFIL']
+            self.lines[row['WREST']].analy['IONNM'] = row['IONNM']
 
     # #################
     # Parse the ion files

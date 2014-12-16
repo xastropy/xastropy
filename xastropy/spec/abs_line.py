@@ -30,7 +30,7 @@ xa_path = imp.find_module('xastropy')[1]
 #class Abs_Line(object):
 #def mk_line_list_fits_table(outfil=None,XIDL=True):
 
-# Class for Absorption Line 
+# Class for Absorption Line  --- SHOULD COMBINE WITH Spectral_Line Class
 class Abs_Line(object):
     """An absorption line
 

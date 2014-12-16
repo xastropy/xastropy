@@ -39,13 +39,14 @@ class ExamineSpecWidget(QtGui.QWidget):
         12-Dec-2014 by JXP
     '''
     def __init__(self, spec, parent=None, status=None, llist=None,
-                 pltline_widg=None):
+                 abs_sys=None):
         '''
         spec = Spectrum1D
         '''
         super(ExamineSpecWidget, self).__init__(parent)
 
         self.spec = spec
+        self.abs_sys = abs_sys
         self.psdict = {} # Dict for spectra plotting
         self.init_spec() 
 
@@ -140,6 +141,7 @@ class ExamineSpecWidget(QtGui.QWidget):
         """ Redraws the figure
         """
         #
+
         if replot is True:
             self.ax.clear()        
             self.ax.plot(self.spec.dispersion, self.spec.flux, 'k-',drawstyle='steps-mid')
@@ -148,23 +150,42 @@ class ExamineSpecWidget(QtGui.QWidget):
 
             # Spectral lines?
             if self.llist['Plot'] is True:
+                ylbl = self.psdict['ymnx'][1]-0.2*(self.psdict['ymnx'][1]-self.psdict['ymnx'][0])
                 z = self.llist['z']
                 wvobs = np.array((1+z) * self.llist[self.llist['List']]['wrest'])
                 gdwv = np.where( (wvobs > self.psdict['xmnx'][0]) &
                                  (wvobs < self.psdict['xmnx'][1]))[0]
-                ylbl = self.psdict['ymnx'][1]-0.2*(self.psdict['ymnx'][1]-self.psdict['ymnx'][0])
                 for kk in range(len(gdwv)): 
                     jj = gdwv[kk]
                     wrest = self.llist[self.llist['List']]['wrest'][jj]
                     lbl = self.llist[self.llist['List']]['name'][jj]
-                    #QtCore.pyqtRemoveInputHook()
-                    #xdb.set_trace()
-                    #QtCore.pyqtRestoreInputHook()
                     # Plot
                     self.ax.plot(wrest*np.array([z+1,z+1]), self.psdict['ymnx'], 'b:')
                     # Label
                     self.ax.text(wrest*(z+1), ylbl, lbl, color='blue', rotation=90., size='small')
+
+            # Abs Sys?
+            if not self.abs_sys is None:
+                ylbl = self.psdict['ymnx'][0]+0.2*(self.psdict['ymnx'][1]-self.psdict['ymnx'][0])
+                for abs_sys in self.abs_sys:
+                    wrest = np.array(abs_sys.lines.keys()) 
+                    wvobs = wrest * (abs_sys.zabs+1)
+                    gdwv = np.where( ((wvobs+5) > self.psdict['xmnx'][0]) &  # Buffer for region
+                                    ((wvobs-5) < self.psdict['xmnx'][1]))[0]
+                    for kk in range(len(gdwv)): 
+                        jj = gdwv[kk]
+                        #QtCore.pyqtRemoveInputHook()
+                        #xdb.set_trace()
+                        #QtCore.pyqtRestoreInputHook()
+                        # Paint spectrum red
+                        wvlim = wvobs[jj]*(1 + abs_sys.lines[wrest[jj]].analy['VLIM']/3e5)
+                        pix = np.where( (self.spec.dispersion > wvlim[0]) & (self.spec.dispersion < wvlim[1]))[0]
+                        self.ax.plot(self.spec.dispersion[pix], self.spec.flux[pix], 'r-',drawstyle='steps-mid')
+                        # Label
+                        lbl = abs_sys.lines[wrest[jj]].analy['IONNM']
+                        self.ax.text(wvobs[jj], ylbl, lbl, color='red', rotation=90., size='small')
         
+        # Reset window limits
         self.ax.set_xlim(self.psdict['xmnx'])
         self.ax.set_ylim(self.psdict['ymnx'])
 
@@ -322,16 +343,92 @@ class SelectLineWidget(QtGui.QDialog):
         # Print
         print('You chose: {:s}'.format(curr.text()))
 
+# #####
+class AbsSysWidget(QtGui.QWidget):
+    ''' Widget to organize AbsSys along a given sightline
 
+    Parameters:
+    -----------
+    abssys_list: List
+      String list of abssys files
+
+    16-Dec-2014 by JXP
+    '''
+    def __init__(self, abssys_list, parent=None):
+        '''
+        '''
+        super(AbsSysWidget, self).__init__(parent)
+
+        #if not status is None:
+        #    self.statusBar = status
+        self.abssys_list = abssys_list
+        
+        # Create the line list 
+        list_label = QtGui.QLabel('Abs Systems:')
+        self.abslist_widget = QtGui.QListWidget(self) 
+        self.abslist_widget.setSelectionMode(QtGui.QAbstractItemView.ExtendedSelection)
+        self.abslist_widget.addItem('None')
+        #self.abslist_widget.addItem('Test')
+
+        self.all_items = []
+        for abssys_fil in self.abssys_list:
+            ipos0 = abssys_fil.rfind('/') + 1
+            ipos1 = abssys_fil.rfind('.fits')
+            self.all_items.append( abssys_fil[ipos0:ipos1] )
+            self.abslist_widget.addItem(abssys_fil[ipos0:ipos1] )
+
+        self.abslist_widget.setCurrentRow(0)
+        self.abslist_widget.itemSelectionChanged.connect(self.on_list_change)
+
+        # List for Abs Sys
+        self.abs_sys = []
+        self.items = []
+
+
+        # Layout
+        vbox = QtGui.QVBoxLayout()
+        vbox.addWidget(list_label)
+        vbox.addWidget(self.abslist_widget)
+        
+        self.setLayout(vbox)
+
+    # ##
+    def on_list_change(self):
+        
+        from xastropy.igm.abs_sys.lls_utils import LLS_System
+
+        items = self.abslist_widget.selectedItems()
+        # Empty the list
+        if len(self.abs_sys) > 0:
+            for ii in range(len(self.abs_sys)-1,-1,-1):
+                self.abs_sys.pop(ii)
+        # Load up abs_sys (as need be)
+        new_items = []
+        for item in items:
+            txt = item.text()
+            # Dummy
+            if txt == 'None':
+                continue
+            print('Including {:s} in the list'.format(txt))
+            # Using LLS for now.  Might change to generic
+            new_items.append(txt)
+            ii = self.all_items.index(txt)
+            self.abs_sys.append(LLS_System.from_absid_fil(self.abssys_list[ii]))
+
+        # Pass back
+        self.items = new_items
+        #QtCore.pyqtRemoveInputHook()
+        #xdb.set_trace()
+        #QtCore.pyqtRestoreInputHook()
+
+
+# ######
 # Plot Doublet
 def set_doublet(iself,event):
     ''' Set z and plot doublet
     '''
     wv_dict = {'C': (1548.195, 1550.770, 'CIV'), 'M': (2796.352, 2803.531, 'MgII')}
     wrest = wv_dict[event.key]
-    #QtCore.pyqtRemoveInputHook()
-    #xdb.set_trace()
-    #QtCore.pyqtRestoreInputHook()
 
     # Set z
     iself.zabs = event.xdata/wrest[0] - 1.
@@ -342,6 +439,7 @@ def set_doublet(iself,event):
 
     return np.array(wrest[0:2])*(1.+iself.zabs)
 
+# ######
 # Navigate
 def navigate(psdict,event):
     ''' Method to Navigate spectrum
@@ -395,7 +493,8 @@ if __name__ == "__main__":
     flg_fig = 0 
     #flg_fig += 2**0  # ExamineSpecWidget
     #flg_fig += 2**1  # PlotLinesWidget
-    flg_fig += 2**2  # SelectLineWidget
+    #flg_fig += 2**2  # SelectLineWidget
+    flg_fig += 2**3  # AbsSysWidget
 
     # ExamineSpec
     if (flg_fig % 2) == 1:
@@ -427,3 +526,14 @@ if __name__ == "__main__":
         app.exec_()
         print(main.line)
         sys.exit()
+    
+    # AbsSys Widget
+    if (flg_fig % 2**4) >= 2**3:
+        abs_fil = '/Users/xavier/paper/LLS/Optical/Data/Analysis/MAGE/SDSSJ1004+0018_z2.746_id.fits'
+        abs_fil2 = '/Users/xavier/paper/LLS/Optical/Data/Analysis/MAGE/SDSSJ2319-1040_z2.675_id.fits'
+        app = QtGui.QApplication(sys.argv)
+        app.setApplicationName('AbsSys')
+        main = AbsSysWidget([abs_fil,abs_fil2])
+        main.show()
+        sys.exit(app.exec_())
+

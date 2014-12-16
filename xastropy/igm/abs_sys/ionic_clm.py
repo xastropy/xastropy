@@ -17,14 +17,13 @@ import numpy as np
 from astropy.io import fits, ascii
 
 from xastropy.atomic import ionization as xai
-from xastropy.spec import abs_line as xsabs
+from xastropy import spec as xspec
 from xastropy.xutils import xdebug as xdb
 
 #class Ion_Clm(object):
 #class Ions_Clm(object):
 #class Ionic_Clm_File(object):
 #def fits_flag(idx):
-#class Line_Clm(object):
 
 # Class for Ionic columns -- one ion at at time
 class Ion_Clm(object):
@@ -123,7 +122,7 @@ class Ions_Clm(object):
         table = ascii.read(ion_fil, format='no_header', names=names) 
 
         # Get ion info
-        adata = xsabs.abs_line_data( table['wrest'], ret_flg=1)
+        adata = xspec.abs_line.abs_line_data( table['wrest'], ret_flg=1)
 
         # Add
         from astropy.table import Column
@@ -241,7 +240,7 @@ class Ionic_Clm_File(object):
             vmax = float(tmp[2].strip())
             key = float(tmp[0].strip()) # Using a float not string!
             # Generate
-            self.clm_lines[key] = Line_Clm(float(tmp[0]))
+            self.clm_lines[key] = xspec.analysis.Spectral_Line(key)
             self.clm_lines[key].analy['FLAGS'] = ionflg, int(tmp[3].strip())
             # By-hand
             if ionflg >= 8:
@@ -262,22 +261,3 @@ def fits_flag(idx):
             return 'Unknown'
 
         
-# Class for Ionic columns of a given line
-class Line_Clm(object):
-    """Ionic column densities for an absorption system
-
-    Attributes:
-        zsys: Systemic redshift
-    """
-
-    # Initialize with wavelength
-    def __init__(self, wave, clm_file=None):
-        self.wave = wave
-        self.atomic = {} # Atomic Data
-        self.analy = {} # Analysis inputs (from .clm file)
-        self.measure = {} # Measured quantities
-
-    # Output
-    def __repr__(self):
-        return ('[{:s}: wrest={:g}'.format(
-                self.__class__.__name__, self.wave))
