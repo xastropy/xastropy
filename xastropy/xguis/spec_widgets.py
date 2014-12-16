@@ -25,6 +25,8 @@ from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as Navigatio
 # Matplotlib Figure object
 from matplotlib.figure import Figure
 
+from astropy.table.table import Table
+
 from xastropy import spec as xspec 
 from xastropy.xutils import xdebug as xdb
 
@@ -36,7 +38,8 @@ class ExamineSpecWidget(QtGui.QWidget):
 
         12-Dec-2014 by JXP
     '''
-    def __init__(self, spec, parent=None, status=None, llist=None):
+    def __init__(self, spec, parent=None, status=None, llist=None,
+                 pltline_widg=None):
         '''
         spec = Spectrum1D
         '''
@@ -64,7 +67,6 @@ class ExamineSpecWidget(QtGui.QWidget):
         self.canvas = FigureCanvas(self.fig)
         self.canvas.setParent(self)
 
-        #self.canvas.mpl_connect('button_press_event', self.onclick)
         self.canvas.setFocusPolicy( QtCore.Qt.ClickFocus )
         self.canvas.setFocus()
         self.canvas.mpl_connect('key_press_event', self.on_key)
@@ -80,6 +82,8 @@ class ExamineSpecWidget(QtGui.QWidget):
         vbox.addWidget(self.canvas)
         
         self.setLayout(vbox)
+
+        #
 
         # Draw on init
         self.on_draw()
@@ -120,17 +124,17 @@ class ExamineSpecWidget(QtGui.QWidget):
 
     # Click of main mouse button
     def on_click(self,event):
-        # Draw line
-        self.ax.plot( [event.xdata,event.xdata], self.psdict['ymnx'], ':', color='green')
-        self.on_draw(replot=False) 
-
-        # Print values
         print('button={:d}, x={:f}, y={:f}, xdata={:f}, ydata={:f}'.format(
             event.button, event.x, event.y, event.xdata, event.ydata))
-        try:
-            self.statusBar().showMessage('x,y = {:f}, {:f}'.format(event.xdata,event.ydata))
-        except AttributeError:
-            return
+        if event.button == 1: # Draw line
+            self.ax.plot( [event.xdata,event.xdata], self.psdict['ymnx'], ':', color='green')
+            self.on_draw(replot=False) 
+    
+            # Print values
+            try:
+                self.statusBar().showMessage('x,y = {:f}, {:f}'.format(event.xdata,event.ydata))
+            except AttributeError:
+                return
 
     def on_draw(self, replot=True):
         """ Redraws the figure
@@ -184,6 +188,7 @@ class PlotLinesWidget(QtGui.QWidget):
 
         if not status is None:
             self.statusBar = status
+        
         
         # Create a dialog window for redshift
         z_label = QtGui.QLabel('z=')
@@ -251,7 +256,7 @@ class PlotLinesWidget(QtGui.QWidget):
                 self.statusBar().showMessage('ERROR: z Input must be a float! Try again..')
             except AttributeError:
                 print('ERROR: z Input must be a float! Try again..')
-            self.zbox.setText(str(self.llist['z']))
+            self.zbox.setText('{:.5f}'.format(self.llist['z']))
             return
             
         # Report
@@ -265,6 +270,58 @@ class PlotLinesWidget(QtGui.QWidget):
             self.spec_widg.on_draw()
         except AttributeError:
             return
+
+# #####
+class SelectLineWidget(QtGui.QDialog):
+    ''' Widget to select a spectral line
+    inp: string or dict
+      Input line list
+
+    15-Dec-2014 by JXP
+    '''
+    def __init__(self, inp, parent=None):
+        '''
+        '''
+        super(SelectLineWidget, self).__init__(parent)
+
+        # Line list dict
+        if isinstance(inp,Table):
+            lines = inp
+
+        self.resize(250, 800)
+
+        # Create the line list 
+        line_label = QtGui.QLabel('Lines:')
+        self.lines_widget = QtGui.QListWidget(self) 
+        self.lines_widget.addItem('None')
+        self.lines_widget.setCurrentRow(0)
+
+        #xdb.set_trace()
+        # Loop on lines (could put a preferred list first)
+        nlin = len(lines['wrest'])
+        for ii in range(nlin):
+            self.lines_widget.addItem('{:s} :: {:.4f}'.format(lines['name'][ii],
+                                                         lines['wrest'][ii]))
+        self.lines_widget.currentItemChanged.connect(self.on_list_change)
+        #self.scrollArea = QtGui.QScrollArea()
+
+        # Quit
+        qbtn = QtGui.QPushButton('Quit', self)
+        qbtn.clicked.connect(self.close)
+
+        # Layout
+        vbox = QtGui.QVBoxLayout()
+        vbox.addWidget(line_label)
+        vbox.addWidget(self.lines_widget)
+        vbox.addWidget(qbtn)
+        
+        self.setLayout(vbox)
+
+    def on_list_change(self,curr,prev):
+        self.line = str(curr.text())
+        # Print
+        print('You chose: {:s}'.format(curr.text()))
+
 
 # Plot Doublet
 def set_doublet(iself,event):
@@ -336,8 +393,9 @@ if __name__ == "__main__":
     from xastropy import spec as xspec
 
     flg_fig = 0 
-    flg_fig += 2**0  # ExamineSpecWidget
+    #flg_fig += 2**0  # ExamineSpecWidget
     #flg_fig += 2**1  # PlotLinesWidget
+    flg_fig += 2**2  # SelectLineWidget
 
     # ExamineSpec
     if (flg_fig % 2) == 1:
@@ -356,3 +414,16 @@ if __name__ == "__main__":
         main = PlotLinesWidget()
         main.show()
         sys.exit(app.exec_())
+
+    # SelectLineWidget
+    if (flg_fig % 2**3) >= 2**2:
+        line_file = xa_path+'/data/spec_lines/grb.lst'
+        llist_cls = xspec.abs_line.Abs_Line_List(line_file)
+
+        app = QtGui.QApplication(sys.argv)
+        app.setApplicationName('SelectLine')
+        main = SelectLineWidget(llist_cls.data)
+        main.show()
+        app.exec_()
+        print(main.line)
+        sys.exit()

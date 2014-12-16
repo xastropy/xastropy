@@ -52,7 +52,8 @@ class XSpecGui(QtGui.QMainWindow):
         self.spec_widg = xspw.ExamineSpecWidget(spec,status=self.statusBar,
                                                 llist=self.pltline_widg.llist)
         self.pltline_widg.spec_widg = self.spec_widg
-        #self.spec_widg.canvas.mpl_connect('button_press_event', self.onclick)
+
+        self.spec_widg.canvas.mpl_connect('button_press_event', self.on_click)
         
         hbox = QtGui.QHBoxLayout()
         hbox.addWidget(self.spec_widg)
@@ -66,6 +67,28 @@ class XSpecGui(QtGui.QMainWindow):
     def create_status_bar(self):
         self.status_text = QtGui.QLabel("XSpec")
         self.statusBar().addWidget(self.status_text, 1)
+
+    def on_click(self,event):
+        if event.button == 3: # Set redshift
+            if self.pltline_widg.llist['List'] is None:
+                return
+            self.select_line_widg = xspw.SelectLineWidget(
+                self.pltline_widg.llist[self.pltline_widg.llist['List']])
+            self.select_line_widg.exec_()
+            line = self.select_line_widg.line
+            if line.strip() == 'None':
+                return
+            #
+            wrest = float(line.split('::')[1].lstrip())
+            z = event.xdata/wrest - 1.
+            self.pltline_widg.llist['z'] = z
+            self.statusBar().showMessage('z = {:f}'.format(z))
+
+            self.pltline_widg.zbox.setText('{:.5f}'.format(self.pltline_widg.llist['z']))
+    
+            # Draw
+            self.spec_widg.on_draw()
+
 
 
 # Run
