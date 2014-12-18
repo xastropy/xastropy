@@ -156,7 +156,13 @@ class XAbsIDGui(QtGui.QMainWindow):
             # Draw
             self.spec_widg.on_draw()
 
+def run_xspec(spec_fil):
 
+    spec = xspec.readwrite.readspec(spec_fil)
+    app = QtGui.QApplication(sys.argv)
+    gui = XSpecGui(spec)
+    gui.show()
+    app.exec_()
 
 
 # ################
@@ -167,8 +173,8 @@ if __name__ == "__main__":
     from xastropy.igm import abs_sys as xiabs
 
     flg_fig = 0 
-    #flg_fig += 2**0  # ExamineSpecWidget
-    flg_fig += 2**1  # AbsIDWidget
+    flg_fig += 2**0  # ExamineSpecWidget
+    #flg_fig += 2**1  # AbsIDWidget
 
     # Read spectrum
     spec_fil = '/u/xavier/Keck/HIRES/RedData/PH957/PH957_f.fits'
