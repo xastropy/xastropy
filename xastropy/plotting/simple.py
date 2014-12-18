@@ -49,6 +49,15 @@ def plot_1d_arrays(*args,**kwargs):
         kwargs['linestyle'] = 'None'
         kwargs.pop('scatter')
 
+    # Second array?
+    flg_two = 0
+    if ('xtwo' in kwargs) & ('ytwo' in kwargs):
+        xtwo = kwargs['xtwo']
+        kwargs.pop('xtwo')
+        ytwo = kwargs['ytwo']
+        kwargs.pop('ytwo')
+        flg_two = 1
+
     # Clear
     plt.clf()
     # Plot it right up
@@ -58,9 +67,8 @@ def plot_1d_arrays(*args,**kwargs):
         for kk in range(1,len(args)):
             plt.plot(args[0].flatten(),args[kk].flatten(), **kwargs)
 
-    # Second array?
-    if ('xtwo' in kwargs) & ('ytwo' in kwargs):
-        plt.plot(kwargs['xtwo'], kwargs['ytwo'])
+    if flg_two == 1:
+        plt.plot(xtwo, ytwo)
     # Show
     plt.show()
 
