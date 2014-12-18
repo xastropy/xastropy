@@ -7,7 +7,7 @@ import numpy as np
 import pdb
 import glob
 from astropy.io import fits
-import ds9
+#import ds9
 
 ####################################
 # CLASSES
