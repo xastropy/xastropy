@@ -158,6 +158,8 @@ class XAbsIDGui(QtGui.QMainWindow):
 
 def run_xspec(spec_fil):
 
+    from xastropy import spec as xspec
+
     spec = xspec.readwrite.readspec(spec_fil)
     app = QtGui.QApplication(sys.argv)
     gui = XSpecGui(spec)
