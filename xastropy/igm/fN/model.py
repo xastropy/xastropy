@@ -170,7 +170,7 @@ class fN_Model(object):
           Velocities relative to z
 
         Returns:
-        log_fNX: float or array  
+        log_fNX: float, array, or 2D array
           f(NHI,X)[z] values
           Float if given one NHI,z value each. Otherwise 2D array
           If 2D, it is [NHI,z] on the axes
@@ -182,6 +182,19 @@ class fN_Model(object):
         # Imports
         from astropy import constants as const
 
+        # Tuple?
+        if isinstance(NHI,tuple):
+            z = NHI[1]
+            NHI = NHI[0]
+            flg_1D = 1
+        else:
+            flg_1D = 0
+
+        # NHI
+        if isiterable(NHI): NHI = np.array(NHI) # Insist on array
+        else: NHI = np.array([NHI]) 
+        lenNHI = len(NHI)
+
         # Redshift 
         if vel_array is not None:
             z_val = z + (1+z) * vel_array/(const.c.cgs.value/1e5)
@@ -190,10 +203,6 @@ class fN_Model(object):
         else: z_val = np.array([z_val])
         lenz = len(z_val)
 
-        # NHI
-        if isiterable(NHI): NHI = np.array(NHI) # Insist on array
-        else: NHI = np.array([NHI]) 
-        lenNHI = len(NHI)
     
         # Check on zmnx
         bad = np.where( (z_val < self.zmnx[0]) | (z_val > self.zmnx[1]))[0]
@@ -208,7 +217,7 @@ class fN_Model(object):
 
             # Evaluate
             #xdb.set_trace()
-            if not isiterable(z_val):  # scalar
+            if (not isiterable(z_val)) | (flg_1D == 1):  # scalar or 1D array wanted
                 log_fNX += self.gamma * np.log10((1+z_val)/(1+self.zpivot))
             else:
                 # Matrix algebra to speed things up
@@ -224,6 +233,8 @@ class fN_Model(object):
 
         # Gamma function (e.g. Inoue+14)
         elif self.fN_mtype == 'Gamma': 
+            if flg_1D == 1:
+                raise ValueError('fN.model: Not ready for this flg')
             Nl, Nu, Nc, bval = self.param[0]
             #iLyaF = np.where(NHI < 20.3)[0]
             #iDLA = np.where(NHI >= 20.3)[0]

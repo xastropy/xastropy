@@ -171,14 +171,13 @@ def tst_fn_data(fN_model=None, model_two=None, data_list=None, outfil=None):
     all_fN_cs = fn_data_from_fits([fn_file,k13r13_file,n12_file])
 
     # Remove K12
-    data_list = ['K13R13','OPB07', 'N12']
+    #data_list = ['K13R13','OPB07', 'N12']
     #outfil = 'tmp.png'
     if data_list is None:
         fN_cs = [fN_c for fN_c in all_fN_cs if ((fN_c.ref != 'K02') & (fN_c.ref != 'PW09'))]
     else:
         fN_cs = [fN_c for fN_c in all_fN_cs if fN_c.ref in data_list]
     fN_dtype = [fc.fN_dtype for fc in fN_cs]
-    #xdb.set_trace()
 
     fig = plt.figure(figsize=(8, 5))
     fig.clf()
