@@ -161,6 +161,7 @@ def run_xspec(spec_fil):
     from xastropy import spec as xspec
 
     spec = xspec.readwrite.readspec(spec_fil)
+    xdb.set_trace()
     app = QtGui.QApplication(sys.argv)
     gui = XSpecGui(spec)
     gui.show()
