@@ -49,6 +49,7 @@ class XSpecGui(QtGui.QMainWindow):
 
         # Grab the pieces and tie together
         self.pltline_widg = xspw.PlotLinesWidget(status=self.statusBar)
+        self.pltline_widg.setMaximumWidth(300)
         self.spec_widg = xspw.ExamineSpecWidget(spec,status=self.statusBar,
                                                 llist=self.pltline_widg.llist)
         self.pltline_widg.spec_widg = self.spec_widg
@@ -117,6 +118,7 @@ class XAbsIDGui(QtGui.QMainWindow):
         self.spec_widg.canvas.mpl_connect('button_press_event', self.on_click)
 
         anly_widg = QtGui.QWidget()
+        anly_widg.setMaximumWidth(300)
         vbox = QtGui.QVBoxLayout()
         vbox.addWidget(self.pltline_widg)
         vbox.addWidget(self.abssys_widg)
@@ -159,6 +161,8 @@ class XAbsIDGui(QtGui.QMainWindow):
 def run_xspec(spec_fil):
 
     from xastropy import spec as xspec
+    from xastropy.xguis import spec_widgets as xsw
+    reload(xsw)
 
     spec = xspec.readwrite.readspec(spec_fil)
     #xdb.set_trace()
@@ -169,32 +173,38 @@ def run_xspec(spec_fil):
 
 
 # ################
-# TESTING
 if __name__ == "__main__":
     import sys
     from xastropy import spec as xspec
     from xastropy.igm import abs_sys as xiabs
 
-    flg_fig = 0 
-    flg_fig += 2**0  # ExamineSpecWidget
-    #flg_fig += 2**1  # AbsIDWidget
+    if len(sys.argv) == 1: # TESTING
 
-    # Read spectrum
-    spec_fil = '/u/xavier/Keck/HIRES/RedData/PH957/PH957_f.fits'
-    spec = xspec.readwrite.readspec(spec_fil)
-
-    if (flg_fig % 2) == 1:
-        app = QtGui.QApplication(sys.argv)
-        gui = XSpecGui(spec)
-        gui.show()
-        app.exec_()
-
-    if (flg_fig % 2**2) >= 2**1:
-        spec_fil = '/u/xavier/PROGETTI/LLSZ3/data/normalize/SDSSJ1004+0018_nF.fits'
+        flg_fig = 0 
+        #flg_fig += 2**0  # ExamineSpecWidget
+        flg_fig += 2**1  # AbsIDWidget
+    
+        # Read spectrum
+        spec_fil = '/u/xavier/Keck/HIRES/RedData/PH957/PH957_f.fits'
         spec = xspec.readwrite.readspec(spec_fil)
-        absid_fil = '/Users/xavier/paper/LLS/Optical/Data/Analysis/MAGE/SDSSJ1004+0018_z2.746_id.fits'
+    
+        if (flg_fig % 2) == 1:
+            app = QtGui.QApplication(sys.argv)
+            gui = XSpecGui(spec)
+            gui.show()
+            app.exec_()
+    
+        if (flg_fig % 2**2) >= 2**1:
+            spec_fil = '/u/xavier/PROGETTI/LLSZ3/data/normalize/SDSSJ1004+0018_nF.fits'
+            spec = xspec.readwrite.readspec(spec_fil)
+            absid_fil = '/Users/xavier/paper/LLS/Optical/Data/Analysis/MAGE/SDSSJ1004+0018_z2.746_id.fits'
+            absid_fil2 = '/Users/xavier/paper/LLS/Optical/Data/Analysis/MAGE/SDSSJ2348-1041_z2.997_id.fits'
 
-        app = QtGui.QApplication(sys.argv)
-        gui = XAbsIDGui(spec,absid_list=[absid_fil])
-        gui.show()
-        app.exec_()
+            app = QtGui.QApplication(sys.argv)
+            gui = XAbsIDGui(spec,absid_list=[absid_fil, absid_fil2])
+            gui.show()
+            app.exec_()
+    else: # RUN A GUI
+        id_gui = int(sys.argv[1])  # 1 = XSpec, 2=XAbsId
+        if id_gui == 1:
+            run_xspec(sys.argv[2])

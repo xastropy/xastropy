@@ -106,7 +106,7 @@ class ExamineSpecWidget(QtGui.QWidget):
 
         flg = 0
         ## NAVIGATING
-        if event.key in ['l','r','b','t','i','o','[',']','W','Z']:  # Set left
+        if event.key in ['l','r','b','t','i','o','[',']','W','Z', 'Y']:  # Set left
             flg = navigate(self.psdict,event)
         ## DOUBLET
         if event.key in ['C','M','V','A']:  # Set left
@@ -167,7 +167,9 @@ class ExamineSpecWidget(QtGui.QWidget):
             # Abs Sys?
             if not self.abs_sys is None:
                 ylbl = self.psdict['ymnx'][0]+0.2*(self.psdict['ymnx'][1]-self.psdict['ymnx'][0])
+                clrs = ['red', 'green', 'cyan', 'orange', 'gray', 'yellow']
                 for abs_sys in self.abs_sys:
+                    ii = self.abs_sys.index(abs_sys)
                     wrest = np.array(abs_sys.lines.keys()) 
                     wvobs = wrest * (abs_sys.zabs+1)
                     gdwv = np.where( ((wvobs+5) > self.psdict['xmnx'][0]) &  # Buffer for region
@@ -180,10 +182,11 @@ class ExamineSpecWidget(QtGui.QWidget):
                         # Paint spectrum red
                         wvlim = wvobs[jj]*(1 + abs_sys.lines[wrest[jj]].analy['VLIM']/3e5)
                         pix = np.where( (self.spec.dispersion > wvlim[0]) & (self.spec.dispersion < wvlim[1]))[0]
-                        self.ax.plot(self.spec.dispersion[pix], self.spec.flux[pix], 'r-',drawstyle='steps-mid')
+                        self.ax.plot(self.spec.dispersion[pix], self.spec.flux[pix], '-',drawstyle='steps-mid',
+                                     color=clrs[ii])
                         # Label
-                        lbl = abs_sys.lines[wrest[jj]].analy['IONNM']
-                        self.ax.text(wvobs[jj], ylbl, lbl, color='red', rotation=90., size='small')
+                        lbl = abs_sys.lines[wrest[jj]].analy['IONNM']+' z={:g}'.format(abs_sys.zabs)
+                        self.ax.text(wvobs[jj], ylbl, lbl, color=clrs[ii], rotation=90., size='x-small')
         
         # Reset window limits
         self.ax.set_xlim(self.psdict['xmnx'])
@@ -223,6 +226,7 @@ class PlotLinesWidget(QtGui.QWidget):
         self.llist_widget = QtGui.QListWidget(self) 
         self.llist_widget.addItem('None')
         self.llist_widget.addItem('grb.lst')
+        self.llist_widget.addItem('lls.lst')
         self.llist_widget.setCurrentRow(0)
         self.llist_widget.currentItemChanged.connect(self.on_list_change)
 
@@ -453,14 +457,14 @@ def navigate(psdict,event):
     elif event.key == 't':  # Set Top
         psdict['ymnx'][1] = event.ydata
     elif event.key == 'i':  # Zoom in (and center)
-        #QtCore.pyqtRemoveInputHook()
-        #xdb.set_trace()
-        #QtCore.pyqtRestoreInputHook()
         deltx = (psdict['xmnx'][1]-psdict['xmnx'][0])/4.
         psdict['xmnx'] = [event.xdata-deltx, event.xdata+deltx]
     elif event.key == 'o':  # Zoom in (and center)
         deltx = psdict['xmnx'][1]-psdict['xmnx'][0]
         psdict['xmnx'] = [event.xdata-deltx, event.xdata+deltx]
+    elif event.key == 'Y':  # Zoom in (and center)
+        delty = psdict['ymnx'][1]-psdict['ymnx'][0]
+        psdict['ymnx'] = [event.ydata-delty, event.ydata+delty]
     elif event.key in ['[',']']:  # Pan 
         center = (psdict['xmnx'][1]+psdict['xmnx'][0])/2.
         deltx = (psdict['xmnx'][1]-psdict['xmnx'][0])/2.
