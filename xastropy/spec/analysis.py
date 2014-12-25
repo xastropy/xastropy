@@ -19,6 +19,7 @@ import matplotlib.pyplot as plt
 import pdb
 from astropy import constants as const
 
+import xastropy.atomic as xatom
 
 #class Spectral_Line(object):
 #def pixminmax(spec, zabs, wrest, vmnx):
@@ -37,8 +38,23 @@ class Spectral_Line(object):
     def __init__(self, wrest, clm_file=None):
         self.wrest = wrest
         self.atomic = {} # Atomic Data
-        self.analy = {} # Analysis inputs (from .clm file)
+        self.analy = {} # Analysis inputs (from .clm file or AbsID)
         self.measure = {} # Measured quantities (e.g. column, EW, centroid)
+        # Fill
+        self.fill()
+
+    # Fill Analy
+    def fill(self):
+        import xastropy.spec.abs_line as xspa
+        # Data
+        self.atomic = xspa.abs_line_data(self.wrest)
+        #
+        self.analy['VLIM'] = [0., 0.] # km/s
+        self.analy['FLG_ANLY'] = 1 # Analyze
+        self.analy['FLG_EYE'] = 0
+        self.analy['FLG_LIMIT'] = 0 # No limit
+        self.analy['DATFIL'] = '' 
+        self.analy['IONNM'] = self.atomic['name']
 
     # Output
     def __repr__(self):

@@ -17,7 +17,7 @@ import numpy as np
 from astropy.io import fits, ascii
 
 from xastropy.atomic import ionization as xai
-from xastropy import spec as xspec
+import xastropy as xa
 from xastropy.xutils import xdebug as xdb
 
 #class Ion_Clm(object):
@@ -122,7 +122,7 @@ class Ions_Clm(object):
         table = ascii.read(ion_fil, format='no_header', names=names) 
 
         # Get ion info
-        adata = xspec.abs_line.abs_line_data( table['wrest'], ret_flg=1)
+        adata = xa.spec.abs_line.abs_line_data( table['wrest'], ret_flg=1)
 
         # Add
         from astropy.table import Column
@@ -240,7 +240,7 @@ class Ionic_Clm_File(object):
             vmax = float(tmp[2].strip())
             key = float(tmp[0].strip()) # Using a float not string!
             # Generate
-            self.clm_lines[key] = xspec.analysis.Spectral_Line(key)
+            self.clm_lines[key] = xa.spec.analysis.Spectral_Line(key)
             self.clm_lines[key].analy['FLAGS'] = ionflg, int(tmp[3].strip())
             # By-hand
             if ionflg >= 8:

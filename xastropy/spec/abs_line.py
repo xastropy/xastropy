@@ -21,8 +21,6 @@ from astropy.utils.misc import isiterable
 from xastropy.outils import roman
 from xastropy.atomic.elements import ELEMENTS
 from xastropy.xutils import xdebug as xdb
-from xastropy.spec import readwrite as xspec_rw
-from xastropy.spec import analysis as xspec_anly
 
 # Path for xastropy
 xa_path = imp.find_module('xastropy')[1]
@@ -63,6 +61,7 @@ class Abs_Line(object):
         if spec_file is None:
             self.spec = None
         else:
+            import xastropy.spec.readwrite as xspec_rw
             self.spec = xspec_rw.readspec(spec_file)
 
     # Method to find the flux-weighted optical-depth velocity (requires spectrum)
@@ -79,6 +78,7 @@ class Abs_Line(object):
         JXP 06 Dec 2014
         '''
         # Get pixels covering the line
+        import xastropy.spec.analysis as xspec_anly
         pix = xspec_anly.pixminmax(self.spec, self.z, self.wrest,
                                     (self.attrib['vmin'],self.attrib['vmax']))
         # Smooth?

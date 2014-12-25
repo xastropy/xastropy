@@ -26,9 +26,12 @@ from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as Navigatio
 from matplotlib.figure import Figure
 
 from astropy.table.table import Table
+from astropy import constants as const
 
 from xastropy import spec as xspec 
 from xastropy.xutils import xdebug as xdb
+from xastropy.plotting import utils as xputils
+from xastropy.igm.abs_sys import abssys_utils as xiaa
 
 xa_path = imp.find_module('xastropy')[1]
 
@@ -206,7 +209,7 @@ class PlotLinesWidget(QtGui.QWidget):
 
         13-Dec-2014 by JXP
     '''
-    def __init__(self, parent=None, status=None):
+    def __init__(self, parent=None, status=None, init_llist=None, init_z=0.):
         '''
         '''
         super(PlotLinesWidget, self).__init__(parent)
@@ -218,26 +221,31 @@ class PlotLinesWidget(QtGui.QWidget):
         # Create a dialog window for redshift
         z_label = QtGui.QLabel('z=')
         self.zbox = QtGui.QLineEdit()
-        self.zbox.setText('0.')
+        self.zbox.setText('{:.6f}'.format(init_z))
         self.zbox.setMinimumWidth(50)
         self.connect(self.zbox, QtCore.SIGNAL('editingFinished ()'), self.setz)
 
         # Create the line list 
+        self.lists = ['None', 'grb.lst', 'lls.lst']
         list_label = QtGui.QLabel('Line Lists:')
         self.llist_widget = QtGui.QListWidget(self) 
-        self.llist_widget.addItem('None')
-        self.llist_widget.addItem('grb.lst')
-        self.llist_widget.addItem('lls.lst')
+        for ilist in self.lists:
+            self.llist_widget.addItem(ilist)
         self.llist_widget.setCurrentRow(0)
         self.llist_widget.currentItemChanged.connect(self.on_list_change)
 
-        self.llist = {} # Dict for the line lists
-        self.llist['Plot'] = False
-        self.llist['z'] = 0.
-
-        # Create the selectable line
-        line_label = QtGui.QLabel('Set Line:')
-        self.scrollArea = QtGui.QScrollArea()
+        # Input line list?
+        if init_llist is None:
+            self.llist = {} # Dict for the line lists
+            self.llist['Plot'] = False
+            self.llist['z'] = 0.
+        else: # Fill it all up and select
+            self.llist = init_llist
+            if not init_llist['List'] in self.lists:
+                self.lists.append(init_llist['List'])
+                self.llist_widget.addItem(init_llist['List'])
+                self.llist_widget.setCurrentRow(len(self.lists)-1)
+            self.zbox.setText('{:.6f}'.format(init_llist['z']))
 
         # Layout
         vbox = QtGui.QVBoxLayout()
@@ -256,18 +264,10 @@ class PlotLinesWidget(QtGui.QWidget):
         except AttributeError:
             print('You chose: {:s}'.format(curr.text()))
 
-        # Set line list
-        self.llist['List'] = llist
-        if llist == 'None':
-            self.llist['Plot'] = False
-        else:
-            self.llist['Plot'] = True
-            # Load?
-            if not (llist in self.llist):
-                line_file = xa_path+'/data/spec_lines/'+llist
-                llist_cls = xspec.abs_line.Abs_Line_List(line_file)
-                self.llist[llist] = llist_cls.data
-            # Try to draw
+        self.llist = set_llist(llist,in_dict=self.llist)
+
+        # Try to draw
+        if self.llist['Plot'] is True:
             try:
                 self.spec_widg.on_draw()
             except AttributeError:
@@ -300,7 +300,7 @@ class PlotLinesWidget(QtGui.QWidget):
 # #####
 class SelectLineWidget(QtGui.QDialog):
     ''' Widget to select a spectral line
-    inp: string or dict
+    inp: string or dict or Table
       Input line list
 
     15-Dec-2014 by JXP
@@ -310,9 +310,11 @@ class SelectLineWidget(QtGui.QDialog):
         '''
         super(SelectLineWidget, self).__init__(parent)
 
-        # Line list dict
+        # Line list Table
         if isinstance(inp,Table):
             lines = inp
+        else:
+            raise ValueError('SelectLineWidget: Wrong type of input')
 
         self.resize(250, 800)
 
@@ -347,6 +349,81 @@ class SelectLineWidget(QtGui.QDialog):
         self.line = str(curr.text())
         # Print
         print('You chose: {:s}'.format(curr.text()))
+
+# #####
+class SelectedLinesWidget(QtGui.QWidget):
+    ''' Widget to show and enable lines to be selected
+    inp: Table or (future: string or dict) 
+      Input line list
+
+    24-Dec-2014 by JXP
+    '''
+    def __init__(self, inp, parent=None, init_select=None, plot_widget=None):
+        '''
+        '''
+        super(SelectedLinesWidget, self).__init__(parent)
+
+        # Line list Table
+        if isinstance(inp,Table):
+            self.lines = inp
+        else:
+            raise ValueError('SelectLineWidget: Wrong type of input')
+
+        self.plot_widget = plot_widget
+
+        # Create the line list 
+        line_label = QtGui.QLabel('Lines:')
+        self.lines_widget = QtGui.QListWidget(self) 
+        self.lines_widget.setSelectionMode(QtGui.QAbstractItemView.MultiSelection)
+
+        # Loop on lines (could put a preferred list first)
+        nlin = len(self.lines['wrest'])
+        for ii in range(nlin):
+            self.lines_widget.addItem('{:s} :: {:.3f}'.format(self.lines['name'][ii],
+                                                         self.lines['wrest'][ii]))
+        # Initial selection
+        if init_select is None:
+            self.selected = [0]
+        else:
+            self.selected = init_select
+
+        for iselect in self.selected:
+            self.lines_widget.item(iselect).setSelected(True)
+
+        # Events
+        #self.lines_widget.itemClicked.connect(self.on_list_change)
+        self.lines_widget.itemSelectionChanged.connect(self.on_list_change)
+
+        # Layout
+        vbox = QtGui.QVBoxLayout()
+        vbox.addWidget(line_label)
+        vbox.addWidget(self.lines_widget)
+        
+        self.setLayout(vbox)
+
+    #def on_list_change(self,item):
+    def on_list_change(self): #,item):
+        #self.line = str(curr.text())
+        all_items = [self.lines_widget.item(ii) for ii in range(self.lines_widget.count())]
+        sel_items = self.lines_widget.selectedItems()
+        self.selected = [all_items.index(isel) for isel in sel_items]
+        self.selected.sort()
+
+        #QtCore.pyqtRemoveInputHook()
+        #xdb.set_trace()
+        #QtCore.pyqtRestoreInputHook()
+
+        # Print
+        #print('You chose: {:s}'.format(item.text()))
+        #print(self.selected)
+
+        # Update llist
+        try:
+            self.plot_widget.llist['show_line'] = self.selected
+        except AttributeError:
+            return
+        else:
+            self.plot_widget.on_draw()
 
 # #####
 class AbsSysWidget(QtGui.QWidget):
@@ -427,36 +504,71 @@ class AbsSysWidget(QtGui.QWidget):
         #QtCore.pyqtRestoreInputHook()
 
 class VelPlotWidget(QtGui.QWidget):
-    ''' Widget to plot a spectrum and interactively
-        fiddle about.  Akin to XIDL/x_specplot.pro
-        Generating as a QDialog so it can be launched separately
+    ''' Widget for a velocity plot with interaction.
 
-        12-Dec-2014 by JXP
+        19-Dec-2014 by JXP
     '''
-    def __init__(self, spec, parent=None, status=None, llist=None,
-                 abs_sys=None):
+    def __init__(self, ispec, z=None, parent=None, llist=None, Norm=False,
+                 vmnx=[-300., 300.], abs_sys=None):
         '''
         spec = Spectrum1D
+        Norm: Bool (False)
+          Normalized spectrum?
+        abs_sys: AbsSystem
+          Absorption system class
         '''
-        super(ExamineSpecWidget, self).__init__(parent)
+        super(VelPlotWidget, self).__init__(parent)
+
+        if isinstance(ispec,str) or isinstance(ispec,unicode):
+            spec = xspec.readwrite.readspec(spec_fil)
+            self.spec_fil = ispec
+        else:
+            spec = ispec # Assuming Spectrum1D
+            self.spec_fil = None
 
         self.spec = spec
+        self.z = z
+
+        # Abs_System 
         self.abs_sys = abs_sys
+        if not self.abs_sys is None:
+            self.z = self.abs_sys.zabs
+            # Line list
+            if llist is None:
+                try:
+                    lwrest = self.abs_sys.lines.keys()
+                except AttributeError:
+                    lwrest = None
+                if not lwrest is None:
+                    llist = set_llist(lwrest)
+                    llist['z'] = self.z
+
+        #QtCore.pyqtRemoveInputHook()
+        #xdb.set_trace()
+        #QtCore.pyqtRestoreInputHook()
+
+        self.Norm = Norm
         self.psdict = {} # Dict for spectra plotting
-        self.init_spec() 
+        self.psdict['xmnx'] = vmnx
+        self.psdict['ymnx'] = [-0.1, 1.1]
 
         # Status Bar?
-        if not status is None:
-            self.statusBar = status
+        #if not status is None:
+        #    self.statusBar = status
 
-        # Line List?
+        # Line List
         if llist is None:
-            self.llist = {'Plot': False}
+            self.llist = set_llist('lls.lst')
         else:
             self.llist = llist
+        self.base_llist = set_llist('grb.lst') # To choose from
+
+        # Indexing for line plotting
+        self.idx_line = 0
+
+        self.init_lines()
         
         # Create the mpl Figure and FigCanvas objects. 
-        # 5x4 inches, 100 dots-per-inch
         #
         self.dpi = 150
         self.fig = Figure((8.0, 4.0), dpi=self.dpi)
@@ -468,60 +580,131 @@ class VelPlotWidget(QtGui.QWidget):
         self.canvas.mpl_connect('key_press_event', self.on_key)
         self.canvas.mpl_connect('button_press_event', self.on_click)
 
-        # Make two plots
+        # Sub_plots
+        self.sub_xy = [3,4]
 
-        self.ax = self.fig.add_subplot(1,1,1)
-
-        self.fig.subplots_adjust(hspace=0.1, wspace=0.1)
+        self.fig.subplots_adjust(hspace=0.0, wspace=0.1)
         
         vbox = QtGui.QVBoxLayout()
         vbox.addWidget(self.canvas)
         
         self.setLayout(vbox)
 
-        #
-
         # Draw on init
         self.on_draw()
 
-    # Setup the spectrum plotting info
-    def init_spec(self):
-        #xy min/max
-        xmin = np.min(self.spec.dispersion)
-        xmax = np.max(self.spec.dispersion)
-        ymed = np.median(self.spec.flux).value
-        ymin = 0. - 0.1*ymed
-        ymax = ymed * 1.5
-        self.psdict['xmnx'] = [xmin,xmax]
-        self.psdict['ymnx'] = [ymin,ymax]
-        self.psdict['sv_xy'] = [ [xmin,xmax], [ymin,ymax] ]
+    # Load them up for display
+    def init_lines(self):
+        wvmin = np.min(self.spec.dispersion)
+        wvmax = np.max(self.spec.dispersion)
+        #
+        wrest = self.llist[self.llist['List']]['wrest']
+        wvobs = (1+self.z) * np.array(wrest)
+        gdlin = np.where( (wvobs > wvmin) & (wvobs < wvmax) )[0]
+        self.llist['show_line'] = gdlin
+        # Update/generate lines
+        for idx in gdlin:
+            if not isinstance(self.lines[wrest[idx]],
+                              xspec.analysis.Spectral_Line):
+                self.lines[wrest[idx]] = xspec.analysis.Spectral_Line(wrest[idx])
+            if not self.spec_fil is None:
+                self.abs_sys.lines[wrest[idx]].analy['DATFIL'] = self.spec_fil
+            
         
-    # Main Driver
+    # Key stroke 
     def on_key(self,event):
 
+
+        wrest = None
         flg = 0
+        sv_idx = self.idx_line
         ## NAVIGATING
         if event.key in ['l','r','b','t','i','o','[',']','W','Z', 'Y']:  # Set left
             flg = navigate(self.psdict,event)
-        ## DOUBLET
-        if event.key in ['C','M','V','A']:  # Set left
-            wave = set_doublet(self, event)
-            #print('wave = {:g},{:g}'.format(wave[0], wave[1]))
-            self.ax.plot( [wave[0],wave[0]], self.psdict['ymnx'], '--', color='red')
-            self.ax.plot( [wave[1],wave[1]], self.psdict['ymnx'], '--', color='red')
-            flg = 2 # Layer
-        if event.key == 'R': # Clear lines
+        if event.key == '-':
+            self.idx_line = max(0, self.idx_line-self.sub_xy[0]*self.sub_xy[1]) # Min=0
+            if self.idx_line == sv_idx:
+                print('Edge of list')
+        if event.key == '=':
+            self.idx_line = min(len(self.llist['show_line'])-self.sub_xy[0]*self.sub_xy[1],
+                                self.idx_line + self.sub_xy[0]*self.sub_xy[1]) 
+            if self.idx_line == sv_idx:
+                print('Edge of list')
+
+        # Single line command
+        if event.key in ['1','2','B','U','L','N','V']:
+            try:
+                wrest = event.inaxes.get_gid()
+            except AttributeError:
+                return
+        ## Velocity limits
+        if event.key == '1': 
+            self.abs_sys.lines[wrest].analy['VLIM'][0] = event.xdata
+        if event.key == '2': 
+            self.abs_sys.lines[wrest].analy['VLIM'][1] = event.xdata
+        if event.key == '!': 
+            for key in self.abs_sys.lines.keys():
+                try:
+                    self.abs_sys.lines[key].analy['VLIM'][0] = event.xdata
+                except KeyError:
+                    print('Not setting VLIM for {:g}'.format(key))
+        if event.key == '@': 
+            for key in self.abs_sys.lines.keys():
+                try:
+                    self.abs_sys.lines[key].analy['VLIM'][1] = event.xdata
+                except KeyError:
+                    print('Not setting VLIM for {:g}'.format(key))
+        ## Line type
+        if event.key == 'B':  # Toggle blend
+            try:
+                feye = self.abs_sys.lines[wrest].analy['FLG_EYE'] 
+            except KeyError:
+                feye = 0
+            feye = (feye + 1) % 2
+            self.abs_sys.lines[wrest].analy['FLG_EYE']  = feye
+        if event.key == 'N':  # Toggle NG
+            try:
+                fanly = self.abs_sys.lines[wrest].analy['FLG_ANLY'] 
+            except KeyError:
+                fanly = 2
+            if fanly == 0:
+                fanly = 2 # Not using 1 anymore..
+            else:
+                fanly = 0
+            #QtCore.pyqtRemoveInputHook()
+            #xdb.set_trace()
+            #QtCore.pyqtRestoreInputHook()
+            self.abs_sys.lines[wrest].analy['FLG_ANLY']  = fanly
+        if event.key == 'V':  # Normal
+            self.abs_sys.lines[wrest].analy['FLG_LIMIT'] = 1
+        if event.key == 'L':  # Lower limit
+            self.abs_sys.lines[wrest].analy['FLG_LIMIT'] = 2
+        if event.key == 'U':  # Upper limit
+            self.abs_sys.lines[wrest].analy['FLG_LIMIT'] = 3
+            
+            #QtCore.pyqtRemoveInputHook()
+            #xdb.set_trace()
+            #QtCore.pyqtRestoreInputHook()
+
+        if not wrest is None: # Single window
+            flg = 3
+        if event.key in ['R', '!', '@', '=', '-']: # Redraw all
             flg = 1 
 
         if flg==1: # Default is not to redraw
             self.on_draw()
         elif flg==2: # Layer (no clear)
             self.on_draw(replot=False) 
+        elif flg==3: # Layer (no clear)
+            self.on_draw(in_wrest=wrest)
 
     # Click of main mouse button
     def on_click(self,event):
-        print('button={:d}, x={:f}, y={:f}, xdata={:f}, ydata={:f}'.format(
-            event.button, event.x, event.y, event.xdata, event.ydata))
+        try:
+            print('button={:d}, x={:f}, y={:f}, xdata={:f}, ydata={:f}'.format(
+                event.button, event.x, event.y, event.xdata, event.ydata))
+        except ValueError:
+            return
         if event.button == 1: # Draw line
             self.ax.plot( [event.xdata,event.xdata], self.psdict['ymnx'], ':', color='green')
             self.on_draw(replot=False) 
@@ -532,62 +715,100 @@ class VelPlotWidget(QtGui.QWidget):
             except AttributeError:
                 return
 
-    def on_draw(self, replot=True):
+    def on_draw(self, replot=True, in_wrest=None):
         """ Redraws the figure
         """
         #
-
         if replot is True:
-            self.ax.clear()        
-            self.ax.plot(self.spec.dispersion, self.spec.flux, 'k-',drawstyle='steps-mid')
-            self.ax.plot(self.spec.dispersion, self.spec.sig, 'r:')
-            self.ax.set_xlabel('Wavelength')
-            self.ax.set_ylabel('Flux')
+            # Loop on windows
+            all_idx = self.llist['show_line']
+            for jj in range(self.sub_xy[0]*self.sub_xy[1]):
+                idx = all_idx[jj+self.idx_line]
+                # Grab line
+                #wvobs = np.array((1+self.z) * self.llist[self.llist['List']]['wrest'][idx])
+                wrest = self.llist[self.llist['List']]['wrest'][idx]
+                # Single window?
+                if not in_wrest is None:
+                    if np.abs(wrest-in_wrest) > 1e-3:
+                        continue
+                # Generate plot
+                wvobs = (1+self.z) * wrest
+                velo = (self.spec.dispersion/wvobs - 1.)*const.c.to('km/s').value
+                self.ax = self.fig.add_subplot(self.sub_xy[0],self.sub_xy[1], jj+1)
+                self.ax.clear()        
+                self.ax.plot(velo, self.spec.flux, 'k-',drawstyle='steps-mid')
 
-            # Spectral lines?
-            if self.llist['Plot'] is True:
-                ylbl = self.psdict['ymnx'][1]-0.2*(self.psdict['ymnx'][1]-self.psdict['ymnx'][0])
-                z = self.llist['z']
-                wvobs = np.array((1+z) * self.llist[self.llist['List']]['wrest'])
-                gdwv = np.where( (wvobs > self.psdict['xmnx'][0]) &
-                                 (wvobs < self.psdict['xmnx'][1]))[0]
-                for kk in range(len(gdwv)): 
-                    jj = gdwv[kk]
-                    wrest = self.llist[self.llist['List']]['wrest'][jj]
-                    lbl = self.llist[self.llist['List']]['name'][jj]
-                    # Plot
-                    self.ax.plot(wrest*np.array([z+1,z+1]), self.psdict['ymnx'], 'b--')
-                    # Label
-                    self.ax.text(wrest*(z+1), ylbl, lbl, color='blue', rotation=90., size='small')
+                # GID for referencing
+                self.ax.set_gid(wrest)
 
-            # Abs Sys?
-            if not self.abs_sys is None:
-                ylbl = self.psdict['ymnx'][0]+0.2*(self.psdict['ymnx'][1]-self.psdict['ymnx'][0])
-                clrs = ['red', 'green', 'cyan', 'orange', 'gray', 'yellow']
-                for abs_sys in self.abs_sys:
-                    ii = self.abs_sys.index(abs_sys)
-                    wrest = np.array(abs_sys.lines.keys()) 
-                    wvobs = wrest * (abs_sys.zabs+1)
-                    gdwv = np.where( ((wvobs+5) > self.psdict['xmnx'][0]) &  # Buffer for region
-                                    ((wvobs-5) < self.psdict['xmnx'][1]))[0]
-                    for kk in range(len(gdwv)): 
-                        jj = gdwv[kk]
-                        #QtCore.pyqtRemoveInputHook()
-                        #xdb.set_trace()
-                        #QtCore.pyqtRestoreInputHook()
-                        # Paint spectrum red
-                        wvlim = wvobs[jj]*(1 + abs_sys.lines[wrest[jj]].analy['VLIM']/3e5)
-                        pix = np.where( (self.spec.dispersion > wvlim[0]) & (self.spec.dispersion < wvlim[1]))[0]
-                        self.ax.plot(self.spec.dispersion[pix], self.spec.flux[pix], '-',drawstyle='steps-mid',
-                                     color=clrs[ii])
-                        # Label
-                        lbl = abs_sys.lines[wrest[jj]].analy['IONNM']+' z={:g}'.format(abs_sys.zabs)
-                        self.ax.text(wvobs[jj], ylbl, lbl, color=clrs[ii], rotation=90., size='x-small')
-        
-        # Reset window limits
-        self.ax.set_xlim(self.psdict['xmnx'])
-        self.ax.set_ylim(self.psdict['ymnx'])
+                # Labels
+                #if ((jj+1) % self.sub_xy[0]) == 0:
+                if jj >= (self.sub_xy[0]-1)*(self.sub_xy[1]):
+                    self.ax.set_xlabel('Relative Velocity (km/s)')
+                else:
+                    self.ax.get_xaxis().set_ticks([])
+                if ((jj+1) // 2 == 0) & (jj < self.sub_xy[0]):
+                    self.ax.set_ylabel('Relative Flux')
+                lbl = self.llist[self.llist['List']]['name'][idx]
+                self.ax.text(0.1, 0.05, lbl, color='blue', transform=self.ax.transAxes,
+                             size='x-small', ha='left')
 
+                # Reset window limits
+                self.ax.set_xlim(self.psdict['xmnx'])
+                self.ax.set_ylim(self.psdict['ymnx'])
+
+                # Fonts
+                xputils.set_fontsize(self.ax,6.)
+
+                # Abs_Sys: Color the lines
+                if not self.abs_sys is None:
+                    try:
+                        vlim = self.abs_sys.lines[wrest].analy['VLIM']
+                    except KeyError:
+                        continue
+                    # Color coding
+                    clr = 'black'
+                    try:  # .clm style
+                        flag = self.abs_sys.lines[wrest].analy['FLAGS'][0]
+                    except KeyError:
+                        flag = None
+                    else:
+                        if flag <= 1: # Standard detection
+                            clr = 'green'
+                        elif flag in [2,3]:
+                            clr = 'blue'
+                        elif flag in [4,5]:
+                            clr = 'purple'
+                    # ABS ID
+                    try: # NG?
+                        flagA = self.abs_sys.lines[wrest].analy['FLG_ANLY']
+                    except KeyError:
+                        flagA = None
+                    else:
+                        if (flagA>0) & (clr == 'black'):
+                            clr = 'green'
+                    try: # Limit?
+                        flagL = self.abs_sys.lines[wrest].analy['FLG_LIMIT']
+                    except KeyError:
+                        flagL = None
+                    else:
+                        if flagL == 2:
+                            clr = 'blue'
+                        if flagL == 3:
+                            clr = 'purple'
+                    try: # Blends?
+                        flagE = self.abs_sys.lines[wrest].analy['FLG_EYE']
+                    except KeyError:
+                        flagE = None
+                    else:
+                        if flagE == 1:
+                            clr = 'orange'
+                    if flagA == 0:
+                        clr = 'red'
+
+                    pix = np.where( (velo > vlim[0]) & (velo < vlim[1]))[0]
+                    self.ax.plot(velo[pix], self.spec.flux[pix], '-',
+                                 drawstyle='steps-mid', color=clr)
 
 
         # Draw
@@ -655,7 +876,63 @@ def navigate(psdict,event):
     return 1
 
 
+# ######
+# 
+def set_llist(llist,in_dict=None):
+    ''' Method to set a line list dict for the Widgets
+    '''
+    if in_dict is None:
+        in_dict = {}
 
+    if isinstance(llist,str) or isinstance(llist,unicode): # Set line list from a file
+        in_dict['List'] = llist
+        if llist == 'None':
+            in_dict['Plot'] = False
+        else:
+            in_dict['Plot'] = True
+            # Load?
+            if not (llist in in_dict):
+                line_file = xa_path+'/data/spec_lines/'+llist
+                llist_cls = xspec.abs_line.Abs_Line_List(line_file)
+                in_dict[llist] = llist_cls.data
+    elif isinstance(llist,list): # Set from a list of wrest
+
+        from astropy.table import Column
+
+        in_dict['List'] = 'Input'
+        in_dict['Plot'] = True
+        # Fill
+        llist.sort()
+        tmp_dict = {}
+        # Parse from grb.lst
+        line_file = xa_path+'/data/spec_lines/grb.lst'
+        llist_cls = xspec.abs_line.Abs_Line_List(line_file)
+        adict = llist_cls.data
+        # Fill 
+        names = []
+        fval = []
+        for wrest in llist:
+            mt = np.where(np.abs(wrest-adict['wrest']) < 1e-3)[0]
+            if len(mt) != 1:
+                raise ValueError('Problem!')
+            names.append(adict['name'][mt][0])
+            fval.append(adict['fval'][mt][0])
+        # Set
+        #QtCore.pyqtRemoveInputHook()
+        #xdb.set_trace()
+        #QtCore.pyqtRestoreInputHook()
+        # Generate a Table
+        col0 = Column(np.array(llist), name='wrest')
+        col1 = Column(np.array(names), name='name')
+        col2 = Column(np.array(fval), name='fval')
+        in_dict['Input'] = Table( (col0,col1,col2) )
+
+    #
+    return in_dict
+
+        #QtCore.pyqtRemoveInputHook()
+        #xdb.set_trace()
+        #QtCore.pyqtRestoreInputHook()
 
 
 # ################
@@ -667,7 +944,9 @@ if __name__ == "__main__":
     #flg_fig += 2**0  # ExamineSpecWidget
     #flg_fig += 2**1  # PlotLinesWidget
     #flg_fig += 2**2  # SelectLineWidget
-    flg_fig += 2**3  # AbsSysWidget
+    #flg_fig += 2**3  # AbsSysWidget
+    #flg_fig += 2**4  # VelPltWidget
+    flg_fig += 2**5  # SelectedLinesWidget
 
     # ExamineSpec
     if (flg_fig % 2) == 1:
@@ -710,3 +989,39 @@ if __name__ == "__main__":
         main.show()
         sys.exit(app.exec_())
 
+    # VelPlt Widget
+    if (flg_fig % 2**5) >= 2**4:
+        specf = 1
+        if specf == 0: # PH957 DLA
+            # Spectrum
+            spec_fil = '/u/xavier/Keck/HIRES/RedData/PH957/PH957_f.fits'
+            spec = xspec.readwrite.readspec(spec_fil)
+            # Abs_sys
+            abs_sys = xiaa.Generic_System(None)
+            abs_sys.clm_fil = '/Users/xavier/DLA/Abund/PH957.z2309.clm'
+            abs_sys.get_ions(skip_ions=True, fill_lines=True)
+            abs_sys.zabs = abs_sys.clm_analy.zsys
+        elif specf == 1: # UM184 LLS
+            # Spectrum
+            spec_fil = '/Users/xavier/PROGETTI/LLSZ3/data/normalize/UM184_nF.fits'
+            spec = xspec.readwrite.readspec(spec_fil)
+            # Abs_sys
+            abs_fil = '/Users/xavier/paper/LLS/Optical/Data/Analysis/MAGE/UM184_z2.930_id.fits'
+            abs_sys = xiaa.Generic_System(None)
+            abs_sys.parse_absid_file(abs_fil)
+        # Launch
+        app = QtGui.QApplication(sys.argv)
+        app.setApplicationName('VelPlot')
+        main = VelPlotWidget(spec, abs_sys=abs_sys)
+        main.show()
+        sys.exit(app.exec_())
+
+    # SelectedLines Widget
+    if (flg_fig % 2**6) >= 2**5:
+        llist = set_llist('grb.lst') 
+        # Launch
+        app = QtGui.QApplication(sys.argv)
+        app.setApplicationName('SelectedLines')
+        main = SelectedLinesWidget(llist['grb.lst'])
+        main.show()
+        sys.exit(app.exec_())

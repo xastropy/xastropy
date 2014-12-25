@@ -42,7 +42,7 @@ class LLS_System(Absline_System):
     def from_absid_fil(cls, abs_fil):
         lls = cls() # Empty
         # Parse abs_fil
-        lls.parse_absid_fil(abs_fil)
+        lls.parse_absid_file(abs_fil)
         # Return
         return lls
 
@@ -386,7 +386,7 @@ if __name__ == '__main__':
     #flg_test += 2 # LLS plot
     #flg_test += 2**2 # zpeak
     #flg_test += 2**3 # output .dat file
-    flg_test += 2**4 # read AbsID
+    flg_test += 2**4 # read/write AbsID
     #
     #flg_test += 2**9 # LLS Survey NHI
     #flg_test += 2**10 # LLS Survey ions
@@ -429,11 +429,15 @@ if __name__ == '__main__':
     if (flg_test % 2**4) >= 2**3:
         tmp1.write_dat_file()
 
-    # Read AbsID
+    # Read and Write AbsID
     if (flg_test % 2**5) >= 2**4:
         abs_fil = '/Users/xavier/paper/LLS/Optical/Data/Analysis/MAGE/SDSSJ1004+0018_z2.746_id.fits'
         lls = LLS_System.from_absid_fil(abs_fil)
-        #xdb.set_trace()
+        tmpfil= '/Users/xavier/Desktop/tmp.fits'
+        xdb.set_trace()
+        lls.write_absid_file(tmpfil)
+        lls = LLS_System.from_absid_fil(tmpfil)
+        xdb.set_trace()
 
     # #############################
     # LLS Survey

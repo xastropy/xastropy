@@ -179,7 +179,8 @@ class Absline_System(object):
 
     # ##
     # Parse AbsID file
-    def parse_absid_fil(self, abs_fil):
+    def parse_absid_file(self, abs_fil):
+
         # FITS binary table
         hdu = fits.open(abs_fil)
         table = hdu[1].data
@@ -193,23 +194,58 @@ class Absline_System(object):
         for row in table:
             self.lines[row['WREST']] = xspec.analysis.Spectral_Line(row['WREST'])
             # Velocity limits and flags
-            self.lines[row['WREST']].analy['VLIM'] = row['DV']
+            try:
+                self.lines[row['WREST']].analy['VLIM'] = row['VLIM']
+            except KeyError:
+                self.lines[row['WREST']].analy['VLIM'] = row['DV']
             self.lines[row['WREST']].analy['FLG_ANLY'] = row['FLG_ANLY']
             self.lines[row['WREST']].analy['FLG_EYE'] = row['FLG_EYE']
             self.lines[row['WREST']].analy['FLG_LIMIT'] = row['FLG_LIMIT']
             self.lines[row['WREST']].analy['DATFIL'] = row['DATFIL']
             self.lines[row['WREST']].analy['IONNM'] = row['IONNM']
 
+    # ##
+    # Write AbsID file
+    def write_absid_file(self, outfil):
+
+        from astropy.table import Column
+        from astropy.table.table import Table
+
+        wrest = self.lines.keys()
+        wrest.sort()
+
+        # Columns
+        cols = [Column(np.array(wrest), name='WREST')] 
+        clm_nms = self.lines[wrest[0]].analy.keys()
+        for clm_nm in clm_nms:
+            clist = [self.lines[iwrest].analy[clm_nm] for iwrest in wrest]
+            cols.append( Column(np.array(clist), name=clm_nm) )
+        cols.append( Column(np.ones(len(cols[0]))*self.zabs, name='ZABS') ) 
+        
+        table = Table(cols)
+
+        prihdr = fits.Header()
+        prihdr['COMMENT'] = "Above are the data sources"
+        prihdu = fits.PrimaryHDU(header=prihdr)
+        table_hdu = fits.BinTableHDU.from_columns(np.array(table.filled()))
+
+        thdulist = fits.HDUList([prihdu, table_hdu])
+        thdulist.writeto(outfil,clobber=True)
+        print('Wrote AbsID file: {:s}'.format(outfil))
+
     # #################
     # Parse the ion files
-    def get_ions(self):
+    def get_ions(self, skip_ions=False, fill_lines=False):
         # Read .clm file
         clm_fil=self.tree+self.clm_fil
         self.clm_analy = Ionic_Clm_File(clm_fil)
+        if fill_lines is True:
+            self.lines = self.clm_analy.clm_lines
         # Read .all file
         ion_fil = self.tree+self.clm_analy.ion_fil # Should check for existence
         all_fil = ion_fil.split('.ion')[0]+'.all'
-        self.ions = Ions_Clm(all_fil, trans_file=ion_fil)
+        if skip_ions is False:
+            self.ions = Ions_Clm(all_fil, trans_file=ion_fil)
 
     # #################
     # Load low_ion kinematics

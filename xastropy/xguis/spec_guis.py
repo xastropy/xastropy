@@ -30,6 +30,9 @@ from xastropy.xutils import xdebug as xdb
 
 from xastropy.xguis import spec_widgets as xspw
 
+#class XSpecGui(QtGui.QMainWindow):
+#class XAbsIDGui(QtGui.QMainWindow):
+
 # x_specplot replacement
 class XSpecGui(QtGui.QMainWindow):
     ''' GUI to replace XIDL x_specplot
@@ -90,7 +93,7 @@ class XSpecGui(QtGui.QMainWindow):
             # Draw
             self.spec_widg.on_draw()
 
-# x_specplot replacement
+# GUI for Identifying many (all) Abs Systems in a Spectrum
 class XAbsIDGui(QtGui.QMainWindow):
     ''' GUI to analyze absorption systems in a spectrum
 
@@ -158,6 +161,87 @@ class XAbsIDGui(QtGui.QMainWindow):
             # Draw
             self.spec_widg.on_draw()
 
+# ##################################
+# GUI for velocity plot
+class XVelPltGui(QtGui.QDialog):
+    ''' GUI to analyze absorption systems in a spectrum
+        24-Dec-2014 by JXP
+    '''
+    def __init__(self, ispec, z=None, parent=None, llist=None, Norm=False,
+                 vmnx=[-300., 300.], abs_sys=None, outfil='dum_ID.fits'):
+        '''
+        spec = Filename or Spectrum1D
+        Norm: Bool (False)
+          Normalized spectrum?
+        abs_sys: AbsSystem
+          Absorption system class
+        '''
+        super(XVelPltGui, self).__init__(parent)
+
+        if isinstance(ispec,str) or isinstance(ispec,unicode):
+            spec = xspec.readwrite.readspec(spec_fil)
+            self.spec_fil = ispec
+        else:
+            spec = ispec # Assuming Spectrum1D
+            self.spec_fil = 'no_spec_given.fits'
+
+        # Build a widget combining several others
+        #self.main_widget = QtGui.QWidget()
+
+        self.abs_sys = abs_sys
+        self.vmnx = vmnx
+        self.outfil = outfil
+
+        # Grab the pieces and tie together
+        self.vplt_widg = xspw.VelPlotWidget(spec, abs_sys=self.abs_sys, vmnx=self.vmnx)
+        self.pltline_widg = xspw.PlotLinesWidget(init_llist=self.vplt_widg.llist)
+        self.pltline_widg.spec_widg = self.vplt_widg
+
+        self.slines = xspw.SelectedLinesWidget(self.vplt_widg.llist[self.vplt_widg.llist['List']],
+                                               init_select=self.vplt_widg.llist['show_line'],
+                                               plot_widget=self.vplt_widg)
+        # Outfil
+        self.out_box = QtGui.QLineEdit()
+        self.out_box.setText(self.outfil)
+        self.connect(self.out_box, QtCore.SIGNAL('editingFinished ()'), self.write_out)
+
+        # Quit
+        qbtn = QtGui.QPushButton('Quit', self)
+        qbtn.clicked.connect(self.write_close)
+
+        # Sizes
+        lines_widg = QtGui.QWidget()
+        lines_widg.setMaximumWidth(300)
+        lines_widg.setMinimumWidth(200)
+        vbox = QtGui.QVBoxLayout()
+        vbox.addWidget(self.pltline_widg)
+        vbox.addWidget(self.slines)
+        vbox.addWidget(self.out_box)
+        vbox.addWidget(qbtn)
+        lines_widg.setLayout(vbox)
+        
+        hbox = QtGui.QHBoxLayout()
+        hbox.addWidget(self.vplt_widg)
+        hbox.addWidget(lines_widg)
+
+        self.setLayout(hbox)
+
+        #QtCore.pyqtRemoveInputHook()
+        #xdb.set_trace()
+        #QtCore.pyqtRestoreInputHook()
+
+        self.vplt_widg.on_draw()
+
+    # Write
+    def write_out(self):
+        self.abs_sys.write_absid_file(self.outfil)
+
+    # Write + Quit
+    def write_close(self):
+        self.write_out()
+        self.close
+
+
 def run_xspec(spec_fil):
 
     from xastropy import spec as xspec
@@ -181,19 +265,22 @@ if __name__ == "__main__":
     if len(sys.argv) == 1: # TESTING
 
         flg_fig = 0 
-        #flg_fig += 2**0  # ExamineSpecWidget
-        flg_fig += 2**1  # AbsIDWidget
+        #flg_fig += 2**0  # XSpec
+        #flg_fig += 2**1  # 
+        flg_fig += 2**2  # XVelPlt Gui
     
         # Read spectrum
         spec_fil = '/u/xavier/Keck/HIRES/RedData/PH957/PH957_f.fits'
         spec = xspec.readwrite.readspec(spec_fil)
     
+        # XSpec
         if (flg_fig % 2) == 1:
             app = QtGui.QApplication(sys.argv)
             gui = XSpecGui(spec)
             gui.show()
             app.exec_()
     
+        # XAbsID
         if (flg_fig % 2**2) >= 2**1:
             spec_fil = '/u/xavier/PROGETTI/LLSZ3/data/normalize/SDSSJ1004+0018_nF.fits'
             spec = xspec.readwrite.readspec(spec_fil)
@@ -204,6 +291,21 @@ if __name__ == "__main__":
             gui = XAbsIDGui(spec,absid_list=[absid_fil, absid_fil2])
             gui.show()
             app.exec_()
+
+        # XVelPlt with existing AbsID file
+        if (flg_fig % 2**3) >= 2**2:
+            spec_fil = '/u/xavier/PROGETTI/LLSZ3/data/normalize/SDSSJ1004+0018_nF.fits'
+            #spec = xspec.readwrite.readspec(spec_fil)
+            absid_fil = '/Users/xavier/paper/LLS/Optical/Data/Analysis/MAGE/SDSSJ1004+0018_z2.746_id.fits'
+            abs_sys = xiabs.abssys_utils.Generic_System(None)
+            abs_sys.parse_absid_file(absid_fil)
+            #
+            app = QtGui.QApplication(sys.argv)
+            app.setApplicationName('XVelPlt')
+            gui = XVelPltGui(specfil,abs_sys=abs_sys,out_fil=absid_fil)
+            gui.show()
+            sys.exit(app.exec_())
+
     else: # RUN A GUI
         id_gui = int(sys.argv[1])  # 1 = XSpec, 2=XAbsId
         if id_gui == 1:
