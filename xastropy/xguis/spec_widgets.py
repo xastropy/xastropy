@@ -29,6 +29,8 @@ from astropy.table.table import Table
 from astropy import constants as const
 
 from xastropy import spec as xspec 
+from xastropy import stats as xstats
+from xastropy import xutils 
 from xastropy.xutils import xdebug as xdb
 from xastropy.plotting import utils as xputils
 from xastropy.igm.abs_sys import abssys_utils as xiaa
@@ -41,15 +43,18 @@ class ExamineSpecWidget(QtGui.QWidget):
 
         12-Dec-2014 by JXP
     '''
-    def __init__(self, spec, parent=None, status=None, llist=None,
-                 abs_sys=None):
+    def __init__(self, ispec, parent=None, status=None, llist=None,
+                 abs_sys=None, norm=True):
         '''
         spec = Spectrum1D
         '''
         super(ExamineSpecWidget, self).__init__(parent)
 
+        spec, spec_fil = read_spec(ispec)
+
         self.spec = spec
         self.abs_sys = abs_sys
+        self.norm = norm
         self.psdict = {} # Dict for spectra plotting
         self.init_spec() 
 
@@ -112,7 +117,7 @@ class ExamineSpecWidget(QtGui.QWidget):
         if event.key in ['l','r','b','t','i','o','[',']','W','Z', 'Y']:  # Set left
             flg = navigate(self.psdict,event)
         ## DOUBLET
-        if event.key in ['C','M','V','A']:  # Set left
+        if event.key in ['C','M','O','8']:  # Set left
             wave = set_doublet(self, event)
             #print('wave = {:g},{:g}'.format(wave[0], wave[1]))
             self.ax.plot( [wave[0],wave[0]], self.psdict['ymnx'], '--', color='red')
@@ -120,7 +125,55 @@ class ExamineSpecWidget(QtGui.QWidget):
             flg = 2 # Layer
         if event.key == 'R': # Clear lines
             flg = 1 
+        ## Velocity plot
+        if event.key == 'v': 
+            from xastropy.xguis import spec_guis as xsgui
+            z=self.llist['z']
+            # Check for a match in existing list and use it if so
+            if len(self.abs_sys) > 0:
+                zabs = np.array([abs_sys.zabs for abs_sys in self.abs_sys])
+                mt = np.where( np.abs(zabs-z) < 1e-4)[0]
+            else:
+                mt = []
+            if len(mt) == 1:
+                ini_abs_sys = self.abs_sys[mt[0]]
+                outfil = ini_abs_sys.absid_file
+                self.vplt_flg = 0 # Old one
+                print('Using existing ID file {:s}'.format(outfil))
+            else: 
+                ini_abs_sys = None
+                outfil = None
+                self.vplt_flg = 1 # New one
 
+            # Outfil
+            if outfil is None:
+                i0 = self.spec.filename.rfind('/')
+                i1 = self.spec.filename.rfind('.')
+                if i0 < 0:
+                    path = './ID_LINES/'
+                else:
+                    path = self.spec.filename[0:i0]+'/ID_LINES/'
+                outfil = path + self.spec.filename[i0+1:i1]+'_z'+'{:.4f}'.format(z)+'_id.fits'
+                xutils.files.ensure_dir(outfil)
+                self.outfil = outfil
+                #QtCore.pyqtRemoveInputHook()
+                #xdb.set_trace()
+                #QtCore.pyqtRestoreInputHook()
+
+            # Launch
+            gui = xsgui.XVelPltGui(self.spec, z=z, outfil=outfil,
+                                   abs_sys=ini_abs_sys, norm=self.norm)
+            gui.exec_()
+            # Push to Abs_Sys
+            if len(mt) == 1:
+                self.abs_sys[mt[0]] = gui.abs_sys
+            else:
+                self.abs_sys.append(gui.abs_sys)
+                print('Adding new abs system')
+            # Redraw
+            flg=1
+
+        # Draw
         if flg==1: # Default is not to redraw
             self.on_draw()
         elif flg==2: # Layer (no clear)
@@ -128,8 +181,12 @@ class ExamineSpecWidget(QtGui.QWidget):
 
     # Click of main mouse button
     def on_click(self,event):
-        print('button={:d}, x={:f}, y={:f}, xdata={:f}, ydata={:f}'.format(
-            event.button, event.x, event.y, event.xdata, event.ydata))
+        try:
+            print('button={:d}, x={:f}, y={:f}, xdata={:f}, ydata={:f}'.format(
+                event.button, event.x, event.y, event.xdata, event.ydata))
+        except ValueError:
+            print('Out of bounds')
+            return
         if event.button == 1: # Draw line
             self.ax.plot( [event.xdata,event.xdata], self.psdict['ymnx'], ':', color='green')
             self.on_draw(replot=False) 
@@ -180,6 +237,8 @@ class ExamineSpecWidget(QtGui.QWidget):
                                     ((wvobs-5) < self.psdict['xmnx'][1]))[0]
                     for kk in range(len(gdwv)): 
                         jj = gdwv[kk]
+                        if abs_sys.lines[wrest[jj]].analy['FLG_ANLY'] == 0:
+                            continue
                         #QtCore.pyqtRemoveInputHook()
                         #xdb.set_trace()
                         #QtCore.pyqtRestoreInputHook()
@@ -217,11 +276,11 @@ class PlotLinesWidget(QtGui.QWidget):
         if not status is None:
             self.statusBar = status
         
-        
         # Create a dialog window for redshift
         z_label = QtGui.QLabel('z=')
         self.zbox = QtGui.QLineEdit()
-        self.zbox.setText('{:.6f}'.format(init_z))
+        self.zbox.z_frmt = '{:.7f}'
+        self.zbox.setText(self.zbox.z_frmt.format(init_z))
         self.zbox.setMinimumWidth(50)
         self.connect(self.zbox, QtCore.SIGNAL('editingFinished ()'), self.setz)
 
@@ -233,6 +292,7 @@ class PlotLinesWidget(QtGui.QWidget):
             self.llist_widget.addItem(ilist)
         self.llist_widget.setCurrentRow(0)
         self.llist_widget.currentItemChanged.connect(self.on_list_change)
+        self.llist_widget.setMaximumHeight(100)
 
         # Input line list?
         if init_llist is None:
@@ -245,7 +305,13 @@ class PlotLinesWidget(QtGui.QWidget):
                 self.lists.append(init_llist['List'])
                 self.llist_widget.addItem(init_llist['List'])
                 self.llist_widget.setCurrentRow(len(self.lists)-1)
-            self.zbox.setText('{:.6f}'.format(init_llist['z']))
+            else:
+                idx = self.lists.index(init_llist['List'])
+                self.llist_widget.setCurrentRow(idx)
+            try:
+                self.zbox.setText(self.zbox.z_frmt.format(init_llist['z']))
+            except KeyError:
+                pass
 
         # Layout
         vbox = QtGui.QVBoxLayout()
@@ -255,6 +321,7 @@ class PlotLinesWidget(QtGui.QWidget):
         vbox.addWidget(self.llist_widget)
         
         self.setLayout(vbox)
+        self.setMaximumHeight(200)
 
     def on_list_change(self,curr,prev):
         llist = str(curr.text())
@@ -264,6 +331,9 @@ class PlotLinesWidget(QtGui.QWidget):
         except AttributeError:
             print('You chose: {:s}'.format(curr.text()))
 
+        #QtCore.pyqtRemoveInputHook()
+        #xdb.set_trace()
+        #QtCore.pyqtRestoreInputHook()
         self.llist = set_llist(llist,in_dict=self.llist)
 
         # Try to draw
@@ -282,7 +352,7 @@ class PlotLinesWidget(QtGui.QWidget):
                 self.statusBar().showMessage('ERROR: z Input must be a float! Try again..')
             except AttributeError:
                 print('ERROR: z Input must be a float! Try again..')
-            self.zbox.setText('{:.6f}'.format(self.llist['z']))
+            self.zbox.setText(self.zbox.z_frmt.format(self.llist['z']))
             return
             
         # Report
@@ -376,11 +446,10 @@ class SelectedLinesWidget(QtGui.QWidget):
         self.lines_widget = QtGui.QListWidget(self) 
         self.lines_widget.setSelectionMode(QtGui.QAbstractItemView.MultiSelection)
 
-        # Loop on lines (could put a preferred list first)
-        nlin = len(self.lines['wrest'])
-        for ii in range(nlin):
-            self.lines_widget.addItem('{:s} :: {:.3f}'.format(self.lines['name'][ii],
-                                                         self.lines['wrest'][ii]))
+        # Initialize list
+        self.item_flg = 0 
+        self.init_list()
+
         # Initial selection
         if init_select is None:
             self.selected = [0]
@@ -390,9 +459,11 @@ class SelectedLinesWidget(QtGui.QWidget):
         for iselect in self.selected:
             self.lines_widget.item(iselect).setSelected(True)
 
+        self.lines_widget.scrollToItem( self.lines_widget.item( self.selected[0] ) )
+
         # Events
         #self.lines_widget.itemClicked.connect(self.on_list_change)
-        self.lines_widget.itemSelectionChanged.connect(self.on_list_change)
+        self.lines_widget.itemSelectionChanged.connect(self.on_item_change)
 
         # Layout
         vbox = QtGui.QVBoxLayout()
@@ -401,9 +472,16 @@ class SelectedLinesWidget(QtGui.QWidget):
         
         self.setLayout(vbox)
 
-    #def on_list_change(self,item):
-    def on_list_change(self): #,item):
-        #self.line = str(curr.text())
+    def init_list(self):
+        nlin = len(self.lines['wrest'])
+        for ii in range(nlin):
+            self.lines_widget.addItem('{:s} :: {:.3f}'.format(self.lines['name'][ii],
+                                                         self.lines['wrest'][ii]))
+
+    def on_item_change(self): #,item):
+        # For big changes
+        if self.item_flg == 1:
+            return
         all_items = [self.lines_widget.item(ii) for ii in range(self.lines_widget.count())]
         sel_items = self.lines_widget.selectedItems()
         self.selected = [all_items.index(isel) for isel in sel_items]
@@ -413,10 +491,6 @@ class SelectedLinesWidget(QtGui.QWidget):
         #xdb.set_trace()
         #QtCore.pyqtRestoreInputHook()
 
-        # Print
-        #print('You chose: {:s}'.format(item.text()))
-        #print(self.selected)
-
         # Update llist
         try:
             self.plot_widget.llist['show_line'] = self.selected
@@ -424,6 +498,22 @@ class SelectedLinesWidget(QtGui.QWidget):
             return
         else:
             self.plot_widget.on_draw()
+
+    def on_list_change(self,lines): 
+        # Clear
+        self.item_flg = 1
+        self.lines_widget.clear()
+        # Initialize
+        self.lines = lines
+        self.init_list()
+        #QtCore.pyqtRemoveInputHook()
+        #xdb.set_trace()
+        #QtCore.pyqtRestoreInputHook()
+        # Set selected
+        for iselect in self.selected:
+            self.lines_widget.item(iselect).setSelected(True)
+        self.lines_widget.scrollToItem( self.lines_widget.item( self.selected[0] ) )
+        self.item_flg = 0
 
 # #####
 class AbsSysWidget(QtGui.QWidget):
@@ -454,10 +544,7 @@ class AbsSysWidget(QtGui.QWidget):
 
         self.all_items = []
         for abssys_fil in self.abssys_list:
-            ipos0 = abssys_fil.rfind('/') + 1
-            ipos1 = abssys_fil.rfind('.fits')
-            self.all_items.append( abssys_fil[ipos0:ipos1] )
-            self.abslist_widget.addItem(abssys_fil[ipos0:ipos1] )
+            self.add_fil(abssys_fil)
 
         self.abslist_widget.setCurrentRow(0)
         self.abslist_widget.itemSelectionChanged.connect(self.on_list_change)
@@ -471,6 +558,20 @@ class AbsSysWidget(QtGui.QWidget):
         vbox = QtGui.QVBoxLayout()
         vbox.addWidget(list_label)
         vbox.addWidget(self.abslist_widget)
+
+        # Buttons
+        '''
+        buttons = QtGui.QWidget()
+        self.refine_button = QtGui.QPushButton('Refine', self)
+        #self.refine_button.clicked.connect(self.refine) # CONNECTS TO A PARENT
+        rmv_btn = QtGui.QPushButton('Remove', self)
+        rmv_btn.clicked.connect(self.remove)
+        hbox1 = QtGui.QHBoxLayout()
+        hbox1.addWidget(self.refine_button)
+        hbox1.addWidget(rmv_btn)
+        buttons.setLayout(hbox1)
+        vbox.addWidget(buttons)
+        '''
         
         self.setLayout(vbox)
 
@@ -503,12 +604,21 @@ class AbsSysWidget(QtGui.QWidget):
         #xdb.set_trace()
         #QtCore.pyqtRestoreInputHook()
 
+    def add_fil(self,abssys_fil):
+        ipos0 = abssys_fil.rfind('/') + 1
+        ipos1 = abssys_fil.rfind('.fits')
+        self.all_items.append( abssys_fil[ipos0:ipos1] )
+        self.abslist_widget.addItem(abssys_fil[ipos0:ipos1] )
+
+    def remove(self):
+        items = self.abslist_widget.selectedItems()
+
 class VelPlotWidget(QtGui.QWidget):
     ''' Widget for a velocity plot with interaction.
 
         19-Dec-2014 by JXP
     '''
-    def __init__(self, ispec, z=None, parent=None, llist=None, Norm=False,
+    def __init__(self, ispec, z=None, parent=None, llist=None, norm=True,
                  vmnx=[-300., 300.], abs_sys=None):
         '''
         spec = Spectrum1D
@@ -517,21 +627,25 @@ class VelPlotWidget(QtGui.QWidget):
         abs_sys: AbsSystem
           Absorption system class
         '''
+        #QtCore.pyqtRemoveInputHook()
+        #xdb.set_trace()
+        #QtCore.pyqtRestoreInputHook()
         super(VelPlotWidget, self).__init__(parent)
 
-        if isinstance(ispec,str) or isinstance(ispec,unicode):
-            spec = xspec.readwrite.readspec(spec_fil)
-            self.spec_fil = ispec
-        else:
-            spec = ispec # Assuming Spectrum1D
-            self.spec_fil = None
-
+        # Initialize
+        spec, spec_fil = read_spec(ispec)
+        
         self.spec = spec
+        self.spec_fil = spec_fil
         self.z = z
+        self.vmnx = vmnx
+        self.norm = norm
 
         # Abs_System 
         self.abs_sys = abs_sys
-        if not self.abs_sys is None:
+        if self.abs_sys is None:
+            self.abs_sys = xiaa.Generic_System(None)
+        else:
             self.z = self.abs_sys.zabs
             # Line list
             if llist is None:
@@ -543,13 +657,9 @@ class VelPlotWidget(QtGui.QWidget):
                     llist = set_llist(lwrest)
                     llist['z'] = self.z
 
-        #QtCore.pyqtRemoveInputHook()
-        #xdb.set_trace()
-        #QtCore.pyqtRestoreInputHook()
 
-        self.Norm = Norm
         self.psdict = {} # Dict for spectra plotting
-        self.psdict['xmnx'] = vmnx
+        self.psdict['xmnx'] = self.vmnx
         self.psdict['ymnx'] = [-0.1, 1.1]
 
         # Status Bar?
@@ -602,11 +712,22 @@ class VelPlotWidget(QtGui.QWidget):
         wvobs = (1+self.z) * np.array(wrest)
         gdlin = np.where( (wvobs > wvmin) & (wvobs < wvmax) )[0]
         self.llist['show_line'] = gdlin
+
+        existing_lines = self.abs_sys.lines.keys()
+
         # Update/generate lines
         for idx in gdlin:
-            if not isinstance(self.lines[wrest[idx]],
-                              xspec.analysis.Spectral_Line):
-                self.lines[wrest[idx]] = xspec.analysis.Spectral_Line(wrest[idx])
+            # Generate?
+            #QtCore.pyqtRemoveInputHook()
+            #xdb.set_trace()
+            #QtCore.pyqtRestoreInputHook()
+            if not wrest[idx] in existing_lines:
+                self.abs_sys.lines[wrest[idx]] = xspec.analysis.Spectral_Line(wrest[idx])
+                print('VelPlot: Generating line {:g}'.format(wrest[idx]))
+                self.abs_sys.lines[wrest[idx]].analy['VLIM'] = np.array([self.vmnx[0]/2.,
+                                                                self.vmnx[1]/2.])
+                self.abs_sys.lines[wrest[idx]].analy['FLG_ANLY'] = 2 # Init to ok
+            # Spec file
             if not self.spec_fil is None:
                 self.abs_sys.lines[wrest[idx]].analy['DATFIL'] = self.spec_fil
             
@@ -614,10 +735,12 @@ class VelPlotWidget(QtGui.QWidget):
     # Key stroke 
     def on_key(self,event):
 
-
+        # Init
+        rescale = True
         wrest = None
         flg = 0
         sv_idx = self.idx_line
+
         ## NAVIGATING
         if event.key in ['l','r','b','t','i','o','[',']','W','Z', 'Y']:  # Set left
             flg = navigate(self.psdict,event)
@@ -632,7 +755,7 @@ class VelPlotWidget(QtGui.QWidget):
                 print('Edge of list')
 
         # Single line command
-        if event.key in ['1','2','B','U','L','N','V']:
+        if event.key in ['1','2','B','U','L','N','V','A','X']:
             try:
                 wrest = event.inaxes.get_gid()
             except AttributeError:
@@ -655,6 +778,18 @@ class VelPlotWidget(QtGui.QWidget):
                 except KeyError:
                     print('Not setting VLIM for {:g}'.format(key))
         ## Line type
+        if event.key == 'A': # Add to lines
+            if not wrest in self.abs_sys.lines.keys():
+                self.abs_sys.lines[wrest] = xspec.analysis.Spectral_Line(wrest)
+                print('VelPlot: Generating line {:g}'.format(wrest))
+                self.abs_sys.lines[wrest].analy['VLIM'] = np.array([self.vmnx[0]/2.,
+                                                                self.vmnx[1]/2.])
+                self.abs_sys.lines[wrest].analy['FLG_ANLY'] = 2 # Init to ok
+                self.abs_sys.lines[wrest].analy['DATFIL'] = self.spec_fil
+        if event.key == 'X': # Remove from lines
+            if wrest in self.abs_sys.lines.keys():
+                self.abs_sys.lines.pop(wrest)
+                print('VelPlot: Removed line {:g}'.format(wrest))
         if event.key == 'B':  # Toggle blend
             try:
                 feye = self.abs_sys.lines[wrest].analy['FLG_EYE'] 
@@ -671,9 +806,6 @@ class VelPlotWidget(QtGui.QWidget):
                 fanly = 2 # Not using 1 anymore..
             else:
                 fanly = 0
-            #QtCore.pyqtRemoveInputHook()
-            #xdb.set_trace()
-            #QtCore.pyqtRestoreInputHook()
             self.abs_sys.lines[wrest].analy['FLG_ANLY']  = fanly
         if event.key == 'V':  # Normal
             self.abs_sys.lines[wrest].analy['FLG_LIMIT'] = 1
@@ -690,13 +822,15 @@ class VelPlotWidget(QtGui.QWidget):
             flg = 3
         if event.key in ['R', '!', '@', '=', '-']: # Redraw all
             flg = 1 
+        if event.key in ['Y']:
+            rescale = False
 
         if flg==1: # Default is not to redraw
-            self.on_draw()
+            self.on_draw(rescale=rescale)
         elif flg==2: # Layer (no clear)
-            self.on_draw(replot=False) 
+            self.on_draw(replot=False, rescale=rescale) 
         elif flg==3: # Layer (no clear)
-            self.on_draw(in_wrest=wrest)
+            self.on_draw(in_wrest=wrest, rescale=rescale)
 
     # Click of main mouse button
     def on_click(self,event):
@@ -715,10 +849,13 @@ class VelPlotWidget(QtGui.QWidget):
             except AttributeError:
                 return
 
-    def on_draw(self, replot=True, in_wrest=None):
+    def on_draw(self, replot=True, in_wrest=None, rescale=True):
         """ Redraws the figure
         """
         #
+        #QtCore.pyqtRemoveInputHook()
+        #xdb.set_trace()
+        #QtCore.pyqtRestoreInputHook()
         if replot is True:
             # Loop on windows
             all_idx = self.llist['show_line']
@@ -732,10 +869,15 @@ class VelPlotWidget(QtGui.QWidget):
                     if np.abs(wrest-in_wrest) > 1e-3:
                         continue
                 # Generate plot
-                wvobs = (1+self.z) * wrest
-                velo = (self.spec.dispersion/wvobs - 1.)*const.c.to('km/s').value
                 self.ax = self.fig.add_subplot(self.sub_xy[0],self.sub_xy[1], jj+1)
                 self.ax.clear()        
+
+                # Velocity
+                wvobs = (1+self.z) * wrest
+                velo = (self.spec.dispersion/wvobs - 1.)*const.c.to('km/s').value
+
+                
+                # Plot
                 self.ax.plot(velo, self.spec.flux, 'k-',drawstyle='steps-mid')
 
                 # GID for referencing
@@ -755,7 +897,15 @@ class VelPlotWidget(QtGui.QWidget):
 
                 # Reset window limits
                 self.ax.set_xlim(self.psdict['xmnx'])
-                self.ax.set_ylim(self.psdict['ymnx'])
+
+                # Rescale?
+                if (rescale is True) & (self.norm is False):
+                    gdp = np.where( (velo > self.psdict['xmnx'][0]) &
+                                    (velo < self.psdict['xmnx'][1]))[0]
+                    per = xstats.basic.perc(self.spec.flux[gdp])
+                    self.ax.set_ylim((0., 1.1*per[1]))
+                else:
+                    self.ax.set_ylim(self.psdict['ymnx'])
 
                 # Fonts
                 xputils.set_fontsize(self.ax,6.)
@@ -821,7 +971,8 @@ class VelPlotWidget(QtGui.QWidget):
 def set_doublet(iself,event):
     ''' Set z and plot doublet
     '''
-    wv_dict = {'C': (1548.195, 1550.770, 'CIV'), 'M': (2796.352, 2803.531, 'MgII')}
+    wv_dict = {'C': (1548.195, 1550.770, 'CIV'), 'M': (2796.352, 2803.531, 'MgII'),
+               'O': (1031.9261, 1037.6167, 'OVI'), '8': (770.409, 780.324, 'NeVIII')}
     wrest = wv_dict[event.key]
 
     # Set z
@@ -899,7 +1050,7 @@ def set_llist(llist,in_dict=None):
 
         from astropy.table import Column
 
-        in_dict['List'] = 'Input'
+        in_dict['List'] = 'input.lst'
         in_dict['Plot'] = True
         # Fill
         llist.sort()
@@ -925,7 +1076,7 @@ def set_llist(llist,in_dict=None):
         col0 = Column(np.array(llist), name='wrest')
         col1 = Column(np.array(names), name='name')
         col2 = Column(np.array(fval), name='fval')
-        in_dict['Input'] = Table( (col0,col1,col2) )
+        in_dict['input.lst'] = Table( (col0,col1,col2) )
 
     #
     return in_dict
@@ -934,6 +1085,17 @@ def set_llist(llist,in_dict=None):
         #xdb.set_trace()
         #QtCore.pyqtRestoreInputHook()
 
+# Read spectrum, pass back it and spec_file name
+def read_spec(ispec):
+    #
+    if isinstance(ispec,str) or isinstance(ispec,unicode):
+        spec_fil = ispec
+        spec = xspec.readwrite.readspec(spec_fil)
+    else:
+        spec = ispec # Assuming Spectrum1D
+        spec_fil = spec.filename # Grab from Spectrum1D 
+    # Return
+    return spec, spec_fil
 
 # ################
 # TESTING

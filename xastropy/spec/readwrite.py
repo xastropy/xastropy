@@ -121,7 +121,9 @@ def readspec(specfil, inflg=None, efil=None, outfil=None, show_plot=0,
     if 'spec1d' not in locals():
         spec1d = Spectrum1D.from_array(wave, fx, uncertainty=StdDevUncertainty(sig))
 
-    # Generate Barak output
+    spec1d.filename = specfil
+
+    # Continuum?
     try:
         co = fits.getdata(name+'_c.fits')
     except:
@@ -130,11 +132,7 @@ def readspec(specfil, inflg=None, efil=None, outfil=None, show_plot=0,
         except UnboundLocalError:
             npix = len(spec1d.flux)
         co = np.nan*np.ones(npix)
-    # Plot?
-    if show_plot:
-            xpxg.plot_1d_arrays(wave,fx,sig,co)
-
-    # Generate a Spectrum Class
+    # Generate a Barak Spectrum Class?
     hd = hdulist[0].header
     if use_barak is True:
         # Barak
@@ -142,7 +140,11 @@ def readspec(specfil, inflg=None, efil=None, outfil=None, show_plot=0,
         spec1d = bs.Spectrum(wa=wave, fl=fx, er=sig, co=co, filename=specfil)
         spec1d.header = hd
 
-    # Write to disk?
+    # Plot?
+    if show_plot:
+            xpxg.plot_1d_arrays(wave,fx,sig,co)
+
+    # Write to disk? Unlikely
     if outfil != None:
         if use_barak is True:
             spec1d.fits_write(outfil,overwrite=True)

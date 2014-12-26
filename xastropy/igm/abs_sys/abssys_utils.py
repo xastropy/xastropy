@@ -61,6 +61,7 @@ class Absline_System(object):
         self.zabs = zabs
         self.NHI = NHI
         self.MH = MH
+
         # Abs type
         if abs_type == None:
             self.abs_type = 'NONE'
@@ -72,6 +73,7 @@ class Absline_System(object):
 
         # Lines
         self.lines = {}  # Dict of Spectra_Line classes
+        self.absid_file = None
 
         # Kinematics
         self.kin = {}
@@ -188,7 +190,7 @@ class Absline_System(object):
         if (self.zabs > 0.) & (np.abs(self.zabs-newz) > 1e-4):
             print('WARNING: Updating zabs from {:s}'.format(abs_fil))
         self.zabs = newz
-        self.absid_fil = abs_fil
+        self.absid_file = abs_fil
 
         # Load up lines
         for row in table:
@@ -206,13 +208,16 @@ class Absline_System(object):
 
     # ##
     # Write AbsID file
-    def write_absid_file(self, outfil):
+    def write_absid_file(self, outfil=None):
 
         from astropy.table import Column
         from astropy.table.table import Table
 
         wrest = self.lines.keys()
         wrest.sort()
+
+        if outfil is None:
+            outfil = self.absid_file
 
         # Columns
         cols = [Column(np.array(wrest), name='WREST')] 
