@@ -239,6 +239,7 @@ class XVelPltGui(QtGui.QDialog):
 
         # Connections
         self.pltline_widg.llist_widget.currentItemChanged.connect(self.on_llist_change)
+        self.connect(self.pltline_widg.zbox, QtCore.SIGNAL('editingFinished ()'), self.setz)
 
         # Outfil
         wbtn = QtGui.QPushButton('Write', self)
@@ -280,6 +281,13 @@ class XVelPltGui(QtGui.QDialog):
 
         self.setLayout(hbox)
         # Initial draw
+        self.vplt_widg.on_draw()
+
+    # Change z
+    def setz(self):
+        self.vplt_widg.abs_sys.zabs = self.pltline_widg.llist['z']
+        self.vplt_widg.z = self.pltline_widg.llist['z']
+        self.z = self.pltline_widg.llist['z']
         self.vplt_widg.on_draw()
 
     # Change list of lines to choose from
@@ -430,7 +438,7 @@ if __name__ == "__main__":
         if (flg_fig % 2**4) >= 2**3:
             #spec_fil = '/u/xavier/PROGETTI/LLSZ3/data/normalize/SDSSJ1004+0018_nF.fits'
             #z=2.746
-            outfil='/Users/xavier/Desktop/J1004+0018_z2.746_id.fits'
+            #outfil='/Users/xavier/Desktop/J1004+0018_z2.746_id.fits'
             spec_fil = '/Users/xavier/Dropbox/CASBAH/jxp_analysis/FBQS0751/fbqs0751_nov2014bin.fits'
             z=0.
             outfil='/Users/xavier/Desktop/tmp.fits'

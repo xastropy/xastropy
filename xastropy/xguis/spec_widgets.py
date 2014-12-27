@@ -285,7 +285,7 @@ class PlotLinesWidget(QtGui.QWidget):
         self.connect(self.zbox, QtCore.SIGNAL('editingFinished ()'), self.setz)
 
         # Create the line list 
-        self.lists = ['None', 'grb.lst', 'lls.lst']
+        self.lists = ['None', 'grb.lst', 'lls.lst', 'lyman.lst']
         list_label = QtGui.QLabel('Line Lists:')
         self.llist_widget = QtGui.QListWidget(self) 
         for ilist in self.lists:
@@ -645,6 +645,7 @@ class VelPlotWidget(QtGui.QWidget):
         self.abs_sys = abs_sys
         if self.abs_sys is None:
             self.abs_sys = xiaa.Generic_System(None)
+            self.abs_sys.zabs = self.z
         else:
             self.z = self.abs_sys.zabs
             # Line list
@@ -655,7 +656,6 @@ class VelPlotWidget(QtGui.QWidget):
                     lwrest = None
                 if not lwrest is None:
                     llist = set_llist(lwrest)
-                    llist['z'] = self.z
 
 
         self.psdict = {} # Dict for spectra plotting
@@ -671,7 +671,7 @@ class VelPlotWidget(QtGui.QWidget):
             self.llist = set_llist('lls.lst')
         else:
             self.llist = llist
-        self.base_llist = set_llist('grb.lst') # To choose from
+        self.llist['z'] = self.z
 
         # Indexing for line plotting
         self.idx_line = 0
@@ -872,10 +872,11 @@ class VelPlotWidget(QtGui.QWidget):
                 self.ax = self.fig.add_subplot(self.sub_xy[0],self.sub_xy[1], jj+1)
                 self.ax.clear()        
 
+                # Zero line
+                self.ax.plot( [0., 0.], [-1e9, 1e9], ':', color='gray')
                 # Velocity
                 wvobs = (1+self.z) * wrest
                 velo = (self.spec.dispersion/wvobs - 1.)*const.c.to('km/s').value
-
                 
                 # Plot
                 self.ax.plot(velo, self.spec.flux, 'k-',drawstyle='steps-mid')
