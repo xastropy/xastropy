@@ -14,6 +14,7 @@ from __future__ import print_function, absolute_import, division, unicode_litera
 
 import numpy as np
 import os
+from scipy.interpolate import interp1d
 
 from xastropy.xutils import xdebug as xdb
 
@@ -35,15 +36,12 @@ def perc(x, per=0.68):
     #
     npt = len(x)
 
-    # Median first
-    #medv = np.median(x)
-
     # Sort
     xsort = np.sort(x)
     perx = (np.arange(npt)+1) / npt
 
-    from scipy.interpolate import interp1d
     f = interp1d(perx,xsort)
+
     frac = (1.-per) / 2.
     xper = f( [frac, 1.-frac]) 
     #xdb.set_trace()

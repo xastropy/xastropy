@@ -141,9 +141,12 @@ class XAbsIDGui(QtGui.QMainWindow):
                                                 abs_sys=self.abssys_widg.abs_sys)
         self.pltline_widg.spec_widg = self.spec_widg
 
+        # Connections
         self.spec_widg.canvas.mpl_connect('button_press_event', self.on_click)
         self.spec_widg.canvas.mpl_connect('key_press_event', self.on_key)
+        self.abssys_widg.refine_button.clicked.connect(self.refine_abssys) 
 
+        # Layout
         anly_widg = QtGui.QWidget()
         anly_widg.setMaximumWidth(300)
         anly_widg.setMinimumWidth(150)
@@ -167,9 +170,9 @@ class XAbsIDGui(QtGui.QMainWindow):
 
     def on_key(self,event):
         if event.key == 'v': 
-            if self.spec_widg == 1:
+            if self.spec_widg.vplt_flg == 1:
                 self.abssys_widg.add_fil(self.spec_widg.outfil)
-                self.abssys_widg.abssys_list.append(self.spec_widg.outfil)
+                self.abssys_widg.reload()
             # Update AbsSys (as needed)
             #QtCore.pyqtRemoveInputHook()
             #xdb.set_trace()
@@ -196,6 +199,22 @@ class XAbsIDGui(QtGui.QMainWindow):
     
             # Draw
             self.spec_widg.on_draw()
+
+    def refine_abssys(self):
+        item = self.abssys_widg.abslist_widget.selectedItems()
+        if len(item) != 1:
+            self.statusBar().showMessage('AbsSys: Must select only 1 system!')
+            print('AbsSys: Must select only 1 system!')
+        txt = item[0].text()
+        ii = self.abssys_widg.all_items.index(txt)
+        iabs_sys = self.abssys_widg.all_abssys[ii]
+        #QtCore.pyqtRemoveInputHook()
+        #xdb.set_trace()
+        #QtCore.pyqtRestoreInputHook()
+        # Launch
+        gui = XVelPltGui(self.spec_widg.spec, outfil=iabs_sys.absid_file,
+                               abs_sys=iabs_sys, norm=self.spec_widg.norm)
+        gui.exec_()
 
 # ##################################
 # GUI for velocity plot
@@ -227,7 +246,7 @@ class XVelPltGui(QtGui.QDialog):
         self.norm = norm
 
         # Grab the pieces and tie together
-        self.vplt_widg = xspw.VelPlotWidget(ispec, abs_sys=self.abs_sys,
+        self.vplt_widg = xspw.VelPlotWidget(ispec, abs_sys=self.abs_sys, llist=llist, 
                                             vmnx=self.vmnx, z=self.z, norm=self.norm)
         self.pltline_widg = xspw.PlotLinesWidget(init_llist=self.vplt_widg.llist,
                                                  init_z=self.z)
@@ -240,6 +259,7 @@ class XVelPltGui(QtGui.QDialog):
         # Connections
         self.pltline_widg.llist_widget.currentItemChanged.connect(self.on_llist_change)
         self.connect(self.pltline_widg.zbox, QtCore.SIGNAL('editingFinished ()'), self.setz)
+        self.vplt_widg.canvas.mpl_connect('key_press_event', self.on_key)
 
         # Outfil
         wbtn = QtGui.QPushButton('Write', self)
@@ -282,6 +302,13 @@ class XVelPltGui(QtGui.QDialog):
         self.setLayout(hbox)
         # Initial draw
         self.vplt_widg.on_draw()
+
+    # Change z
+    def on_key(self,event):
+        if event.key == 'z': 
+            self.z = self.vplt_widg.z
+            self.pltline_widg.llist['z'] = self.z
+            self.pltline_widg.zbox.setText(self.pltline_widg.zbox.z_frmt.format(self.z))
 
     # Change z
     def setz(self):
@@ -333,6 +360,31 @@ class XVelPltGui(QtGui.QDialog):
     def quit(self):
         self.abs_sys = self.vplt_widg.abs_sys
         self.done(1)
+
+# x_specplot replacement
+class XAODMGui(QtGui.QDialog):
+    ''' GUI to show AODM plots
+        28-Dec-2014 by JXP
+    '''
+    def __init__(self, spec, z, wrest, vmnx=[-300., 300.], parent=None, norm=True):
+        super(XAODMGui, self).__init__(parent)
+        '''
+        spec = Spectrum1D
+        '''
+        # Grab the pieces and tie together
+        self.aodm_widg = xspw.AODMWidget(spec,z,wrest,vmnx=vmnx,norm=norm)
+        self.aodm_widg.canvas.mpl_connect('key_press_event', self.on_key)
+
+        vbox = QtGui.QVBoxLayout()
+        vbox.addWidget(self.aodm_widg)
+
+        self.setLayout(vbox)
+        self.aodm_widg.on_draw()
+
+    def on_key(self,event):
+        if event.key == 'q': # Quit
+            self.done(1)
+
 
 
 # Script to run XSpec from the command line
@@ -390,8 +442,9 @@ if __name__ == "__main__":
         flg_fig = 0 
         #flg_fig += 2**0  # XSpec
         #flg_fig += 2**1  # XAbsID
-        flg_fig += 2**2  # XVelPlt Gui
+        #flg_fig += 2**2  # XVelPlt Gui
         #flg_fig += 2**3  # XVelPlt Gui without ID list
+        flg_fig += 2**4  # XAODM Gui
     
         # Read spectrum
         spec_fil = '/u/xavier/Keck/HIRES/RedData/PH957/PH957_f.fits'
@@ -447,6 +500,19 @@ if __name__ == "__main__":
             app.setApplicationName('XVelPlt')
             gui = XVelPltGui(spec_fil, z=z, outfil=outfil,norm=False)
             gui.show()
+            sys.exit(app.exec_())
+
+        # AODM GUI
+        if (flg_fig % 2**5) >= 2**4:
+            spec_fil = '/Users/xavier/PROGETTI/LLSZ3/data/normalize/UM184_nF.fits'
+            spec = xspec.readwrite.readspec(spec_fil)
+            z=2.96916
+            lines = [1548.195, 1550.770]
+            # Launch
+            app = QtGui.QApplication(sys.argv)
+            app.setApplicationName('AODM')
+            main = XAODMGui(spec, z, lines)
+            main.show()
             sys.exit(app.exec_())
 
     else: # RUN A GUI
