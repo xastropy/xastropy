@@ -31,8 +31,11 @@ from xastropy.xutils import xdebug as xdb
 #  sp = xsr.readspec('SDSSJ114435.54+095921.7_F.fits',outfil='SDSSJ114435.54+095921.7.fits')
 #
 def readspec(specfil, inflg=None, efil=None, outfil=None, show_plot=0,
-             use_barak=False, verbose=False, flux_tags=None, sig_tags=None):
+             use_barak=False, verbose=False, flux_tags=None, sig_tags=None,
+             multi_ivar=False):
     ''' 
+    multi_ivar: Bool (False)
+      BOSS format of  flux, ivar, log10(wave) in multi-extension FITS
     '''
     from xastropy.spec import readwrite as rw
     from xastropy.files import general as xfg
@@ -89,7 +92,7 @@ def readspec(specfil, inflg=None, efil=None, outfil=None, show_plot=0,
             return
     elif hdulist[0].header['NAXIS'] == 1: # Data in the zero extension
         # Look for wavelength info
-        if 'CRVAL1' in hdulist[0].header.keys():
+        if ('CRVAL1' in hdulist[0].header.keys()) and (multi_ivar is False):
             # Error
             if efil == None:
                 ipos = max(specfil.find('F.fits'),specfil.find('f.fits'))
@@ -113,6 +116,11 @@ def readspec(specfil, inflg=None, efil=None, outfil=None, show_plot=0,
             fx = hdulist[0].data.flatten()
             sig = hdulist[1].data.flatten()
             wave = hdulist[2].data.flatten()
+            if multi_ivar is True:
+                ivar = np.zeros(len(sig))
+                gdp = np.where(sig > 0.)[0]
+                ivar[gdp] = np.sqrt(1./sig[gdp])
+                wave = 10.**wave
     else:  # Should not be here
         print('spec.readwrite: Looks like an image')
         return dat

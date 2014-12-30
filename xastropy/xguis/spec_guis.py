@@ -263,6 +263,7 @@ class XVelPltGui(QtGui.QDialog):
 
         # Outfil
         wbtn = QtGui.QPushButton('Write', self)
+        wbtn.setAutoDefault(False)
         wbtn.clicked.connect(self.write_out)
         self.out_box = QtGui.QLineEdit()
         self.out_box.setText(self.outfil)
@@ -271,8 +272,10 @@ class XVelPltGui(QtGui.QDialog):
         # Quit
         buttons = QtGui.QWidget()
         wqbtn = QtGui.QPushButton('Write+Quit', self)
+        wqbtn.setAutoDefault(False)
         wqbtn.clicked.connect(self.write_quit)
         qbtn = QtGui.QPushButton('Quit', self)
+        qbtn.setAutoDefault(False)
         qbtn.clicked.connect(self.quit)
 
         # Sizes
@@ -324,6 +327,7 @@ class XVelPltGui(QtGui.QDialog):
         # Set selected
         abs_sys = self.vplt_widg.abs_sys
         wrest = abs_sys.lines.keys()
+        wrest.sort()
         select = []
         for iwrest in wrest:
             try:
@@ -334,6 +338,7 @@ class XVelPltGui(QtGui.QDialog):
         # GUIs
         self.vplt_widg.llist['List'] = llist['List']
         self.vplt_widg.llist['show_line'] = select
+        self.vplt_widg.idx_line = 0
         self.slines.selected = select
         #QtCore.pyqtRemoveInputHook()
         #xdb.set_trace()
@@ -353,12 +358,14 @@ class XVelPltGui(QtGui.QDialog):
     # Write + Quit
     def write_quit(self):
         self.write_out()
+        self.flg_quit = 1
         self.abs_sys = self.vplt_widg.abs_sys
         self.done(1)
 
     # Write + Quit
     def quit(self):
-        self.abs_sys = self.vplt_widg.abs_sys
+        #self.abs_sys = self.vplt_widg.abs_sys # Have to write to pass back
+        self.flg_quit = 0
         self.done(1)
 
 # x_specplot replacement
@@ -504,14 +511,19 @@ if __name__ == "__main__":
 
         # AODM GUI
         if (flg_fig % 2**5) >= 2**4:
-            spec_fil = '/Users/xavier/PROGETTI/LLSZ3/data/normalize/UM184_nF.fits'
-            spec = xspec.readwrite.readspec(spec_fil)
-            z=2.96916
-            lines = [1548.195, 1550.770]
+            #spec_fil = '/Users/xavier/PROGETTI/LLSZ3/data/normalize/UM184_nF.fits'
+            #z=2.96916
+            #lines = [1548.195, 1550.770]
+            norm = True
+            spec_fil = '/Users/xavier/Dropbox/CASBAH/jxp_analysis/FBQS0751/fbqs0751_nov2014bin.fits'
+            z=0.4391
+            lines = [1215.6701, 1025.7223]
+            norm = False
             # Launch
+            spec = xspec.readwrite.readspec(spec_fil)
             app = QtGui.QApplication(sys.argv)
             app.setApplicationName('AODM')
-            main = XAODMGui(spec, z, lines)
+            main = XAODMGui(spec, z, lines, norm=norm)
             main.show()
             sys.exit(app.exec_())
 

@@ -166,13 +166,16 @@ class ExamineSpecWidget(QtGui.QWidget):
             gui = xsgui.XVelPltGui(self.spec, z=z, outfil=outfil, llist=self.llist,
                                    abs_sys=ini_abs_sys, norm=self.norm)
             gui.exec_()
-            # Push to Abs_Sys
-            if len(mt) == 1:
-                self.abs_sys[mt[0]] = gui.abs_sys
+            if gui.flg_quit == 0: # Quit without saving (i.e. discarded)
+                self.vplt_flg = 0 
             else:
-                self.abs_sys.append(gui.abs_sys)
-                print('Adding new abs system')
-            # Redraw
+                # Push to Abs_Sys
+                if len(mt) == 1:
+                    self.abs_sys[mt[0]] = gui.abs_sys
+                else:
+                    self.abs_sys.append(gui.abs_sys)
+                    print('Adding new abs system')
+                # Redraw
             flg=1
 
         # Draw
@@ -230,7 +233,7 @@ class ExamineSpecWidget(QtGui.QWidget):
             # Abs Sys?
             if not self.abs_sys is None:
                 ylbl = self.psdict['ymnx'][0]+0.2*(self.psdict['ymnx'][1]-self.psdict['ymnx'][0])
-                clrs = ['red', 'green', 'cyan', 'orange', 'gray', 'yellow']
+                clrs = ['red', 'green', 'cyan', 'orange', 'gray', 'yellow']*10
                 for abs_sys in self.abs_sys:
                     ii = self.abs_sys.index(abs_sys)
                     wrest = np.array(abs_sys.lines.keys()) 
@@ -752,9 +755,9 @@ class VelPlotWidget(QtGui.QWidget):
         sv_idx = self.idx_line
 
         ## Change rows/columns
-        if event.key == 'r':
+        if event.key == 'k':
             self.sub_xy[0] = max(0, self.sub_xy[0]-1)
-        if event.key == 'R':
+        if event.key == 'K':
             self.sub_xy[0] = self.sub_xy[0]+1
         if event.key == 'c':
             self.sub_xy[1] = max(0, self.sub_xy[1]-1)
@@ -857,6 +860,7 @@ class VelPlotWidget(QtGui.QWidget):
         # AODM plot
         if event.key == ':':  # 
             # Grab good lines
+            from xastropy.xguis import spec_guis as xsgui
             gdl = []
             for iwr in self.abs_sys.lines.keys():
                 if self.abs_sys.lines[iwr].analy['FLG_ANLY'] > 0:
@@ -871,11 +875,11 @@ class VelPlotWidget(QtGui.QWidget):
 
         if not wrest is None: # Single window
             flg = 3
-        if event.key in ['c','C','r','R','W','!', '@', '=', '-', 'X', 'z']: # Redraw all
+        if event.key in ['c','C','k','K','W','!', '@', '=', '-', 'X', 'z','R']: # Redraw all
             flg = 1 
         if event.key in ['Y']:
             rescale = False
-        if event.key in ['r','c','C','R']:
+        if event.key in ['k','c','C','K', 'R']:
             fig_clear = True
 
         if flg==1: # Default is not to redraw
@@ -914,10 +918,16 @@ class VelPlotWidget(QtGui.QWidget):
                 self.fig.clf()
             # Loop on windows
             all_idx = self.llist['show_line']
-            subp = np.arange(self.sub_xy[0]*self.sub_xy[1]) + 1
+            nplt = self.sub_xy[0]*self.sub_xy[1]
+            if len(all_idx) <= nplt:
+                self.idx_line = 0
+            subp = np.arange(nplt) + 1
             subp_idx = np.hstack(subp.reshape(self.sub_xy[0],self.sub_xy[1]).T)
-            for jj in range(min(self.sub_xy[0]*self.sub_xy[1], len(all_idx))):
-                idx = all_idx[jj+self.idx_line]
+            for jj in range(min(nplt, len(all_idx))):
+                try:
+                    idx = all_idx[jj+self.idx_line]
+                except IndexError:
+                    continue # Likely too few lines
                 # Grab line
                 #wvobs = np.array((1+self.z) * self.llist[self.llist['List']]['wrest'][idx])
                 wrest = self.llist[self.llist['List']]['wrest'][idx]
@@ -962,8 +972,11 @@ class VelPlotWidget(QtGui.QWidget):
                 if (rescale is True) & (self.norm is False):
                     gdp = np.where( (velo > self.psdict['xmnx'][0]) &
                                     (velo < self.psdict['xmnx'][1]))[0]
-                    per = xstats.basic.perc(self.spec.flux[gdp])
-                    self.ax.set_ylim((0., 1.1*per[1]))
+                    if len(gdp) > 5:
+                        per = xstats.basic.perc(self.spec.flux[gdp])
+                        self.ax.set_ylim((0., 1.1*per[1]))
+                    else:
+                        self.ax.set_ylim(self.psdict['ymnx'])
                 else:
                     self.ax.set_ylim(self.psdict['ymnx'])
 
@@ -1082,13 +1095,14 @@ class AODMWidget(QtGui.QWidget):
         ## NAVIGATING
         if event.key in ['l','r','b','t','i','o','[',']','W','Z','Y']:  # Set left
             flg = navigate(self.psdict,event)
-        if event.key in ['b','t','W','Z','Y']:  
+        if event.key in ['b','t','W','Z','Y','l','r']:  
             rescale = False
 
         self.on_draw(rescale=rescale)
 
     # Click of main mouse button
     def on_click(self,event):
+        return # DO NOTHING FOR NOW
         try:
             print('button={:d}, x={:f}, y={:f}, xdata={:f}, ydata={:f}'.format(
                 event.button, event.x, event.y, event.xdata, event.ydata))
@@ -1188,6 +1202,10 @@ def set_doublet(iself,event):
 def navigate(psdict,event):
     ''' Method to Navigate spectrum
     '''
+    if (not isinstance(event.xdata,float)) or (not isinstance(event.ydata,float)):
+        print('Navigate: You entered the {:s} key out of bounds'.format(event.key))
+        return 0
+
     if event.key == 'l':  # Set left
         psdict['xmnx'][0] = event.xdata
     elif event.key == 'r':  # Set Right

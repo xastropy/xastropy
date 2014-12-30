@@ -43,7 +43,19 @@ def perc(x, per=0.68):
     f = interp1d(perx,xsort)
 
     frac = (1.-per) / 2.
-    xper = f( [frac, 1.-frac]) 
+
+    # Fill
+    xper = np.zeros(2)
+    try:
+        xper[0] = f( frac )
+    except ValueError:
+        xper[0] = np.min(x)
+
+    try:
+        xper[1] = f( 1.-frac )
+    except ValueError:
+        xper[1] = np.max(x)
+
     #xdb.set_trace()
 
     # Return
