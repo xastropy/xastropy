@@ -52,3 +52,24 @@ def whisker_box(ax,xval,yval,per=0.5,color='gray',alpha=0.2):
     #pdb.set_trace()
     ax.fill_between(xper, yper[0],
                     np.array((yper[1],yper[1])), color=color, alpha=alpha)
+
+#
+def plt_arrows(ax,xval,yval, color='black', up=False, csz=1.5, alen=1.):
+    '''
+    Plot arrows (upper or lower) on a given axis
+
+    Parameters
+    ----------
+    ax : Matplotlib ax class
+    xval : float or array
+    yval : float or array
+    up: Bool (False)
+      Arrow up or down?
+    alen: float (1.5)
+      Length of arrow
+    csz: float (1.5)
+      Cap size
+    '''
+
+    ax.errorbar(xval, yval, yerr=alen, ecolor=color, lolims=(up is True),
+                uplims=(up is False), fmt='none', capsize=csz)

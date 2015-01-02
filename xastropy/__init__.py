@@ -1,5 +1,6 @@
 import abund
 import atomic
+import casbah
 import files
 import igm
 import obs
