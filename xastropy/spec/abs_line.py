@@ -120,12 +120,27 @@ class Abs_Line_List(object):
         self.read_llist(linelist)
 
     # Read standard line list
-    def read_llist(self,llist):
+    def read_llist(self,llist, fmt=0):
+        '''
+        fmt: int (0)
+           Format of line list.  Follows XIDL formatting..
+           0: Standard absorption lines
+           1: Galaxy/Quasar lines
+        '''
 
-        # Read with Fixed Format (astropy Table)
-        self.data = ascii.read(llist_file(llist), format='fixed_width_no_header',data_start=1,
-                        names=('wrest', 'name', 'fval'),
-                        col_starts=(0,9,22), col_ends=(8,20,32))
+        # Path + Format
+        gdfil,fmt = llist_file(llist)
+        print('gdfil = {:s}, fmt={:d}'.format(gdfil,fmt))
+
+        if fmt == 0:
+            # Read Absorption Lines with Fixed Format (astropy Table)
+            self.data = ascii.read(gdfil, format='fixed_width_no_header',data_start=1,
+                            names=('wrest', 'name', 'fval'),
+                            col_starts=(0,9,22), col_ends=(8,20,32))
+        elif fmt == 1:
+            self.data = ascii.read(gdfil, format='fixed_width_no_header',data_start=1,
+                            names=('wrest', 'flg', 'name'),
+                            col_starts=(0,10,13), col_ends=(7,11,23))
         return
 
     # Add additional atomic data
@@ -193,16 +208,24 @@ def abs_line_data(wrest, datfil=None, ret_flg=0, tol=2e-3):
 # Get line list path
 def llist_file(llist):
 
+
+    fmt = 0
     # Get the right file
     if os.path.isfile(llist): fil = llist
-    elif os.path.isfile(xa_path+'/data/atomic/'+llist):
-        fil = os.path.isfile(xa_path+'/data/atomic/'+llist)
+    elif os.path.isfile(xa_path+'/data/spec_lines/'+llist):
+        fil = xa_path+'/data/spec_lines/'+llist
     else:
         # XIDL?
         fil = os.getenv('XIDL_DIR')+'/Spec/Lines/Lists/'+llist
         if not os.path.isfile(fil): 
             raise Exception('llist_file: File does not exist %s' % llist)
-    return fil
+
+    # Format
+    tfil = llist[max(0,llist.rfind('/')):]
+    if tfil in ['gal_vac.lst']:
+        fmt = 1
+
+    return fil, fmt
 
 ## ##############
 # Create line list 

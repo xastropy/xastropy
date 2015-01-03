@@ -107,7 +107,8 @@ def readspec(specfil, inflg=None, efil=None, outfil=None, show_plot=0,
                     efil=os.path.expanduser(efil)
 
             # Generate Spectrum1D
-            spec1d = spec_read_fits.read_fits_spectrum1d(os.path.expanduser(datfil), efil=efil)
+            #spec1d = spec_read_fits.read_fits_spectrum1d(os.path.expanduser(datfil), efil=efil)
+            spec1d = spec_read_fits.read_fits_spectrum1d(os.path.expanduser(datfil))
 
         else:  # ASSUMING MULTI-EXTENSION
             if len(hdulist) <= 2:
@@ -224,7 +225,8 @@ if __name__ == '__main__':
         fil = '~/PROGETTI/LLSZ3/data/normalize/UM669_nF.fits'
         #efil = '~ers/xavier/PROGETTI/LLSZ3/data/normalize/UM669_nE.fits'
         myspec = readspec(fil)
-        xdb.xplot(myspec.dispersion, myspec.flux, myspec.uncertainty.array)
+        xdb.xplot(myspec.dispersion, myspec.flux)
+        #xdb.xplot(myspec.dispersion, myspec.flux, myspec.uncertainty.array)
 
     # LowRedux
     if (flg_test % 2**2) >= 2**1:

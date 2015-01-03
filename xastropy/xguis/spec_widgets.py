@@ -290,7 +290,7 @@ class PlotLinesWidget(QtGui.QWidget):
         self.connect(self.zbox, QtCore.SIGNAL('editingFinished ()'), self.setz)
 
         # Create the line list 
-        self.lists = ['None', 'grb.lst', 'lls.lst', 'lyman.lst']
+        self.lists = ['None', 'grb.lst', 'lls.lst', 'lyman.lst', 'gal_vac.lst']
         list_label = QtGui.QLabel('Line Lists:')
         self.llist_widget = QtGui.QListWidget(self) 
         for ilist in self.lists:
@@ -1260,8 +1260,8 @@ def set_llist(llist,in_dict=None):
             in_dict['Plot'] = True
             # Load?
             if not (llist in in_dict):
-                line_file = xa_path+'/data/spec_lines/'+llist
-                llist_cls = xspec.abs_line.Abs_Line_List(line_file)
+                #line_file = xa_path+'/data/spec_lines/'+llist
+                llist_cls = xspec.abs_line.Abs_Line_List(llist)
                 in_dict[llist] = llist_cls.data
     elif isinstance(llist,list): # Set from a list of wrest
 
