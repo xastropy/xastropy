@@ -290,7 +290,7 @@ class PlotLinesWidget(QtGui.QWidget):
         self.connect(self.zbox, QtCore.SIGNAL('editingFinished ()'), self.setz)
 
         # Create the line list 
-        self.lists = ['None', 'grb.lst', 'lls.lst', 'lyman.lst', 'gal_vac.lst']
+        self.lists = ['None', 'grb.lst', 'dla.lst', 'lls.lst', 'lyman.lst', 'gal_vac.lst']
         list_label = QtGui.QLabel('Line Lists:')
         self.llist_widget = QtGui.QListWidget(self) 
         for ilist in self.lists:
