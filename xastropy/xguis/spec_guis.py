@@ -22,6 +22,7 @@ import glob
 from PyQt4 import QtGui
 from PyQt4 import QtCore
 
+from matplotlib import mpl
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar
 # Matplotlib Figure object
@@ -46,6 +47,8 @@ class XSpecGui(QtGui.QMainWindow):
         '''
         spec = Spectrum1D
         '''
+        mpl.rcParams['agg.path.chunksize'] = 20000 # Needed to avoid carsh in large spectral files
+        
         # Build a widget combining several others
         self.main_widget = QtGui.QWidget()
 
@@ -62,6 +65,7 @@ class XSpecGui(QtGui.QMainWindow):
         self.spec_widg.canvas.mpl_connect('button_press_event', self.on_click)
 
         extras = QtGui.QWidget()
+        extras.setMaximumWidth(200)
         vbox = QtGui.QVBoxLayout()
         qbtn = QtGui.QPushButton('Quit', self)
         qbtn.clicked.connect(self.quit)

@@ -55,7 +55,7 @@ class Absline_Survey(object):
         self.flist = flist
         self.abs_type = abs_type
         self.ref = ref
-        self.abs_sys = []
+        self._abs_sys = []
 
         # Load up (if possible)
         if len(flist) > 0:  # Should improve this..
@@ -70,24 +70,28 @@ class Absline_Survey(object):
             for dat_file in self.dat_files:
                 if abs_type == 'LLS':
                     from xastropy.igm.abs_sys.lls_utils import LLS_System
-                    self.abs_sys.append(LLS_System(dat_file=dat_file,tree=tree))
+                    self._abs_sys.append(LLS_System(dat_file=dat_file,tree=tree))
                 elif abs_type == 'DLA':
                     from xastropy.igm.abs_sys.dla_utils import DLA_System
-                    self.abs_sys.append(DLA_System(dat_file=dat_file,tree=tree))
+                    self._abs_sys.append(DLA_System(dat_file=dat_file,tree=tree))
                 else: # Generic
                     from xastropy.igm.abs_sys.abssys_utils import Generic_System
-                    self.abs_sys.append(Generic_System(abs_type,dat_file=tree+dat_file))
+                    self._abs_sys.append(Generic_System(abs_type,dat_file=tree+dat_file))
             # Mask
             self.mask = (np.ones(self.nsys) == np.ones(self.nsys))
         else:
             self.nsys = 0 
             self.mask = None
 
+    # Get abs_sys (with mask)
+    def abs_sys(self):
+        lst = self._abs_sys
+        return xarray.lst_to_array(lst,mask=self.mask)
 
     # Get attributes
     def __getattr__(self, k):
         try:
-            lst = [getattr(abs_sys,k) for abs_sys in self.abs_sys]
+            lst = [getattr(abs_sys,k) for abs_sys in self._abs_sys]
         except ValueError:
             raise ValueError
 
@@ -99,7 +103,7 @@ class Absline_Survey(object):
         '''
         Loop on systems to fill in ions
         '''
-        for abs_sys in self.abs_sys:
+        for abs_sys in self._abs_sys:
             abs_sys.get_ions()
 
     # Get ions
@@ -120,15 +124,15 @@ class Absline_Survey(object):
         Table of values for the Survey
         '''
         from astropy.table import Table
-        keys = (u'name',) + self.abs_sys[0].ions.keys
-        key_dtype= ('<U32',) + self.abs_sys[0].ions.key_dtype
+        keys = (u'name',) + self.abs_sys()[0].ions.keys
+        key_dtype= ('<U32',) + self.abs_sys()[0].ions.key_dtype
         t = Table(names=keys, dtype=key_dtype)
 
-        # Loop on systems
-        for abs_sys in self.abs_sys:
-            # Mask?
-            if not self.mask[self.abs_sys.index(abs_sys)]: 
-                continue
+        # Loop on systems (Masked)
+        for abs_sys in self.abs_sys():
+            ## Mask?
+            #if not self.mask[self.abs_sys.index(abs_sys)]: 
+            #    continue
             # Grab
             try:
                 idict = abs_sys.ions[iZion]
@@ -160,7 +164,7 @@ class Absline_Survey(object):
         increment : Boolean (False)
            Increment the mask (i.e. keep False as False)
         '''
-        if len(msk) == len(self.abs_sys):  # Boolean mask
+        if len(msk) == len(self._abs_sys):  # Boolean mask
             if increment is False:
                 self.mask = msk
             else:

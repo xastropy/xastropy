@@ -55,7 +55,10 @@ class ExamineSpecWidget(QtGui.QWidget):
         spec, spec_fil = read_spec(ispec)
 
         self.spec = spec
-        self.abs_sys = abs_sys
+        if abs_sys is None:
+            self.abs_sys = []
+        else:
+            self.abs_sys = abs_sys
         self.norm = norm
         self.psdict = {} # Dict for spectra plotting
         self.init_spec() 
@@ -73,7 +76,7 @@ class ExamineSpecWidget(QtGui.QWidget):
         # Create the mpl Figure and FigCanvas objects. 
         # 5x4 inches, 100 dots-per-inch
         #
-        self.dpi = 150
+        self.dpi = 150 # 150
         self.fig = Figure((8.0, 4.0), dpi=self.dpi)
         self.canvas = FigureCanvas(self.fig)
         self.canvas.setParent(self)
@@ -211,6 +214,8 @@ class ExamineSpecWidget(QtGui.QWidget):
             self.ax.clear()        
             self.ax.plot(self.spec.dispersion, self.spec.flux, 'k-',drawstyle='steps-mid')
             self.ax.plot(self.spec.dispersion, self.spec.sig, 'r:')
+            #self.ax.plot(self.spec.dispersion, self.spec.flux, 'k-',drawstyle='steps-mid')
+            #self.ax.plot(self.spec.dispersion, self.spec.sig, 'r:')
             self.ax.set_xlabel('Wavelength')
             self.ax.set_ylabel('Flux')
 
