@@ -216,6 +216,8 @@ def tst_fn_data(fN_model=None, model_two=None, data_list=None, outfil=None):
         main.plot(xplt,yplt,'-',color='gray')
         
 
+    #xdb.set_trace()
+
     # Extras
     #mpl.rcParams['lines.capthick'] = 2
 

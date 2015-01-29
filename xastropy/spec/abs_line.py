@@ -229,11 +229,14 @@ def llist_file(llist):
 
 ## ##############
 # Create line list 
-def mk_line_list_fits_table(outfil=None,XIDL=True):
+def mk_line_list_fits_table(outfil=None,XIDL=False):
     from barak import absorb as ba
 
     if XIDL is True:
-        lindat = 'grb.lst' 
+        lindat =  os.getenv('XIDL_DIR')+'/Spec/Lines/Lists/grb.lst'
+        finedat = os.getenv('XIDL_DIR')+'/Spec/Lines/Lists/fine_strct.lst'
+    else:
+        lindat = 'grb.lst'  # This pulls from xastropy/data/spec_lines first
         finedat = os.getenv('XIDL_DIR')+'/Spec/Lines/Lists/fine_strct.lst'
   
     # Read XIDL line list
@@ -267,6 +270,8 @@ def mk_line_list_fits_table(outfil=None,XIDL=True):
         except KeyError:
             if elm in ['CO','CC','HH']: # Molecules
                 Zv = 999
+            elif elm in ['D']: # Deuterium
+                Zv = 1
             else:
                 xdb.set_trace()
         llist.data['Z'][ii] = Zv
@@ -329,9 +334,9 @@ def mk_line_list_fits_table(outfil=None,XIDL=True):
 if __name__ == '__main__':
 
     flg_test = 0
-    #flg_test = 1  # Generate Line list
+    flg_test = 1  # Generate Line list
     #flg_test += 2 # Abs_Line Class
-    flg_test += 2**2 # Abs_Line with spectra
+    #flg_test += 2**2 # Abs_Line with spectra
     #flg_test += 2**3 # abs_line_data
     #
     #flg_test += 2**9 # LLS Survey NHI

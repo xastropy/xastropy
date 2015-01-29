@@ -78,7 +78,7 @@ def set_fn_data():
     fN_cs = [fN_c for fN_c in all_fN_cs
              if ((fN_c.ref != 'K02') & (fN_c.ref != 'PW09'))]
 
-    return all_fN_cs
+    return fN_cs
 
 ##########################################
 #   Prepare the variables and their limits
@@ -114,7 +114,9 @@ def set_pymc_var(fN_model,lim=2.):
 
 
 
+##########################################
 # Main run call
+##########################################
 def run(fN_cs, fN_model, parm):
 
     #
@@ -143,7 +145,9 @@ def run(fN_cs, fN_model, parm):
         for ii in range(len(ipv)):
             all_z.append(fN_c.zeval)
     fN_input = (np.array(all_NHI), np.array(all_z))
+
     # TEST
+    xdb.set_trace()
     if False:
         log_fNX = fN_model.eval( fN_input, 0. )
         xdb.set_trace()
@@ -157,8 +161,8 @@ def run(fN_cs, fN_model, parm):
         log_fNX = fN_model.eval( fN_input, 0. )
         #
         return log_fNX
-
     pymc_list.append(pymc_fn_model)
+
     # Define f(N) data for PyMC
     fNvalue=np.array(all_fN)
     pymc_fN_data = pymc.Normal(str('fNdata'), mu=pymc_fn_model, tau=1.0/np.array(all_sigfN)**2,

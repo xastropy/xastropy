@@ -184,8 +184,8 @@ class fN_Model(object):
 
         # Tuple?
         if isinstance(NHI,tuple):
-            z = NHI[1]
             NHI = NHI[0]
+            z = NHI[1]
             flg_1D = 1
         else:
             flg_1D = 0
