@@ -17,7 +17,6 @@ import os, imp
 from astropy.io import fits, ascii
 from astropy import units as u 
 from astropy.table.table import Table
-from astropy.coordinates import SkyCoord
 #from astropy import constants as const
 
 from xastropy.xutils import xdebug as xdb
@@ -64,6 +63,7 @@ def grab_sdss_spectra(radec, radius=0.1*u.deg, outfil='tmp.fits', debug=False, m
     from astroquery.sdss import SDSS
     from astropy import coordinates as coords
     from astropy.cosmology import Planck13 as cosmo 
+    from astropy.coordinates import SkyCoord
 
 
 

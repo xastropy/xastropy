@@ -19,12 +19,12 @@ from collections import OrderedDict
 
 from astropy.io import ascii, fits 
 from astropy import units as u
-from astropy.coordinates import SkyCoord
 
 from xastropy.igm.abs_sys.ionic_clm import Ions_Clm, Ionic_Clm_File
 from xastropy.xutils import xdebug as xdb
 from xastropy import spec as xspec 
 from xastropy import kinematics as xkin
+from astropy.coordinates import SkyCoord
 
 ###################### ######################
 ###################### ######################
@@ -58,6 +58,7 @@ class Absline_System(object):
         dat_file : string
           ASCII .dat file summarizing the system
         """
+
         self.zabs = zabs
         self.NHI = NHI
         self.MH = MH
