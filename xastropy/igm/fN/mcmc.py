@@ -43,6 +43,9 @@ def set_fn_model(flg=0):
     '''
     if flg==0: # I may choose to pickle a few of these
         sfN_model = xifm.default_model(recalc=True,use_mcmc=True) # Hermite Spline
+        tmp = [13., 15., 17., 21.5, 22.]
+        val = sfN_model.eval(tmp, 2.5)
+        xdb.set_trace()
     elif flg==1:
         sfN_model = fNmodel.fN_Model('Gamma')
     else: 
@@ -104,8 +107,10 @@ def set_pymc_var(fN_model,lim=2.):
         for ii in range(len(fN_model.param)):
             nm = str('p')+str(ii)
             doc = str('SplinePointNHI_')+str(fN_model.pivots[ii])
-            iparm = np.append(iparm, pymc.Uniform(nm, lower=fN_model.param[ii]-lim,
-                                                upper=fN_model.param[ii]+lim, doc=doc))
+            #iparm = np.append(iparm, pymc.Uniform(nm, lower=fN_model.param[ii]-lim,
+            #                                    upper=fN_model.param[ii]+lim, doc=doc))
+            #xdb.set_trace()
+            iparm = np.append(iparm, pymc.Normal(nm, mu=fN_model.param[ii], tau=1./0.025, doc=doc))
     else:
         raise ValueError('mcmc: Not ready for this type of fN model {:s}'.format(fN_model.fN_mtype))
     # Return
@@ -170,10 +175,13 @@ def run(fN_cs, fN_model, parm):
     #   RUN THE MCMC
     #######################################
 
+
     MC = pymc.MCMC(pymc_list)
     # Run a total of 40000 samples, but ignore the first 10000.
     # Verbose just prints some details to screen.
-    MC.sample(40000, 10000, verbose=2)
+    #xdb.set_trace()
+    MC.sample(10000, 1000, verbose=2)
+    #MC.isample(10000, 1000, verbose=2)
 
     #######################################
     #   PRINT THE RESULTS
@@ -181,6 +189,8 @@ def run(fN_cs, fN_model, parm):
 
     # Print the best values and their errors
     print_errors(MC)
+    xdb.set_trace()
+    #xdb.xplot(MC.trace('p0')[:])
     
     # Draw a contour plot with 1 & 2 sigma errors
     #MCMC_errors.draw_contours(MC, 'p0', 'p1')
@@ -199,16 +209,17 @@ def geterrors(array):
 def print_errors(MC):
     keys = MC.stats().keys()
     keys_size = len(keys)
-    ival=0
-    xdb.set_trace()
 
-    for i in range(0,keys_size):
-        teststr = 'p'+str(ival)
+    for ival in range(keys_size):
+        teststr = str('p'+str(ival))
+        #xdb.set_trace()
+        if not teststr in keys:
+            continue
         try: pval, perr1, perr2 = geterrors(MC.trace(teststr)[:])
         except: continue
-        print('{:5.4f +{:5.4f}-{:5.4f} (1sig) +{:5.4f}-{:5.4f} (2sig)'.format(
-            pval, perr1[0], perr1[1], perr2[0], perr2[1]))
-        ival += 1
+        print('{:s} {:5.4f} +{:5.4f}-{:5.4f} (1sig) +{:5.4f}-{:5.4f} (2sig)'.format(
+            teststr, pval, perr1[0], perr1[1], perr2[0], perr2[1]))
+        #ival += 1
 
 
 #####
@@ -225,10 +236,11 @@ if __name__ == '__main__':
     fN_model.param = np.array([iparm.value for iparm in parm])
 
     # Check plot
-    if False:
+    if True:
         xifd.tst_fn_data(fN_model=fN_model)
 
     # Run
+    xdb.set_trace()
     run(fN_data, fN_model, parm)
 
     # Set model

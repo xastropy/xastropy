@@ -17,7 +17,6 @@ import numpy as np
 
 from astropy.io import ascii 
 from astropy import units as u
-from astropy.coordinates import SkyCoord
 
 from xastropy.igm.abs_sys.ionic_clm import Ions_Clm, Ionic_Clm_File
 from xastropy.xutils import xdebug as xdb
