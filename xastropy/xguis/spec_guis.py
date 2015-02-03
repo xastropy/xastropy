@@ -117,10 +117,11 @@ class XAbsIDGui(QtGui.QMainWindow):
         16-Dec-2014 by JXP
     '''
     def __init__(self, spec, parent=None, abssys_dir=None, absid_list=None, norm=True,
-                 srch_id=True, id_dir='ID_LINES/'):
+                 srch_id=True, id_dir='ID_LINES/', second_file=None):
         QtGui.QMainWindow.__init__(self, parent)
         '''
         spec = Spectrum1D
+        second_file = Second spectrum file  (e.g. COS + STIS)
         '''
         # Build a widget combining several others
         self.main_widget = QtGui.QWidget()
@@ -142,6 +143,7 @@ class XAbsIDGui(QtGui.QMainWindow):
         self.pltline_widg = xspw.PlotLinesWidget(status=self.statusBar)
         self.spec_widg = xspw.ExamineSpecWidget(spec,status=self.statusBar,
                                                 llist=self.pltline_widg.llist, norm=norm,
+                                                second_file=second_file, 
                                                 abs_sys=self.abssys_widg.abs_sys)
         self.pltline_widg.spec_widg = self.spec_widg
 
@@ -426,6 +428,7 @@ def run_xabsid():
                         action="store_true")
     parser.add_argument("-id_dir", type=str,
                         help="Directory for ID files (ID_LINES is default)")
+    parser.add_argument("-secondfile", type=str, help="Second spectral file")
     
     args = parser.parse_args()
 
@@ -434,10 +437,15 @@ def run_xabsid():
     if args.un_norm:
         norm=False
 
+    # Second spectral file?
+    second_file=None
+    if args.secondfile:
+        second_file=args.secondfile
+
     #xdb.set_trace()
     # Launch
     app = QtGui.QApplication(sys.argv)
-    gui = XAbsIDGui(args.file, norm=norm)
+    gui = XAbsIDGui(args.file, norm=norm, second_file=second_file)
     gui.show()
     app.exec_()
 

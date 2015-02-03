@@ -62,7 +62,7 @@ def set_fn_model(flg=0):
 #          READ IN THE DATA
 #######################################
 
-def set_fn_data():
+def set_fn_data(sources=None, extra_fNc=None):
     '''
     Load up f(N) data
 
@@ -75,14 +75,41 @@ def set_fn_data():
 
     JXP on 27 Nov 2014
     '''
+    if sources is None:
+        sources = ['OPB07', 'OPW12', 'OPW13', 'K05', 'K13R13', 'N12']
+    else:
+        sources = [src.upper() for src in sources]
+
     fn_file = xa_path+'/igm/fN/fn_constraints_z2.5_vanilla.fits'
     k13r13_file = xa_path+'/igm/fN/fn_constraints_K13R13_vanilla.fits'
     n12_file = xa_path+'/igm/fN/fn_constraints_N12_vanilla.fits'
     all_fN_cs = xifd.fn_data_from_fits([fn_file,k13r13_file,n12_file])
 
+    # Add on, e.g. user-supplied
+    if not extra_fNc is None:
+        all_fN_cs.append(extra_fNc)
+
     # Cut
-    fN_cs = [fN_c for fN_c in all_fN_cs
-             if ((fN_c.ref != 'K02') & (fN_c.ref != 'PW09'))]
+    #fN_cs = [fN_c for fN_c in all_fN_cs
+    #         if ((fN_c.ref != 'K02') & (fN_c.ref != 'PW09'))]
+
+    # Include good data sources
+    fN_cs = []
+    for fN_c in all_fN_cs:
+        # In list?
+        if fN_c.ref in sources:
+            print('Using {:s} as a constraint'.format(fN_c.ref))
+            # Append
+            fN_cs.append(fN_c)
+            # Pop
+            idx = sources.index(fN_c.ref)
+            sources.pop(idx)
+    
+    # Check that all the desired sources were used
+    if len(sources) > 0:
+        xdb.set_trace()
+
+    #xdb.set_trace()
 
     return fN_cs
 
@@ -333,5 +360,5 @@ if __name__ == '__main__':
     run(fN_data, fN_model, parm)
 
     # Set model
-    xdb.set_trace()
+    #xdb.set_trace()
     print('mcmc: All done')
