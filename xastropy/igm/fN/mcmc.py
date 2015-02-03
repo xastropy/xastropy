@@ -152,7 +152,7 @@ def set_pymc_var(fN_model,lim=2.):
 ##########################################
 # Main run call
 ##########################################
-def run(fN_cs, fN_model, parm):
+def run(fN_cs, fN_model, parm, debug=0):
 
     #
     pymc_list = [parm]
@@ -299,10 +299,10 @@ def run(fN_cs, fN_model, parm):
 
     fN_model.param = best_pval
     fN_model.model = scii.PchipInterpolator(fN_model.pivots, fN_model.param)
-    xifd.tst_fn_data(fN_model=fN_model)
-    xdb.xhist(MC.trace(str('p0'))[:])
-
-    xdb.set_trace()
+    if debug:
+        xifd.tst_fn_data(fN_model=fN_model)
+        xdb.xhist(MC.trace(str('p0'))[:])
+        xdb.set_trace()
 
     
     # Draw a contour plot with 1 & 2 sigma errors
