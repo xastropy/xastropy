@@ -31,8 +31,7 @@ from xastropy.xutils import xdebug as xdb
 #  sp = xsr.readspec('SDSSJ114435.54+095921.7_F.fits',outfil='SDSSJ114435.54+095921.7.fits')
 #
 def readspec(specfil, inflg=None, efil=None, outfil=None, show_plot=0,
-             use_barak=False, verbose=False, flux_tags=None, sig_tags=None,
-             multi_ivar=False):
+             use_barak=False, verbose=False, flux_tags=None, sig_tags=None, multi_ivar=False):
     ''' 
     multi_ivar: Bool (False)
       BOSS format of  flux, ivar, log10(wave) in multi-extension FITS
@@ -128,6 +127,7 @@ def readspec(specfil, inflg=None, efil=None, outfil=None, show_plot=0,
 
     # Generate, as needed
     if 'spec1d' not in locals():
+        # Generate
         spec1d = Spectrum1D.from_array(wave, fx, uncertainty=StdDevUncertainty(sig))
 
     spec1d.filename = specfil
