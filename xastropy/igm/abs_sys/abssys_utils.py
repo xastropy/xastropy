@@ -62,6 +62,7 @@ class Absline_System(object):
         self.zabs = zabs
         self.NHI = NHI
         self.MH = MH
+        self.coord = None
 
         # Abs type
         if abs_type == None:
@@ -78,7 +79,6 @@ class Absline_System(object):
 
         # Kinematics
         self.kin = {}
-        self.coord = None
 
         # Fill in
         if dat_file != None:

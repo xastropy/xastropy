@@ -206,15 +206,19 @@ def tst_fn_data(fN_model=None, model_two=None, data_list=None, outfil=None):
     main.legend(loc='lower left', numpoints=1)
 
     # Model?
+    print(fN_model.param)
     if fN_model is not None: 
         xplt = 12.01 + 0.01*np.arange(1100)
         yplt = fN_model.eval(xplt, 2.4)
         main.plot(xplt,yplt,'-',color='black')
+        print(xplt[0],yplt[0])
     if model_two is not None: 
         xplt = 12.01 + 0.01*np.arange(1100)
         yplt = model_two.eval(xplt, 2.4)
         main.plot(xplt,yplt,'-',color='gray')
         
+
+    #xdb.set_trace()
 
     # Extras
     #mpl.rcParams['lines.capthick'] = 2

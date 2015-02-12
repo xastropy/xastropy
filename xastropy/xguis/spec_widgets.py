@@ -27,6 +27,9 @@ from matplotlib.figure import Figure
 
 from astropy.table.table import Table
 from astropy import constants as const
+from astropy.nddata import StdDevUncertainty
+
+from specutils.spectrum1d import Spectrum1D
 
 from xastropy import spec as xspec 
 from xastropy import stats as xstats
@@ -46,13 +49,13 @@ class ExamineSpecWidget(QtGui.QWidget):
         12-Dec-2014 by JXP
     '''
     def __init__(self, ispec, parent=None, status=None, llist=None,
-                 abs_sys=None, norm=True):
+                 abs_sys=None, norm=True, second_file=None):
         '''
         spec = Spectrum1D
         '''
         super(ExamineSpecWidget, self).__init__(parent)
 
-        spec, spec_fil = read_spec(ispec)
+        spec, spec_fil = read_spec(ispec, second_file=second_file)
 
         self.spec = spec
         if abs_sys is None:
@@ -295,7 +298,7 @@ class PlotLinesWidget(QtGui.QWidget):
         self.connect(self.zbox, QtCore.SIGNAL('editingFinished ()'), self.setz)
 
         # Create the line list 
-        self.lists = ['None', 'grb.lst', 'dla.lst', 'lls.lst', 'lyman.lst', 'gal_vac.lst']
+        self.lists = ['None', 'grb.lst', 'dla.lst', 'lls.lst', 'lyman.lst', 'gal_vac.lst', 'ne8.lst', 'lowz_ovi.lst']
         list_label = QtGui.QLabel('Line Lists:')
         self.llist_widget = QtGui.QListWidget(self) 
         for ilist in self.lists:
@@ -1308,11 +1311,27 @@ def set_llist(llist,in_dict=None):
         #QtCore.pyqtRestoreInputHook()
 
 # Read spectrum, pass back it and spec_file name
-def read_spec(ispec):
+def read_spec(ispec, second_file=None):
     #
     if isinstance(ispec,str) or isinstance(ispec,unicode):
         spec_fil = ispec
         spec = xspec.readwrite.readspec(spec_fil)
+        # Second file?
+        if not second_file is None:
+            spec2 = xspec.readwrite.readspec(second_file)
+            # Scale for convenience of plotting
+            xper1 = xstats.basic.perc(spec.flux, per=0.9)
+            xper2 = xstats.basic.perc(spec2.flux, per=0.9)
+            scl = xper1[1]/xper2[1]
+            # Stitch together
+            wave3 = np.append(spec.dispersion, spec2.dispersion)
+            flux3 = np.append(spec.flux, spec2.flux*scl)
+            sig3 = np.append(spec.sig, spec2.sig*scl)
+            #xdb.set_trace()
+            spec3 = Spectrum1D.from_array(wave3, flux3, uncertainty=StdDevUncertainty(sig3))
+            # Overwrite
+            spec = spec3
+            spec.filename = spec_fil
     else:
         spec = ispec # Assuming Spectrum1D
         spec_fil = spec.filename # Grab from Spectrum1D 
