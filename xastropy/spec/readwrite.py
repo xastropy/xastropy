@@ -92,7 +92,11 @@ def readspec(specfil, inflg=None, efil=None, outfil=None, show_plot=0,
             return
     elif hdulist[0].header['NAXIS'] == 1: # Data in the zero extension
         # Look for wavelength info
-        if ('CRVAL1' in hdulist[0].header.keys()) and (multi_ivar is False):
+        try:
+            ctype1 = hdulist[0].header['CTYPE1']
+        except KeyError:
+            ctype1 = ''
+        if ('CRVAL1' in hdulist[0].header.keys()) and (multi_ivar is False) and (not ctype1 in ['RA---TAN']):
             # Error
             if efil == None:
                 ipos = max(specfil.find('F.fits'),specfil.find('f.fits'))
@@ -181,8 +185,9 @@ def setwave(hdr):
     dcflag = hdr['DC-FLAG'] if 'DC-FLAG' in hdr else None
 
     # Generate
-    if dcflag == 1:
+    if (dcflag == 1) or (cdelt1 < 1e-4):
         wave = SCL * 10.**(crval1 + ( cdelt1 * np.arange(npix) + 1. - crpix1) ) # Log
+    xdb.set_trace()
 
     # Return
     return wave
