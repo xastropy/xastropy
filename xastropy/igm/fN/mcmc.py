@@ -132,8 +132,10 @@ def set_pymc_var(fN_model,lim=2.):
 
     JXP on 27 Nov 2014
     '''
+    # Deal with model Type
     if fN_model.fN_mtype == 'Hspline': 
         iparm=np.array([])
+        # Loop on parameters to create an array of pymc Stochatsic variable objects
         for ii in range(len(fN_model.param)):
             nm = str('p')+str(ii)
             doc = str('SplinePointNHI_')+str(fN_model.pivots[ii])
