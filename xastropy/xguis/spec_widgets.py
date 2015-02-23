@@ -65,6 +65,7 @@ class ExamineSpecWidget(QtGui.QWidget):
         self.norm = norm
         self.psdict = {} # Dict for spectra plotting
         self.init_spec() 
+        self.xval = None # Used with velplt
 
         # Status Bar?
         if not status is None:
@@ -170,7 +171,7 @@ class ExamineSpecWidget(QtGui.QWidget):
 
             # Launch
             gui = xsgui.XVelPltGui(self.spec, z=z, outfil=outfil, llist=self.llist,
-                                   abs_sys=ini_abs_sys, norm=self.norm)
+                                   abs_sys=ini_abs_sys, norm=self.norm, sel_wv=self.xval)
             gui.exec_()
             if gui.flg_quit == 0: # Quit without saving (i.e. discarded)
                 self.vplt_flg = 0 
@@ -199,6 +200,7 @@ class ExamineSpecWidget(QtGui.QWidget):
             print('Out of bounds')
             return
         if event.button == 1: # Draw line
+            self.xval = event.xdata
             self.ax.plot( [event.xdata,event.xdata], self.psdict['ymnx'], ':', color='green')
             self.on_draw(replot=False) 
     
@@ -298,7 +300,9 @@ class PlotLinesWidget(QtGui.QWidget):
         self.connect(self.zbox, QtCore.SIGNAL('editingFinished ()'), self.setz)
 
         # Create the line list 
-        self.lists = ['None', 'grb.lst', 'dla.lst', 'lls.lst', 'lyman.lst', 'gal_vac.lst', 'ne8.lst', 'lowz_ovi.lst']
+        self.lists = ['None', 'grb.lst', 'dla.lst', 'lls.lst',
+                      'lyman.lst', 'gal_vac.lst', 'ne8.lst',
+                      'lowz_ovi.lst', 'casbah.lst']
         list_label = QtGui.QLabel('Line Lists:')
         self.llist_widget = QtGui.QListWidget(self) 
         for ilist in self.lists:

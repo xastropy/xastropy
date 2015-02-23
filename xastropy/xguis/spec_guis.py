@@ -175,19 +175,39 @@ class XAbsIDGui(QtGui.QMainWindow):
         self.statusBar().addWidget(self.status_text, 1)
 
     def on_key(self,event):
-        if event.key == 'v': 
+        if event.key == 'v': # Stack plot
             if self.spec_widg.vplt_flg == 1:
                 self.abssys_widg.add_fil(self.spec_widg.outfil)
                 self.abssys_widg.reload()
-            # Update AbsSys (as needed)
-            #QtCore.pyqtRemoveInputHook()
-            #xdb.set_trace()
-            #QtCore.pyqtRestoreInputHook()
+        elif event.key == '?': # Check for a match with known systems
+            wv_chosen = event.xdata
+            # Load grb 
+            llist = xspw.set_llist('grb.lst')
+
+            # Loop through systems
+            for iabs_sys in self.abssys_widg.all_abssys:
+                z = iabs_sys.zabs
+                wvobs = np.array((1+z) * llist['grb.lst']['wrest'])
+                mtwv = np.where( np.abs( wvobs-wv_chosen ) < 0.2 )[0]
+                for imt in mtwv:
+                    #QtCore.pyqtRemoveInputHook()
+                    #xdb.set_trace()
+                    #QtCore.pyqtRestoreInputHook()
+                    print('z={:g},  {:s},  f={:g}'.format(z, 
+                        llist['grb.lst']['name'][imt],
+                        llist['grb.lst']['fval'][imt]))
+                if len(mtwv) == 0:
+                    print('No match. wrest={:g} for z={:g}'.format(wv_chosen/(1+z), z))
 
     def on_click(self,event):
         if event.button == 3: # Set redshift
-            if self.pltline_widg.llist['List'] is None:
+            # Line list?
+            try:
+                self.pltline_widg.llist['List']
+            except KeyError:
+                print('Set a line list first!!')
                 return
+            # 
             self.select_line_widg = xspw.SelectLineWidget(
                 self.pltline_widg.llist[self.pltline_widg.llist['List']])
             self.select_line_widg.exec_()
@@ -229,13 +249,15 @@ class XVelPltGui(QtGui.QDialog):
         24-Dec-2014 by JXP
     '''
     def __init__(self, ispec, z=None, parent=None, llist=None, norm=True,
-                 vmnx=[-300., 300.], abs_sys=None, outfil='dum_ID.fits'):
+                 vmnx=[-300., 300.], abs_sys=None, outfil='dum_ID.fits',
+                 sel_wv=None):
         '''
         spec = Filename or Spectrum1D
         Norm: Bool (False)
           Normalized spectrum?
         abs_sys: AbsSystem
           Absorption system class
+        sel_wv: Selected wavelength.  Used to inspect a single, unknown line
         '''
         super(XVelPltGui, self).__init__(parent)
 
@@ -250,6 +272,7 @@ class XVelPltGui(QtGui.QDialog):
         self.vmnx = vmnx
         self.outfil = outfil
         self.norm = norm
+        self.sel_wv = sel_wv
 
         # Grab the pieces and tie together
         self.vplt_widg = xspw.VelPlotWidget(ispec, abs_sys=self.abs_sys, llist=llist, 
@@ -318,8 +341,24 @@ class XVelPltGui(QtGui.QDialog):
             self.z = self.vplt_widg.z
             self.pltline_widg.llist['z'] = self.z
             self.pltline_widg.zbox.setText(self.pltline_widg.zbox.z_frmt.format(self.z))
+        if event.key == 'T':  # Try another rest wavelength for input line
+            # Get line from User
+            self.select_line_widg = xspw.SelectLineWidget(
+                self.pltline_widg.llist[self.pltline_widg.llist['List']])
+            self.select_line_widg.exec_()
+            line = self.select_line_widg.line
+            wrest = float(line.split('::')[1].lstrip())
+            # Set redshift
+            self.z = self.sel_wv / wrest - 1.
+            print('Setting z = {:g}'.format(self.z))
+            self.pltline_widg.llist['z'] = self.z
+            self.pltline_widg.zbox.setText(self.pltline_widg.zbox.z_frmt.format(self.z))
+            self.vplt_widg.z = self.pltline_widg.llist['z']
+            # Reset
+            self.vplt_widg.init_lines()
+            self.vplt_widg.on_draw()
 
-    # Change z
+    # Set z from pltline_widg
     def setz(self):
         self.vplt_widg.abs_sys.zabs = self.pltline_widg.llist['z']
         self.vplt_widg.z = self.pltline_widg.llist['z']
@@ -462,8 +501,8 @@ if __name__ == "__main__":
         #flg_fig += 2**0  # XSpec
         #flg_fig += 2**1  # XAbsID
         #flg_fig += 2**2  # XVelPlt Gui
-        #flg_fig += 2**3  # XVelPlt Gui without ID list
-        flg_fig += 2**4  # XAODM Gui
+        flg_fig += 2**3  # XVelPlt Gui without ID list; Also tests select wave
+        #flg_fig += 2**4  # XAODM Gui
     
         # Read spectrum
         spec_fil = '/u/xavier/Keck/HIRES/RedData/PH957/PH957_f.fits'
@@ -517,7 +556,7 @@ if __name__ == "__main__":
             #
             app = QtGui.QApplication(sys.argv)
             app.setApplicationName('XVelPlt')
-            gui = XVelPltGui(spec_fil, z=z, outfil=outfil,norm=False)
+            gui = XVelPltGui(spec_fil, z=z, outfil=outfil,norm=False, sel_wv=1526.80)
             gui.show()
             sys.exit(app.exec_())
 

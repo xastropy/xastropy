@@ -151,11 +151,11 @@ class Abs_Line_List(object):
 
 ## ##############
 # Grab atomic data
-def abs_line_data(wrest, datfil=None, ret_flg=0, tol=2e-3):
+def abs_line_data(wrest, datfil=None, ret_flg=0, tol=1e-3):
     """
     wrest : float or array
       -- Input wavelength (Ang)
-    tol : float (2e-3)
+    tol : float (1e-3)
       Tolerance for finding a match in wrest
     ret_flg : int (0)
       0: Return a dictionary
