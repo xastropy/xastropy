@@ -178,7 +178,7 @@ def abs_line_data(wrest, datfil=None, ret_flg=0, tol=1e-3):
         nm = len(mt)
         # Found?
         if nm == 0:
-            raise ValueError('abs_line_data: {:g} not in our table {:s}'.format(iwrest,datfil))
+            raise ValueError('abs_line_data: {:.3f} not in our table {:s}'.format(iwrest,datfil))
         elif nm == 1:
             # Grab
             all_row.append(mt[0])
