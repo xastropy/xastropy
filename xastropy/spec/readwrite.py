@@ -61,7 +61,7 @@ def readspec(specfil, inflg=None, efil=None, outfil=None, show_plot=0,
     if hdulist[0].header['NAXIS'] == 0:
         # Flux 
         if flux_tags is None:
-            flux_tags = ['SPEC', 'FLUX','FLAM','FX', 'FLUXSTIS']
+            flux_tags = ['SPEC', 'FLUX','FLAM','FX', 'FLUXSTIS', 'FLUX_OPT']
         fx, fx_tag = rw.get_table_column(flux_tags, hdulist)
         #xdb.set_trace()
         if fx is None:
@@ -72,7 +72,7 @@ def readspec(specfil, inflg=None, efil=None, outfil=None, show_plot=0,
             sig_tags = ['ERROR','ERR','SIGMA_FLUX','FLAM_SIG', 'SIGMA_UP', 'ERRSTIS']
         sig, sig_tag = rw.get_table_column(sig_tags, hdulist)
         if sig is None:
-            ivar_tags = ['IVAR']
+            ivar_tags = ['IVAR', 'IVAR_OPT']
             ivar, ivar_tag = rw.get_table_column(ivar_tags, hdulist)
             if ivar is None:
                 print('spec.readwrite: Binary FITS Table but no error tags')
@@ -82,7 +82,7 @@ def readspec(specfil, inflg=None, efil=None, outfil=None, show_plot=0,
                 gdi = np.where( ivar > 0.)[0]
                 sig[gdi] = np.sqrt(1./ivar[gdi])
         # Wavelength
-        wave_tags = ['WAVE','WAVELENGTH','LAMBDA','LOGLAM', 'WAVESTIS']
+        wave_tags = ['WAVE','WAVELENGTH','LAMBDA','LOGLAM', 'WAVESTIS', 'WAVE_OPT']
         wave, wave_tag = rw.get_table_column(wave_tags, hdulist)
         if wave_tag == 'LOGLAM':
             wave = 10.**wave
