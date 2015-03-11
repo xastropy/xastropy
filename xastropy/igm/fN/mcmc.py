@@ -339,27 +339,59 @@ def print_errors(MC):
         #ival += 1
     return all_pval
 
+def mcmc_main(flg_model=0, flg_plot=0):
+    '''
+    flg_model = Flag controlling the f(N) model fitted
+       0: JXP spline
+       1: Inoue+14 functional form
+    '''
 
-#####
-if __name__ == '__main__':
+    import argparse
 
+    # PARSE 
+    parser = argparse.ArgumentParser(description='MCMC for f(N)')
+    parser.add_argument("model", type=int, help="Model flag (0=JXP, 1=Inoue+14)")
+    parser.add_argument("--plot", help="Plot the final model", action="store_true")
+    #parser.add_argument("-id_dir", type=str,
+    #                    help="Directory for ID files (ID_LINES is default)")
+    
+    args = parser.parse_args()
+
+    flg_model = args.model
+    if args.plot:
+        flg_plot = 1
+
+    # ##########################
     # Set Data
     fN_data = set_fn_data()
-
+    
     # Set f(N) functional form 
     fN_model = set_fn_model()
-
+    
     # Set variables
     parm = set_pymc_var(fN_model)
     fN_model.param = np.array([iparm.value for iparm in parm])
-
+    
     # Check plot
     if False:
         xifd.tst_fn_data(fN_model=fN_model)
 
     # Run
-    #xdb.set_trace()
     run(fN_data, fN_model, parm)
+
+    # Plot?
+    if flg_plot:
+        xifd.tst_fn_data(fN_model=fN_model)
+
+#####
+if __name__ == '__main__':
+    import sys
+
+    if len(sys.argv) == 1: # TESTING
+        sys.argv.append('0')
+        mcmc_main(flg_plot=1)
+    else:
+        mcmc_main()
 
     # Set model
     #xdb.set_trace()

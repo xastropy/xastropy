@@ -545,10 +545,11 @@ if __name__ == '__main__':
         fN_model = xifm.default_model()
         z = 2.44
         mfp = fN_model.mfp(z)
-        print('MFP at z=%g is %g Mpc' % (z,mfp.value))
+        print('MFP at z={:g} is {:g} Mpc'.format(z,mfp.value))
 
     # Check Inoue+14
     if (flg_test % 2**7) >= 2**6:
+        print('Testing Akio Model')
         fN_model = fN_Model('Gamma')
         NHI = [12.,14.,17.,21.]
         z = 2.5
