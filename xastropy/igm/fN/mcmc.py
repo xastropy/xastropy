@@ -44,13 +44,9 @@ def set_fn_model(flg=0):
     JXP on 27 Nov 2014
     '''
     if flg==0: # I may choose to pickle a few of these
-        sfN_model = xifm.default_model(recalc=True,use_mcmc=True) # Hermite Spline
-        tmp = [13., 15., 17., 21.5, 22.]
-        val = sfN_model.eval(tmp, 2.5)
-        # Not using this! -- JXP 29 Jan 2015
-        #xdb.set_trace()
+        sfN_model = xifm.default_model(recalc=True,use_mcmc=True) # Hermite Spline 
     elif flg==1:
-        sfN_model = fNmodel.fN_Model('Gamma')
+        sfN_model = xifm.fN_Model('Gamma')
     else: 
         raise ValueError('mcmc.set_model: Not ready for this type of fN model {:d}'.format(flg))
     #
@@ -132,9 +128,10 @@ def set_pymc_var(fN_model,lim=2.):
 
     JXP on 27 Nov 2014
     '''
+    iparm=np.array([])
+
     # Deal with model Type
     if fN_model.fN_mtype == 'Hspline': 
-        iparm=np.array([])
         # Loop on parameters to create an array of pymc Stochatsic variable objects
         for ii in range(len(fN_model.param)):
             nm = str('p')+str(ii)
@@ -143,6 +140,13 @@ def set_pymc_var(fN_model,lim=2.):
             #                                    upper=fN_model.param[ii]+lim, doc=doc))
             #xdb.set_trace()
             iparm = np.append(iparm, pymc.Normal(nm, mu=fN_model.param[ii], tau=1./0.025, doc=doc))
+    elif fN_model.fN_mtype == 'Gamma':  # Inoue+14
+        # LAF: Only vary A and beta as a first go
+        iparm = np.append(iparm, pymc.Normal(str('p0'), mu=fN_model.param[2][0], tau=1./10., doc=str('ALAF')))
+        iparm = np.append(iparm, pymc.Normal(str('p1'), mu=fN_model.param[2][1], tau=1./0.02, doc=str('bLAF')))
+        # DLA: Only vary A and beta as a first go
+        iparm = np.append(iparm, pymc.Normal(str('p2'), mu=fN_model.param[3][0], tau=1./0.02, doc=str('ADLA')))
+        iparm = np.append(iparm, pymc.Normal(str('p3'), mu=fN_model.param[3][1], tau=1./0.02, doc=str('bDLA')))
     else:
         raise ValueError('mcmc: Not ready for this type of fN model {:s}'.format(fN_model.fN_mtype))
     # Return
@@ -217,8 +221,7 @@ def run(fN_cs, fN_model, parm, debug=0):
     @pymc.deterministic(plot=False)
     def pymc_fn_model(parm=parm):
         # Set parameters
-        fN_model.param = parm
-        fN_model.model = scii.PchipInterpolator(fN_model.pivots, fN_model.param)
+        fN_model.upd_param(parm)
         #
         log_fNX = fN_model.eval( fN_input, 0. )
         #
@@ -230,8 +233,7 @@ def run(fN_cs, fN_model, parm, debug=0):
         @pymc.deterministic(plot=False)
         def pymc_teff_model(parm=parm):
             # Set parameters
-            fN_model.param = parm
-            fN_model.model = scii.PchipInterpolator(fN_model.pivots, fN_model.param)
+            fN_model.upd_param(parm)
             # Calculate teff
             model_teff = tau_eff.ew_teff_lyman(1215.6701*(1+teff_input[0]), teff_input[0]+0.1,
                                                fN_model, NHI_MIN=teff_input[1], NHI_MAX=teff_input[2])
@@ -243,8 +245,7 @@ def run(fN_cs, fN_model, parm, debug=0):
         @pymc.deterministic(plot=False)
         def pymc_lls_model(parm=parm): 
             # Set parameters 
-            fN_model.param = parm
-            fN_model.model = scii.PchipInterpolator(fN_model.pivots, fN_model.param)
+            fN_model.upd_param(parm)
             # Calculate l(X)
             lX = fN_model.calc_lox(LLS_input[0], 
                                     17.19+np.log10(LLS_input[1]), 22.) 
@@ -298,9 +299,8 @@ def run(fN_cs, fN_model, parm, debug=0):
 
     # Print the best values and their errors
     best_pval = print_errors(MC)
+    fN_model.upd_param(best_pval)
 
-    fN_model.param = best_pval
-    fN_model.model = scii.PchipInterpolator(fN_model.pivots, fN_model.param)
     if debug:
         xifd.tst_fn_data(fN_model=fN_model)
         xdb.xhist(MC.trace(str('p0'))[:])
@@ -311,7 +311,8 @@ def run(fN_cs, fN_model, parm, debug=0):
     #MCMC_errors.draw_contours(MC, 'p0', 'p1')
 
     # Save the individual distributions to a file to check convergence
-    #pymc.Matplot.plot(MC)
+    pymc.Matplot.plot(MC, 'pymc')
+    #xdb.set_trace()
 
 def geterrors(array):
 	arrsort = np.sort(array)
@@ -339,6 +340,9 @@ def print_errors(MC):
         #ival += 1
     return all_pval
 
+##########################################
+#  Drives the full MCMC experience
+##########################################
 def mcmc_main(flg_model=0, flg_plot=0):
     '''
     flg_model = Flag controlling the f(N) model fitted
@@ -366,11 +370,10 @@ def mcmc_main(flg_model=0, flg_plot=0):
     fN_data = set_fn_data()
     
     # Set f(N) functional form 
-    fN_model = set_fn_model()
+    fN_model = set_fn_model(flg=flg_model)
     
     # Set variables
     parm = set_pymc_var(fN_model)
-    fN_model.param = np.array([iparm.value for iparm in parm])
     
     # Check plot
     if False:
@@ -388,7 +391,7 @@ if __name__ == '__main__':
     import sys
 
     if len(sys.argv) == 1: # TESTING
-        sys.argv.append('0')
+        sys.argv.append('0')  # Spline model
         mcmc_main(flg_plot=1)
     else:
         mcmc_main()

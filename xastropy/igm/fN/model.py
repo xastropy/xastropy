@@ -57,10 +57,10 @@ class fN_Model(object):
 
         if fN_mtype == 'Gamma':  # I14 values
             zmnx = (0., 10.)
-            param = ( (12., 23., 21., 28.), # Common
-                      (1.75828e8, 9.62288e-4),             # Bi values
-                      (500, 1.7, 1.2, 4.7, 0.2, 2.7, 4.5), # LAF
-                      (1.1, 0.9, 2.0, 1.0, 2.0) ) # DLA
+            param = [ [12., 23., 21., 28.], # Common
+                      [1.75828e8, 9.62288e-4],             # Bi values
+                      [500, 1.7, 1.2, 4.7, 0.2, 2.7, 4.5], # LAF
+                      [1.1, 0.9, 2.0, 1.0, 2.0] ] # DLA
         self.zmnx = zmnx  
 
         # Pivots
@@ -83,6 +83,26 @@ class fN_Model(object):
         # Redshift (needs updating)
         self.zpivot = zpivot
         self.gamma = gamma
+
+    ##
+    # Update parameters (mainly used in the MCMC)
+    def upd_param(self, parm):
+        """ Update parameters (mainly used in the MCMC)
+           Updates other things as needed
+        """
+        if self.fN_mtype == 'Hspline':
+            self.param = parm
+            # Need to update the model too
+            self.model = scii.PchipInterpolator(self.pivots, self.param)
+        elif self.fN_mtype == 'Gamma':
+            if len(parm) == 4: # A,beta for LAF and A,beta for DLA
+                self.param[2][0] = parm[0]
+                self.param[2][1] = parm[1]
+                self.param[3][0] = parm[2]
+                self.param[3][1] = parm[3]
+            else:
+                raise ValueError('fN/model: Not ready for {:d} parameters'.format(len(param)))
+
     ##
     # l(X)
     def calc_lox(self, z, NHI_min, NHI_max=None, neval=10000, cumul=False):
@@ -183,11 +203,11 @@ class fN_Model(object):
         from astropy import constants as const
 
         # Tuple?
-        if isinstance(NHI,tuple):
+        if isinstance(NHI,tuple): # All values packed into NHI parameter
             z = NHI[1]
             NHI = NHI[0]
             flg_1D = 1
-        else:
+        else:  # NHI and z separate
             flg_1D = 0
 
         # NHI
@@ -233,23 +253,22 @@ class fN_Model(object):
 
         # Gamma function (e.g. Inoue+14)
         elif self.fN_mtype == 'Gamma': 
-            if flg_1D == 1:
-                raise ValueError('fN.model: Not ready for this flg')
+            # Setup the parameters
             Nl, Nu, Nc, bval = self.param[0]
-            #iLyaF = np.where(NHI < 20.3)[0]
-            #iDLA = np.where(NHI >= 20.3)[0]
+
             # gNHI
-            log_gN = np.zeros((lenNHI,2))
             Bi = self.param[1]
+            ncomp = len(Bi)
+            log_gN = np.zeros((lenNHI,ncomp))
             beta = [item[1] for item in self.param[2:]] 
-            for kk in range(2):
+            for kk in range(ncomp):
                 #xdb.set_trace()
                 log_gN[:,kk] += (np.log10(Bi[kk]) + NHI*(-1 * beta[kk])
                                 + (-1. * 10.**(NHI-Nc) / np.log(10) ) ) # log10 [ exp(-NHI/Nc) ]
             # f(z)
             fz = np.zeros((lenz,2))
             # Loop on NHI
-            for kk in range(2):
+            for kk in range(ncomp):
                 if kk == 0: # LyaF
                     zcuts = self.param[2][2:4]
                     gamma = self.param[2][4:]
@@ -271,13 +290,21 @@ class fN_Model(object):
                                                     ((1+z_val[izcut]) / (1+zcuts[2]) )**gamma[ii-1] )
 #                            else: 
 #                                raise ValueError('fN.model.eval: Should not get here')
-            # Generate the matrix
-            fnz = np.zeros((lenNHI,lenz))
-            for kk in range(2):
-                fnz += np.outer(10.**log_gN[:,kk],fz[:,kk])
-            # Finish up
+            # dX/dz
             dXdz = igmu.cosm_xz(z_val, cosmo=cosmo, flg=1) 
-            log_fNX = np.log10(fnz) - np.log10( np.outer(np.ones(lenNHI), dXdz) )
+
+            # Final steps
+            if flg_1D == 1: # 
+                #xdb.set_trace()
+                fnX = np.sum(fz * 10.**log_gN, 1) / dXdz
+                log_fNX = np.log10(fnX)
+            else: 
+                # Generate the matrix
+                fnz = np.zeros((lenNHI,lenz))
+                for kk in range(ncomp):
+                    fnz += np.outer(10.**log_gN[:,kk],fz[:,kk])
+                # Finish up
+                log_fNX = np.log10(fnz) - np.log10( np.outer(np.ones(lenNHI), dXdz) )
         else: 
             raise ValueError('fN.model: Not ready for this model type {:%s}'.format(self.fN_mtype))
 
@@ -484,7 +511,7 @@ if __name__ == '__main__':
     from xastropy.igm.fN import model as xifm
 
     flg_test = 0 
-    flg_test += 4 # Data
+    #flg_test += 4 # Data
     #flg_test += 8 # l(X)
     flg_test += 64 # Akio
     #flg_test = 0 + 64
@@ -554,13 +581,24 @@ if __name__ == '__main__':
         NHI = [12.,14.,17.,21.]
         z = 2.5
         dXdz = igmu.cosm_xz(z, flg=1) 
-        log_fNX = fN_model.eval(NHI,z)
-        for iNHI in NHI:
-            print('I+14 At z={:g} and NHI={:g}, f(N,z) = {:g}'.format(z,iNHI,10.**log_fNX[NHI.index(iNHI),0] * dXdz))
         # From Akio
           # 12 1.2e-9
           # 14 4.9e-13
           # 17 4.6e-18
           # 21 6.7e-23
+
+        # Test 1D
+        tstNz = ( NHI, [z for ii in enumerate(NHI)] )
+        log_fNX = fN_model.eval(tstNz,0.)
+        #xdb.set_trace()
+        for kk,iNHI in enumerate(NHI):
+            print('I+14 At z={:g} and NHI={:g}, f(N,z) = {:g}'.format(z,iNHI,10.**log_fNX[kk] * dXdz))
+    
+        # Test matrix
+        log_fNX = fN_model.eval(NHI,z)
+        for iNHI in NHI:
+            print('I+14 At z={:g} and NHI={:g}, f(N,z) = {:g}'.format(z,iNHI,10.**log_fNX[NHI.index(iNHI),0] * dXdz))
+
+        # Plot
         JXP_model = xifm.default_model()
         fN_data.tst_fn_data(fN_model=fN_model, model_two=JXP_model)
