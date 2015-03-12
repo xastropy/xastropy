@@ -2,11 +2,11 @@
 #;+ 
 #; NAME:
 #; fN.data
-#;    Version 1.0
+#;    Version 2.0
 #;
 #; PURPOSE:
 #;    Module for fN data constraints
-#;   07-Nov-2014 by JXP
+#;   3-Mar-2015 by JXP edited by Alix Feinsod
 #;-
 #;------------------------------------------------------------------------------
 """
@@ -89,6 +89,76 @@ class fN_Constraint(object):
 
 # ###################### ###############
 # ###################### ###############
+# Read from ASCII file
+def fN_data_from_ascii_file(infile):
+
+    #makes new fN constraint with data type fN
+    fNc = fN_Constraint('fN')
+    ftype = fNc.fN_dtype.encode('ascii')
+    fNc.fN_dtype = ftype
+    fNc.ref=infile.encode('ascii')
+    
+    # Open file
+    f = open(infile, 'r')
+
+    # Read and ignore header lines
+    firstline = f.readline()
+    # get rid of newline /n symbol
+    firstline =firstline.strip()
+    #get zeval and DX from first line
+    values = firstline.split()
+    fNc.zeval = float(values[0])
+    ZEVAL = float(values[0])
+    DX = float(values[1])
+
+    #declaration of variables
+    BINS1 =[]
+    BINS2 = []
+    fn = []
+    SIG_FN1 = []
+    SIG_FN2 = []
+    count = 0
+    numlines=0
+
+    # Loop over lines and extract info
+    for line in f:
+    	line = line.strip()
+    	columns = line.split()
+    	BINS1.append(float(columns[0]))
+    	BINS2.append(float(columns[1]))
+	fn.append(float(columns[2]))
+	SIG_FN1.append(float(columns[3]))
+	SIG_FN2.append(float(columns[3]))
+	numlines +=1
+	if (float(columns[0])!=0) or (float(columns[1])!=0) or (float(columns[2])!=0) or (float(columns[3])!=0):
+	    count +=1
+    f.close()
+
+    NPT = int(count)
+    bins = []
+    bins.append(BINS1)
+    bins.append(BINS2)
+    sig_fn = []
+    sig_fn.append(SIG_FN1)
+    sig_fn.append(SIG_FN2)
+    
+    BINS = np.ndarray(shape=(2, numlines), dtype=float, buffer=np.array(bins))
+    SIG_FN = np.ndarray(shape=(2, numlines), dtype=float, buffer=np.array(sig_fn))
+    FN = np.ndarray(shape=(numlines,), dtype=float, buffer=np.array(fn))
+    
+    #makes array with names in ASCII not unicode
+    arrayofnames = ['BINS','FN','SIG_FN','DX','NPT','ZEVAL']
+    names = []
+    for name in arrayofnames:
+    	newname = name.encode('ascii')
+    	names.append(newname)
+    	
+    values = [BINS,FN,SIG_FN,DX,NPT,ZEVAL]
+    	
+    fNc.data = dict(zip(names, values))
+    
+    return fNc
+
 def fn_data_from_fits(fits_file):
     """ Build up a list of fN constraints from a multi-extension FITS file
 
@@ -168,8 +238,11 @@ def tst_fn_data(fN_model=None, model_two=None, data_list=None, outfil=None):
     fn_file = xa_path+'/igm/fN/fn_constraints_z2.5_vanilla.fits'
     k13r13_file = xa_path+'/igm/fN/fn_constraints_K13R13_vanilla.fits'
     n12_file = xa_path+'/igm/fN/fn_constraints_N12_vanilla.fits'
-    all_fN_cs = fn_data_from_fits([fn_file,k13r13_file,n12_file])
-
+    all_fN_cs = fn_data_from_fits([fn_file,k13r13_file])
+    ascii_file = xa_path+'/igm/fN/asciidatan12'
+    ascii_data = fN_data_from_ascii_file(ascii_file)
+    all_fN_cs.append(ascii_data)
+    
     # Remove K12
     #data_list = ['K13R13','OPB07', 'N12']
     #outfil = 'tmp.png'
@@ -193,6 +266,7 @@ def tst_fn_data(fN_model=None, model_two=None, data_list=None, outfil=None):
         if fN_c.fN_dtype == 'fN':
             # Length
             ip = range(fN_c.data['NPT'])
+            #xdb.set_trace()
             val = np.where(fN_c.data['FN'][ip] > -90)[0]
             #xdb.set_trace()
             if len(val) > 0:
@@ -206,7 +280,7 @@ def tst_fn_data(fN_model=None, model_two=None, data_list=None, outfil=None):
     main.legend(loc='lower left', numpoints=1)
 
     # Model?
-    print(fN_model.param)
+    #print(fN_model.param)
     if fN_model is not None: 
         xplt = 12.01 + 0.01*np.arange(1100)
         yplt = fN_model.eval(xplt, 2.4)
@@ -303,10 +377,6 @@ def tst_fn_data(fN_model=None, model_two=None, data_list=None, outfil=None):
     else: 
         plt.show()
         
-
-
-
-
     
 ## #################################    
 ## #################################    
@@ -318,11 +388,16 @@ if __name__ == '__main__':
     fn_file = xa_path+'/igm/fN/fn_constraints_z2.5_vanilla.fits'
     k13r13_file = xa_path+'/igm/fN/fn_constraints_K13R13_vanilla.fits'
     n12_file = xa_path+'/igm/fN/fn_constraints_N12_vanilla.fits'
-    all_fN_cs = fn_data_from_fits([fn_file,k13r13_file,n12_file])
+    all_fN_cs = fn_data_from_fits([fn_file, k13r13_file])
+    ascii_file = xa_path+'/igm/fN/asciidatan12'
+    ascii_data = fN_data_from_ascii_file(ascii_file)
+    all_fN_cs.append(ascii_data)
+    
     print(all_fN_cs)
-    #for fN_c in all_fN_cs: print(fN_c)
+    for fN_c in all_fN_cs: print(fN_c)
 
     # Plot
     tst_fn_data()
-
+    xdb.set_trace()
     print('fN.data: All done testing..')
+
