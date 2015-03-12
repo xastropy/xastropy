@@ -6,7 +6,7 @@
 #;
 #; PURPOSE:
 #;    Module for fN data constraints
-#;   3-Mar-2015 by JXP edited by Alix Feinsod
+#;   12-Mar-2015 by JXP edited by Alix Feinsod
 #;-
 #;------------------------------------------------------------------------------
 """
