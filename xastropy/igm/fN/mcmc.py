@@ -133,20 +133,28 @@ def set_pymc_var(fN_model,lim=2.):
     # Deal with model Type
     if fN_model.fN_mtype == 'Hspline': 
         # Loop on parameters to create an array of pymc Stochatsic variable objects
-        for ii in range(len(fN_model.param)):
+        nparm = len(fN_model.param)
+        rand = 0.2*(np.random.rand(nparm)-0.5) 
+        for ii in range(nparm):
             nm = str('p')+str(ii)
             doc = str('SplinePointNHI_')+str(fN_model.pivots[ii])
             #iparm = np.append(iparm, pymc.Uniform(nm, lower=fN_model.param[ii]-lim,
             #                                    upper=fN_model.param[ii]+lim, doc=doc))
             #xdb.set_trace()
-            iparm = np.append(iparm, pymc.Normal(nm, mu=fN_model.param[ii], tau=1./0.025, doc=doc))
+            iparm = np.append(iparm, pymc.Normal(nm, mu=fN_model.param[ii]*(1+rand[ii]), tau=1./0.025, doc=doc))
     elif fN_model.fN_mtype == 'Gamma':  # Inoue+14
+        rand = 0.2*(np.random.rand(4)-0.5) 
+        fN_model.param[2][0] = 10.
+        #fN_model.param[2][0] = fN_model.param[2][0]*(1.+rand[0])
+        fN_model.param[2][1] = fN_model.param[2][1]*(1.+rand[1])
+        fN_model.param[3][0] = fN_model.param[3][0]*(1.+rand[2])
+        fN_model.param[3][1] = fN_model.param[3][1]*(1.+rand[3])
         # LAF: Only vary A and beta as a first go
-        iparm = np.append(iparm, pymc.Normal(str('p0'), mu=fN_model.param[2][0], tau=1./10., doc=str('ALAF')))
-        iparm = np.append(iparm, pymc.Normal(str('p1'), mu=fN_model.param[2][1], tau=1./0.02, doc=str('bLAF')))
+        iparm = np.append(iparm, pymc.Normal(str('p0'), mu=fN_model.param[2][0], tau=1./50., doc=str('ALAF')))
+        iparm = np.append(iparm, pymc.Normal(str('p1'), mu=fN_model.param[2][1], tau=1./0.05, doc=str('bLAF')))
         # DLA: Only vary A and beta as a first go
-        iparm = np.append(iparm, pymc.Normal(str('p2'), mu=fN_model.param[3][0], tau=1./0.02, doc=str('ADLA')))
-        iparm = np.append(iparm, pymc.Normal(str('p3'), mu=fN_model.param[3][1], tau=1./0.02, doc=str('bDLA')))
+        iparm = np.append(iparm, pymc.Normal(str('p2'), mu=fN_model.param[3][0], tau=1./0.25, doc=str('ADLA')))
+        iparm = np.append(iparm, pymc.Normal(str('p3'), mu=fN_model.param[3][1], tau=1./0.05, doc=str('bDLA')))
     else:
         raise ValueError('mcmc: Not ready for this type of fN model {:s}'.format(fN_model.fN_mtype))
     # Return
@@ -290,7 +298,9 @@ def run(fN_cs, fN_model, parm, debug=0):
     # Verbose just prints some details to screen.
     #xdb.set_trace()
     #MC.sample(20000, 3000, verbose=2, tune_interval=500)
-    MC.sample(2000, 300, verbose=2, tune_interval=200)
+    #MC.sample(5000, 500, verbose=2, tune_interval=200)
+    #MC.sample(20000, 5000, verbose=2, tune_interval=500)
+    MC.sample(2000, 400, verbose=2, tune_interval=200)
     #MC.isample(10000, 1000, verbose=2)
 
     #######################################
@@ -311,7 +321,7 @@ def run(fN_cs, fN_model, parm, debug=0):
     #MCMC_errors.draw_contours(MC, 'p0', 'p1')
 
     # Save the individual distributions to a file to check convergence
-    pymc.Matplot.plot(MC, 'pymc')
+    pymc.Matplot.plot(MC)
     #xdb.set_trace()
 
 def geterrors(array):
@@ -376,7 +386,7 @@ def mcmc_main(flg_model=0, flg_plot=0):
     parm = set_pymc_var(fN_model)
     
     # Check plot
-    if False:
+    if flg_plot:
         xifd.tst_fn_data(fN_model=fN_model)
 
     # Run
