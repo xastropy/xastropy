@@ -7,7 +7,7 @@
 #; PURPOSE:
 This module will fit f(N) data
 using a Markov chain Monte Carlo (MCMC) approach.
-#;   27-Nov-2014 by JXP
+#;   27-Nov-2014 by JXP 3/10/15 edited by Alix Feinsod
 #;-
 #;------------------------------------------------------------------------------
 """
@@ -23,6 +23,8 @@ from xastropy.xutils import xdebug as xdb
 from xastropy.igm.fN import model as xifm
 from xastropy.igm.fN import data as xifd
 from xastropy.igm import tau_eff
+
+from time import gmtime, strftime
 
 xa_path = imp.find_module('xastropy')[1]
 
@@ -58,7 +60,7 @@ def set_fn_model(flg=0):
 #          READ IN THE DATA
 #######################################
 
-def set_fn_data(sources=None, extra_fNc=None):
+def set_fn_data(sources=None, extra_fNc=[]):
     '''
     Load up f(N) data
 
@@ -73,21 +75,16 @@ def set_fn_data(sources=None, extra_fNc=None):
     '''
     if sources is None:
         sources = ['OPB07', 'OPW12', 'OPW13', 'K05', 'K13R13', 'N12']
-    else:
-        sources = [src.upper() for src in sources]
 
     fn_file = xa_path+'/igm/fN/fn_constraints_z2.5_vanilla.fits'
     k13r13_file = xa_path+'/igm/fN/fn_constraints_K13R13_vanilla.fits'
     n12_file = xa_path+'/igm/fN/fn_constraints_N12_vanilla.fits'
     all_fN_cs = xifd.fn_data_from_fits([fn_file,k13r13_file,n12_file])
 
-    # Add on, e.g. user-supplied
-    if not extra_fNc is None:
-        all_fN_cs.append(extra_fNc)
-
-    # Cut
-    #fN_cs = [fN_c for fN_c in all_fN_cs
-    #         if ((fN_c.ref != 'K02') & (fN_c.ref != 'PW09'))]
+    # Add on, e.g. user-supplied 
+    if len(extra_fNc) > 0:
+    	for src in extra_fNc:
+        	all_fN_cs.append(xifd.fN_data_from_ascii_file(os.path.abspath(src)))
 
     # Include good data sources
     fN_cs = []
@@ -166,7 +163,7 @@ def set_pymc_var(fN_model,lim=2.):
 ##########################################
 # Main run call
 ##########################################
-def run(fN_cs, fN_model, parm, debug=0):
+def run(fN_cs, fN_model, parm, email, debug=0):
 
     #
     pymc_list = [parm]
@@ -306,11 +303,14 @@ def run(fN_cs, fN_model, parm, debug=0):
     #######################################
     #   PRINT THE RESULTS
     #######################################
-
+    t = strftime("%Y-%m-%d %H:%M:%S", gmtime())
+    f = open(email + t + 'asciifile', 'w+')
     # Print the best values and their errors
     best_pval = print_errors(MC)
     fN_model.upd_param(best_pval)
 
+    f.write(best_pval)
+    
     if debug:
         xifd.tst_fn_data(fN_model=fN_model)
         xdb.xhist(MC.trace(str('p0'))[:])
@@ -409,3 +409,4 @@ if __name__ == '__main__':
     # Set model
     #xdb.set_trace()
     print('mcmc: All done')
+
