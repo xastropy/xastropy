@@ -238,10 +238,10 @@ def tst_fn_data(fN_model=None, model_two=None, data_list=None, outfil=None):
     fn_file = xa_path+'/igm/fN/fn_constraints_z2.5_vanilla.fits'
     k13r13_file = xa_path+'/igm/fN/fn_constraints_K13R13_vanilla.fits'
     n12_file = xa_path+'/igm/fN/fn_constraints_N12_vanilla.fits'
-    all_fN_cs = fn_data_from_fits([fn_file,k13r13_file])
-    ascii_file = xa_path+'/igm/fN/asciidatan12'
-    ascii_data = fN_data_from_ascii_file(ascii_file)
-    all_fN_cs.append(ascii_data)
+    all_fN_cs = fn_data_from_fits([fn_file,k13r13_file, n12_file])
+    #ascii_file = xa_path+'/igm/fN/asciidatan12'
+    #ascii_data = fN_data_from_ascii_file(ascii_file)
+    #all_fN_cs.append(ascii_data)
     
     # Remove K12
     #data_list = ['K13R13','OPB07', 'N12']
@@ -388,10 +388,10 @@ if __name__ == '__main__':
     fn_file = xa_path+'/igm/fN/fn_constraints_z2.5_vanilla.fits'
     k13r13_file = xa_path+'/igm/fN/fn_constraints_K13R13_vanilla.fits'
     n12_file = xa_path+'/igm/fN/fn_constraints_N12_vanilla.fits'
-    all_fN_cs = fn_data_from_fits([fn_file, k13r13_file])
-    ascii_file = xa_path+'/igm/fN/asciidatan12'
-    ascii_data = fN_data_from_ascii_file(ascii_file)
-    all_fN_cs.append(ascii_data)
+    all_fN_cs = fn_data_from_fits([fn_file, k13r13_file, n12_file])
+    #ascii_file = xa_path+'/igm/fN/asciidatan12'
+    #ascii_data = fN_data_from_ascii_file(ascii_file)
+    #all_fN_cs.append(ascii_data)
     
     print(all_fN_cs)
     for fN_c in all_fN_cs: print(fN_c)
