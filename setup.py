@@ -6,8 +6,7 @@ setup(
     version="0.3.0",
     description="Python software for Prof X and associates",
     author="Prof X",
+    license="BSD",
     author_email="xavier@ucolick.org",
     url="https://github.com/profxj/xastropy",
-    packages=['xastropy'],
-)
-    
+    packages=['xastropy'])
