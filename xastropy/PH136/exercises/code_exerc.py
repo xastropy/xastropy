@@ -3,8 +3,18 @@
 #  ce.myplot(x, 0.3)
 ##
 #  Import libraries
-from numpy import *
-from matplotlib.pyplot import *
+from __future__ import print_function, absolute_import, division, unicode_literals
+
+import numpy as np
+import glob, os, sys
+
+from xastropy.xutils import xdebug as xdb
+
+import matplotlib as mpl
+mpl.rcParams['font.family'] = 'stixgeneral'
+from matplotlib.backends.backend_pdf import PdfPages
+from matplotlib import pyplot as plt
+import matplotlib.gridspec as gridspec
 
 # Here's the code to do the plotting
 def myplot(arr,ibinsz=0):
