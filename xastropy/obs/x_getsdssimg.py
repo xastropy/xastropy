@@ -111,7 +111,7 @@ def getimg(ra, dec, imsize, BW=None, DSS=None):
 
     # DEBUG
     import matplotlib.pyplot as plt
-    import pdb; pdb.set_trace()
+    #import pdb; pdb.set_trace()
 
     # B&W ?
     if BW != None:

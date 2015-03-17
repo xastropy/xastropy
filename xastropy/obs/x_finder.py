@@ -56,6 +56,8 @@ from astropy.table import Column
 import matplotlib
 import aplpy
 
+from xastropy.xutils import xdebug as xdb
+
 #### ###############################
 #  Deal with the RA/DEC
 def get_coord(targ_file, radec=None):
@@ -184,6 +186,7 @@ def main(targ_file, survey='2r', radec=None, deci=None,
 
         plt.savefig(outfil)
         print 'x_finder: Wrote '+outfil
+        #xdb.set_trace()
 
     print 'x_finder: All done.'
     return
