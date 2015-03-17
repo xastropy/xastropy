@@ -123,7 +123,7 @@ class ExamineSpecWidget(QtGui.QWidget):
 
         flg = 0
         ## NAVIGATING
-        if event.key in ['l','r','b','t','i','o','[',']','W','Z', 'Y']:  # Set left
+        if event.key in ['l','r','b','t','i','o','[',']','W','Z', 'Y', '{', '}']:  # Set left
             flg = navigate(self.psdict,event)
         ## DOUBLET
         if event.key in ['C','M','O','8','B']:  # Set left
@@ -777,7 +777,7 @@ class VelPlotWidget(QtGui.QWidget):
             self.sub_xy[1] = max(0, self.sub_xy[1]+1)
 
         ## NAVIGATING
-        if event.key in ['l','r','b','t','i','o','[',']','W','Z', 'Y']:  # Set left
+        if event.key in ['l','r','b','t','i','o','[',']','W','Z', 'Y', '{', '}']:  # Set left
             flg = navigate(self.psdict,event)
         if event.key == '-':
             self.idx_line = max(0, self.idx_line-self.sub_xy[0]*self.sub_xy[1]) # Min=0
@@ -1235,13 +1235,17 @@ def navigate(psdict,event):
     elif event.key == 'Y':  # Zoom in (and center)
         delty = psdict['ymnx'][1]-psdict['ymnx'][0]
         psdict['ymnx'] = [event.ydata-delty, event.ydata+delty]
-    elif event.key in ['[',']']:  # Pan 
+    elif event.key in ['[',']','{','}']:  # Pan 
         center = (psdict['xmnx'][1]+psdict['xmnx'][0])/2.
         deltx = (psdict['xmnx'][1]-psdict['xmnx'][0])/2.
         if event.key == '[':
             new_center = center - deltx
-        else:
+        elif event.key == ']':
             new_center = center + deltx
+        elif event.key == '{':
+            new_center = center - 4*deltx
+        elif event.key == '}':
+            new_center = center + 4*deltx
         psdict['xmnx'] = [new_center-deltx, new_center+deltx]
     elif event.key == 'W': # Reset the Window
         psdict['xmnx'] = psdict['sv_xy'][0]
