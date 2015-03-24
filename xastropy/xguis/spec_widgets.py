@@ -243,7 +243,7 @@ class ExamineSpecWidget(QtGui.QWidget):
             # Abs Sys?
             if not self.abs_sys is None:
                 ylbl = self.psdict['ymnx'][0]+0.2*(self.psdict['ymnx'][1]-self.psdict['ymnx'][0])
-                clrs = ['red', 'green', 'cyan', 'orange', 'gray', 'yellow']*10
+                clrs = ['red', 'green', 'cyan', 'orange', 'gray', 'purple']*10
                 for abs_sys in self.abs_sys:
                     ii = self.abs_sys.index(abs_sys)
                     wrest = np.array(abs_sys.lines.keys()) 
