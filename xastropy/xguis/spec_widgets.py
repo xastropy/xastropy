@@ -42,6 +42,9 @@ from xastropy.xguis import utils as xguiu
 
 xa_path = imp.find_module('xastropy')[1]
 
+# class ExamineSpecWidget
+# class PlotLinesWidget
+
 class ExamineSpecWidget(QtGui.QWidget):
     ''' Widget to plot a spectrum and interactively
         fiddle about.  Akin to XIDL/x_specplot.pro
@@ -64,6 +67,7 @@ class ExamineSpecWidget(QtGui.QWidget):
             self.abs_sys = abs_sys
         self.norm = norm
         self.psdict = {} # Dict for spectra plotting
+        self.adict = {}  # Dict for analysis
         self.init_spec() 
         self.xval = None # Used with velplt
 
@@ -114,17 +118,24 @@ class ExamineSpecWidget(QtGui.QWidget):
         ymed = np.median(self.spec.flux).value
         ymin = 0. - 0.1*ymed
         ymax = ymed * 1.5
+        #
         self.psdict['xmnx'] = [xmin,xmax]
         self.psdict['ymnx'] = [ymin,ymax]
         self.psdict['sv_xy'] = [ [xmin,xmax], [ymin,ymax] ]
+        self.psdict['nav'] = navigate(0,0,init=True)
+        # Analysis dict
+        self.adict['flg_N'] = 0 # Column density flag
+        
         
     # Main Driver
     def on_key(self,event):
 
         flg = 0
+
         ## NAVIGATING
-        if event.key in ['l','r','b','t','i','o','[',']','W','Z', 'Y', '{', '}']:  # Set left
+        if event.key in self.psdict['nav']: 
             flg = navigate(self.psdict,event)
+
         ## DOUBLET
         if event.key in ['C','M','O','8','B']:  # Set left
             wave = set_doublet(self, event)
@@ -134,6 +145,46 @@ class ExamineSpecWidget(QtGui.QWidget):
             flg = 2 # Layer
         if event.key == 'R': # Clear lines
             flg = 1 
+
+        ## AODM column density
+        if event.key == 'N': 
+            if self.llist['List'] == 'None':
+                print('xspec: Choose a Line list first!')
+                try:
+                    self.statusBar().showMessage('Choose a Line list first!')
+                except AttributeError:
+                    pass
+                self.adict['flg_N'] = 0
+                return
+                
+            if self.adict['flg_N'] == 0:
+                self.adict['wv_1'] = event.xdata # wavelength
+                self.adict['C_1'] = event.ydata # continuum
+                self.adict['flg_N'] = 1
+            else:
+                self.adict['wv_2'] = event.xdata # wavelength
+                self.adict['C_2'] = event.ydata # continuum
+                # Find the spectral line (or request it!)
+                rng_wrest = np.array( [self.adict['wv_1'],
+                                   self.adict['wv_2']] ) / (self.llist['z']+1)
+                gdl = np.where( (self.llist[self.llist['List']]['wrest']-rng_wrest[0]) * 
+                    (self.llist[self.llist['List']]['wrest']-rng_wrest[1]) < 0.)[0] 
+                if len(gdl) == 1:
+                    wrest = self.llist[self.llist['List']]['wrest'][gdl[0]]
+                else:
+                    if len(gdl) == 0: # Search through them all
+                        gdl = np.arange(len(self.llist[self.llist['List']]))
+                    sel_widg = SelectLineWidget(self.llist[self.llist['List']][gdl])
+                    sel_widg.exec_()
+                    line = sel_widg.line
+                    wrest = float(line.split('::')[1].lstrip())
+                # Calculate the continuum (linear interp)
+                QtCore.pyqtRemoveInputHook()
+                xdb.set_trace()
+                QtCore.pyqtRestoreInputHook()
+                # AODM
+                self.adict['flg_N'] = 0
+
         ## Velocity plot
         if event.key == 'v': 
             from xastropy.xguis import spec_guis as xsgui
@@ -182,7 +233,7 @@ class ExamineSpecWidget(QtGui.QWidget):
                 else:
                     self.abs_sys.append(gui.abs_sys)
                     print('Adding new abs system')
-                # Redraw
+            # Redraw
             flg=1
 
         # Draw
@@ -685,6 +736,7 @@ class VelPlotWidget(QtGui.QWidget):
         self.psdict = {} # Dict for spectra plotting
         self.psdict['xmnx'] = self.vmnx
         self.psdict['ymnx'] = [-0.1, 1.1]
+        self.psdict['nav'] = navigate(0,0,init=True)
 
         # Status Bar?
         #if not status is None:
@@ -777,7 +829,7 @@ class VelPlotWidget(QtGui.QWidget):
             self.sub_xy[1] = max(0, self.sub_xy[1]+1)
 
         ## NAVIGATING
-        if event.key in ['l','r','b','t','i','o','[',']','W','Z', 'Y', '{', '}']:  # Set left
+        if event.key in self.psdict['nav']: 
             flg = navigate(self.psdict,event)
         if event.key == '-':
             self.idx_line = max(0, self.idx_line-self.sub_xy[0]*self.sub_xy[1]) # Min=0
@@ -1076,6 +1128,7 @@ class AODMWidget(QtGui.QWidget):
         self.psdict = {} # Dict for spectra plotting
         self.psdict['xmnx'] = self.vmnx
         self.psdict['ymnx'] = [-0.1, 1.1]
+        self.psdict['nav'] = navigate(0,0,init=True)
 
         # Create the mpl Figure and FigCanvas objects. 
         #
@@ -1105,7 +1158,7 @@ class AODMWidget(QtGui.QWidget):
         flg = 0
 
         ## NAVIGATING
-        if event.key in ['l','r','b','t','i','o','[',']','W','Z','Y']:  # Set left
+        if event.key in self.psdict['nav']: 
             flg = navigate(self.psdict,event)
         if event.key in ['b','t','W','Z','Y','l','r']:  
             rescale = False
@@ -1211,9 +1264,16 @@ def set_doublet(iself,event):
 
 # ######
 # Navigate
-def navigate(psdict,event):
+def navigate(psdict,event,init=False):
     ''' Method to Navigate spectrum
+    init:  (False) Initialize
+      Just pass back valid key strokes
     '''
+    # Initalize
+    if init is True:
+        return ['l','r','b','t','i','o','[',']','W','Z', 'Y', '{', '}']
+
+    #
     if (not isinstance(event.xdata,float)) or (not isinstance(event.ydata,float)):
         print('Navigate: You entered the {:s} key out of bounds'.format(event.key))
         return 0

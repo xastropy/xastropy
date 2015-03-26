@@ -20,6 +20,7 @@ import pdb
 from astropy import constants as const
 
 import xastropy.atomic as xatom
+from xastropy.xutils import xdebug as xdb
 
 #class Spectral_Line(object):
 #def pixminmax(spec, zabs, wrest, vmnx):
@@ -62,37 +63,11 @@ class Spectral_Line(object):
                 self.__class__.__name__, self.wrest))
 
 #### ###############################
-#  Grabs spectrum pixels in a velocity window
-#
-def pixminmax(spec, zabs, wrest, vmnx):
-    """Pixels in velocity range
-    Parameters
-    ----------
-    spec: Spectrum1D class
-      Input spectrum
-      velo is expected to have been filled already
-    vmnx: Tuple of 2 floats
-      vmin, vmax in km/s
-
-    Returns:
-    pix: array
-      Integer list of pixels
-    """
-
-    # Constants
-    #spl = const.c.to('km/s').value 
-
-    # Create VELO
-    spec.velo = spec.relative_vel(wrest*(1+zabs))
-
-    # Locate the values
-    pixmin = np.argmin( np.fabs( spec.velo-vmnx[0] ) )
-    pixmax = np.argmin( np.fabs( spec.velo-vmnx[1] ) )
-    #pdb.set_trace()
-
-    # Return
-    return np.arange(pixmin,pixmax+1)
-
+def pixminmax(*args):
+    ''' Soon to be deprecated..
+    Use  Spectrum1D.pin_minmax()
+    '''
+    xdb.set_trace()
 
 #### ###############################
 #  Calls plotvel (Crighton)

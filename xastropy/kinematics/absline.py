@@ -22,8 +22,6 @@ from astropy.convolution import convolve, Box1DKernel
 from xastropy.xutils import xdebug as xdb
 from xastropy import spec as xspec
 
-#def ion_name(ion):
-#def photo_cross(Z, ion, E, datfil=None, silent=False):
 
 ########################## ##########################
 ########################## ##########################
@@ -81,7 +79,7 @@ class Kin_Abs(object):
         Returns
         -------
         out_kin : dict
-        Dictionary of kinematic measurements
+           Dictionary of kinematic measurements
     
         JXP on 11 Dec 2014
         """
@@ -148,7 +146,7 @@ class Kin_Abs(object):
         """
         # Generate stau and pix?
         if (self.stau is None) | (get_stau is True):
-            self.get_pix_stau(spec, kbin=kbin)
+            self.mk_pix_stau(spec, kbin=kbin)
 
         # Dv (usually dv90)
         tottau = np.sum( self.stau )
@@ -196,7 +194,7 @@ class Kin_Abs(object):
         """
         # Generate stau and pix?
         if (self.stau is None) | (get_stau is True):
-            self.get_pix_stau(spec, **kwargs)
+            self.mk_pix_stau(spec, **kwargs)
 
         # Original kin?
         if do_orig_kin is True:

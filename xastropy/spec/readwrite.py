@@ -1,7 +1,7 @@
 """
 #;+ 
 #; NAME:
-#; readwrite
+#; io  (used to be readwrite)
 #;    Version 1.0
 #;
 #; PURPOSE:
@@ -15,15 +15,14 @@ from __future__ import print_function, absolute_import, division, unicode_litera
 
 # Import libraries
 import numpy as np
-from astropy.io import fits
-from astropy.io import ascii 
+from astropy.io import fits, ascii
 from astropy.nddata import StdDevUncertainty
 import os
 
 from specutils.io import read_fits as spec_read_fits
-from specutils.spectrum1d import Spectrum1D
 
 from xastropy.xutils import xdebug as xdb
+from xastropy.spec.utils import XSpectrum1D
 
 #### ###############################
 #  Read Spectrum1D from FITS file
@@ -36,7 +35,6 @@ def readspec(specfil, inflg=None, efil=None, outfil=None, show_plot=0,
     multi_ivar: Bool (False)
       BOSS format of  flux, ivar, log10(wave) in multi-extension FITS
     '''
-    from xastropy.spec import readwrite as rw
     from xastropy.files import general as xfg
     #from xastropy.plotting import x_guis as xpxg
     from astropy.table import Table
@@ -62,7 +60,7 @@ def readspec(specfil, inflg=None, efil=None, outfil=None, show_plot=0,
         # Flux 
         if flux_tags is None:
             flux_tags = ['SPEC', 'FLUX','FLAM','FX', 'FLUXSTIS', 'FLUX_OPT']
-        fx, fx_tag = rw.get_table_column(flux_tags, hdulist)
+        fx, fx_tag = get_table_column(flux_tags, hdulist)
         #xdb.set_trace()
         if fx is None:
             print('spec.readwrite: Binary FITS Table but no Flux tag')
@@ -70,10 +68,10 @@ def readspec(specfil, inflg=None, efil=None, outfil=None, show_plot=0,
         # Error
         if sig_tags is None:
             sig_tags = ['ERROR','ERR','SIGMA_FLUX','FLAM_SIG', 'SIGMA_UP', 'ERRSTIS', 'FLUXERR']
-        sig, sig_tag = rw.get_table_column(sig_tags, hdulist)
+        sig, sig_tag = get_table_column(sig_tags, hdulist)
         if sig is None:
             ivar_tags = ['IVAR', 'IVAR_OPT']
-            ivar, ivar_tag = rw.get_table_column(ivar_tags, hdulist)
+            ivar, ivar_tag = get_table_column(ivar_tags, hdulist)
             if ivar is None:
                 print('spec.readwrite: Binary FITS Table but no error tags')
                 return
@@ -83,7 +81,7 @@ def readspec(specfil, inflg=None, efil=None, outfil=None, show_plot=0,
                 sig[gdi] = np.sqrt(1./ivar[gdi])
         # Wavelength
         wave_tags = ['WAVE','WAVELENGTH','LAMBDA','LOGLAM', 'WAVESTIS', 'WAVE_OPT']
-        wave, wave_tag = rw.get_table_column(wave_tags, hdulist)
+        wave, wave_tag = get_table_column(wave_tags, hdulist)
         if wave_tag == 'LOGLAM':
             wave = 10.**wave
         if wave is None:
@@ -111,6 +109,8 @@ def readspec(specfil, inflg=None, efil=None, outfil=None, show_plot=0,
 
             # Generate Spectrum1D
             spec1d = spec_read_fits.read_fits_spectrum1d(os.path.expanduser(datfil), efil=efil)
+            xspec1d = XSpectrum1D.from_spec1d(spec1d)
+
             #spec1d = spec_read_fits.read_fits_spectrum1d(os.path.expanduser(datfil))
 
         else:  # ASSUMING MULTI-EXTENSION
@@ -130,11 +130,11 @@ def readspec(specfil, inflg=None, efil=None, outfil=None, show_plot=0,
         return dat
 
     # Generate, as needed
-    if 'spec1d' not in locals():
+    if 'xspec1d' not in locals():
         # Generate
-        spec1d = Spectrum1D.from_array(wave, fx, uncertainty=StdDevUncertainty(sig))
+        xspec1d = XSpectrum1D.from_array(wave, fx, uncertainty=StdDevUncertainty(sig))
 
-    spec1d.filename = specfil
+    xspec1d.filename = specfil
 
     # Continuum?
     try:
@@ -143,12 +143,13 @@ def readspec(specfil, inflg=None, efil=None, outfil=None, show_plot=0,
         try:
             npix = len(fx)
         except UnboundLocalError:
-            npix = len(spec1d.flux)
+            npix = len(xspec1d.flux)
         co = np.nan*np.ones(npix)
     # Generate a Barak Spectrum Class?
     hd = hdulist[0].header
     if use_barak is True:
         # Barak
+        raise ValueError('Avoid!')
         from barak import spec as bs
         spec1d = bs.Spectrum(wa=wave, fl=fx, er=sig, co=co, filename=specfil)
         spec1d.header = hd
@@ -165,7 +166,7 @@ def readspec(specfil, inflg=None, efil=None, outfil=None, show_plot=0,
             xdb.set_trace() # Not ready
 
     # Return 
-    return spec1d
+    return xspec1d
 
 
 #### ###############################
@@ -236,7 +237,7 @@ if __name__ == '__main__':
 
     # LowRedux
     if (flg_test % 2**2) >= 2**1:
-        fil = '/Users/xavier/Dropbox/QSOPairs/data/LRIS_redux/SDSSJ234704.25+150146.4_F.fits'
+        fil = '/Users/xavier/Dropbox/QSOPairs/data/LRIS_redux/SDSSJ231254.65-025403.1_b400_F.fits.gz'
         myspec = readspec(fil)
         xdb.xplot(myspec.dispersion, myspec.flux, myspec.uncertainty.array)
         #xdb.set_trace()
