@@ -18,6 +18,28 @@ from scipy.interpolate import interp1d
 
 from xastropy.xutils import xdebug as xdb
 
+# def perc
+# def lin_to_log
+
+def lin_to_log(x, sig):
+    """ Convert linear value+error to log 
+
+    Parameters:
+      x: float
+      sig: float 
+
+    Returns:
+      logx, sig_logx
+        Log value and error in log
+
+    JXP 26 Mar 2015
+    """
+    logx = np.log10( x ) 
+    lgvar = ((1. / (np.log(10.0)*x))**2) * sig**2
+    sig_logx = np.sqrt(lgvar)
+
+    return logx, sig_logx
+
 def perc(x, per=0.68):
     """ Calculate the percentile bounds of a distribution
 

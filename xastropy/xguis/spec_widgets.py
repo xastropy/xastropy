@@ -52,15 +52,18 @@ class ExamineSpecWidget(QtGui.QWidget):
         12-Dec-2014 by JXP
     '''
     def __init__(self, ispec, parent=None, status=None, llist=None,
-                 abs_sys=None, norm=True, second_file=None):
+                 abs_sys=None, norm=True, second_file=None, zsys=None):
         '''
         spec = Spectrum1D
         '''
         super(ExamineSpecWidget, self).__init__(parent)
 
+        # Spectrum
         spec, spec_fil = read_spec(ispec, second_file=second_file)
+        self.orig_spec = spec # For smoothing
+        self.spec = self.orig_spec 
 
-        self.spec = spec
+        # Abs Systems
         if abs_sys is None:
             self.abs_sys = []
         else:
@@ -80,6 +83,10 @@ class ExamineSpecWidget(QtGui.QWidget):
             self.llist = {'Plot': False}
         else:
             self.llist = llist
+
+        # zsys
+        if not zsys is None:
+            self.llist['z'] = zsys
         
         # Create the mpl Figure and FigCanvas objects. 
         # 5x4 inches, 100 dots-per-inch
@@ -124,69 +131,128 @@ class ExamineSpecWidget(QtGui.QWidget):
         self.psdict['sv_xy'] = [ [xmin,xmax], [ymin,ymax] ]
         self.psdict['nav'] = navigate(0,0,init=True)
         # Analysis dict
-        self.adict['flg_N'] = 0 # Column density flag
+        self.adict['flg'] = 0 # Column density flag
         
         
     # Main Driver
     def on_key(self,event):
 
-        flg = 0
+        flg = -1
 
         ## NAVIGATING
         if event.key in self.psdict['nav']: 
             flg = navigate(self.psdict,event)
 
-        ## DOUBLET
+        ## DOUBLETS
         if event.key in ['C','M','O','8','B']:  # Set left
             wave = set_doublet(self, event)
             #print('wave = {:g},{:g}'.format(wave[0], wave[1]))
             self.ax.plot( [wave[0],wave[0]], self.psdict['ymnx'], '--', color='red')
             self.ax.plot( [wave[1],wave[1]], self.psdict['ymnx'], '--', color='red')
             flg = 2 # Layer
-        if event.key == 'R': # Clear lines
+
+        ## SMOOTH
+        if event.key == 'S':
+            self.spec = self.spec.box_smooth(2)
+            flg = 1 
+        if event.key == 'U':
+            self.spec = self.orig_spec
             flg = 1 
 
-        ## AODM column density
-        if event.key == 'N': 
-            if self.llist['List'] == 'None':
+        ## ANALYSIS:  EW, AODM column density
+        if event.key in ['N', 'E', '$']: 
+            # If column check for line list
+            #QtCore.pyqtRemoveInputHook()
+            #xdb.set_trace()
+            #QtCore.pyqtRestoreInputHook()
+            if (event.key == 'N') & (self.llist['List'] == 'None'):
                 print('xspec: Choose a Line list first!')
                 try:
                     self.statusBar().showMessage('Choose a Line list first!')
                 except AttributeError:
                     pass
-                self.adict['flg_N'] = 0
+                self.adict['flg'] = 0
                 return
+            flg = 1 
                 
-            if self.adict['flg_N'] == 0:
+            if self.adict['flg'] == 0:
                 self.adict['wv_1'] = event.xdata # wavelength
                 self.adict['C_1'] = event.ydata # continuum
-                self.adict['flg_N'] = 1
+                self.adict['flg'] = 1
             else:
                 self.adict['wv_2'] = event.xdata # wavelength
                 self.adict['C_2'] = event.ydata # continuum
-                # Find the spectral line (or request it!)
-                rng_wrest = np.array( [self.adict['wv_1'],
-                                   self.adict['wv_2']] ) / (self.llist['z']+1)
-                gdl = np.where( (self.llist[self.llist['List']]['wrest']-rng_wrest[0]) * 
-                    (self.llist[self.llist['List']]['wrest']-rng_wrest[1]) < 0.)[0] 
-                if len(gdl) == 1:
-                    wrest = self.llist[self.llist['List']]['wrest'][gdl[0]]
+                self.adict['flg'] = 2 # Ready to plot + print
+
+                # Sort em + make arrays
+                iwv = np.array(sorted([self.adict['wv_1'], self.adict['wv_2']]))
+                ic = np.array(sorted([self.adict['C_1'], self.adict['C_2']]))
+
+                # Calculate the continuum (linear fit)
+                param = np.polyfit(iwv, ic, 1)
+                cfunc = np.poly1d(param)
+                conti = cfunc(self.spec.dispersion)
+
+                if event.key == '$': # Simple stats
+                    pix = self.spec.pix_minmax(iwv)[0]
+                    mean = np.mean(self.spec.flux[pix])
+                    median = np.median(self.spec.flux[pix])
+                    stdv = np.std(self.spec.flux[pix]-conti[pix])
+                    S2N = median / stdv
+                    mssg = 'Mean={:g}, Median={:g}, S/N={:g}'.format(mean,median,S2N)
                 else:
-                    if len(gdl) == 0: # Search through them all
-                        gdl = np.arange(len(self.llist[self.llist['List']]))
-                    sel_widg = SelectLineWidget(self.llist[self.llist['List']][gdl])
-                    sel_widg.exec_()
-                    line = sel_widg.line
-                    wrest = float(line.split('::')[1].lstrip())
-                # Calculate the continuum (linear interp)
-                QtCore.pyqtRemoveInputHook()
-                xdb.set_trace()
-                QtCore.pyqtRestoreInputHook()
-                # AODM
-                self.adict['flg_N'] = 0
+                    # Find the spectral line (or request it!)
+                    rng_wrest = iwv / (self.llist['z']+1)
+                    gdl = np.where( (self.llist[self.llist['List']]['wrest']-rng_wrest[0]) *
+                                    (self.llist[self.llist['List']]['wrest']-rng_wrest[1]) < 0.)[0] 
+                    if len(gdl) == 1:
+                        wrest = self.llist[self.llist['List']]['wrest'][gdl[0]]
+                    else:
+                        if len(gdl) == 0: # Search through them all
+                            gdl = np.arange(len(self.llist[self.llist['List']]))
+                        sel_widg = SelectLineWidget(self.llist[self.llist['List']][gdl])
+                        sel_widg.exec_()
+                        line = sel_widg.line
+                        wrest = float(line.split('::')[1].lstrip())
+    
+                    # Generate the Spectral Line
+                    from xastropy.spec.lines_utils import AbsLine
+                    aline = AbsLine(wrest)
+                    aline.analy['z'] = self.llist['z']
+                    aline.spec = self.spec
+    
+                    # AODM
+                    if event.key == 'N': 
+                        # Calculate the velocity limits and load-up
+                        aline.analy['VLIM'] = const.c.to('km/s') * (
+                            ( iwv/(1+self.llist['z']) - wrest) / wrest )
+        
+                        # AODM
+                        aline.aodm(conti=conti)
+                        mssg = 'Using '+ aline.__repr__()
+                        mssg = mssg + ' ::  logN = {:g} +/- {:g}'.format(aline.attrib['logN'],
+                                                                        aline.attrib['sig_logN'])
+                    elif event.key == 'E':  #EW
+                        aline.analy['WVMNX'] = iwv
+                        aline.restew(conti=conti)
+                        mssg = 'Using '+ aline.__repr__()
+                        mssg = mssg + ' ::  EW = {:g} +/- {:g}'.format(aline.attrib['EW'],
+                                                                        aline.attrib['sigEW'])
+                # Display values
+                try:
+                    self.statusBar().showMessage(mssg)
+                except AttributeError:
+                    pass
+                print(mssg)
+
+                #QtCore.pyqtRemoveInputHook()
+                #xdb.set_trace()
+                #QtCore.pyqtRestoreInputHook()
+
 
         ## Velocity plot
         if event.key == 'v': 
+            flg = 0
             from xastropy.xguis import spec_guis as xsgui
             z=self.llist['z']
             # Check for a match in existing list and use it if so
@@ -236,11 +302,20 @@ class ExamineSpecWidget(QtGui.QWidget):
             # Redraw
             flg=1
 
+        # Dummy keys
+        if event.key in ['shift', 'control']:
+            flg = 0
+
         # Draw
         if flg==1: # Default is not to redraw
             self.on_draw()
         elif flg==2: # Layer (no clear)
             self.on_draw(replot=False) 
+        elif flg==-1: # Layer (no clear)
+            try:
+                self.statusBar().showMessage('Not a valid key!  {:s}'.format(event.key))
+            except AttributeError:
+                pass
 
     # Click of main mouse button
     def on_click(self,event):
@@ -261,8 +336,9 @@ class ExamineSpecWidget(QtGui.QWidget):
             except AttributeError:
                 return
 
+    # ######
     def on_draw(self, replot=True):
-        """ Redraws the figure
+        """ Redraws the spectrum
         """
         #
 
@@ -316,6 +392,13 @@ class ExamineSpecWidget(QtGui.QWidget):
                         # Label
                         lbl = abs_sys.lines[wrest[jj]].analy['IONNM']+' z={:g}'.format(abs_sys.zabs)
                         self.ax.text(wvobs[jj], ylbl, lbl, color=clrs[ii], rotation=90., size='x-small')
+            # Analysis? EW, Column
+            if self.adict['flg'] == 1:
+                self.ax.plot(self.adict['wv_1'], self.adict['C_1'], 'go')
+            elif self.adict['flg'] == 2:
+                self.ax.plot([self.adict['wv_1'], self.adict['wv_2']],
+                             [self.adict['C_1'], self.adict['C_2']], 'g--', marker='o')
+                self.adict['flg'] = 0
         
         # Reset window limits
         self.ax.set_xlim(self.psdict['xmnx'])
@@ -325,6 +408,21 @@ class ExamineSpecWidget(QtGui.QWidget):
 
         # Draw
         self.canvas.draw()
+
+    # Notes on usage
+    def help_notes():
+        doublets = [ 'Doublets --------',
+                     'C: CIV',
+                     'M: MgII', 
+                     'O: OVI',
+                     '8: NeVIII',
+                     'B: Lyb/Lya'
+                     ]
+        analysis = [ 'Analysis --------',
+                     'N/N: Column density (AODM)',
+                     'E/E: EW (boxcar)',
+                     '$/$: stats on spectrum'
+                     ]
     
 
         
@@ -334,13 +432,17 @@ class PlotLinesWidget(QtGui.QWidget):
 
         13-Dec-2014 by JXP
     '''
-    def __init__(self, parent=None, status=None, init_llist=None, init_z=0.):
+    def __init__(self, parent=None, status=None, init_llist=None, init_z=None):
         '''
         '''
         super(PlotLinesWidget, self).__init__(parent)
 
+        # Initialize
         if not status is None:
             self.statusBar = status
+        if init_z is None:
+            init_z = 0.
+            
         
         # Create a dialog window for redshift
         z_label = QtGui.QLabel('z=')
@@ -367,6 +469,7 @@ class PlotLinesWidget(QtGui.QWidget):
             self.llist = {} # Dict for the line lists
             self.llist['Plot'] = False
             self.llist['z'] = 0.
+            self.llist['List'] = 'None'
         else: # Fill it all up and select
             self.llist = init_llist
             if not init_llist['List'] in self.lists:
@@ -1194,8 +1297,7 @@ class AODMWidget(QtGui.QWidget):
         self.ax.clear()
 
         ymx = 0.
-        for iwrest in self.wrest:
-            ii = self.wrest.index(iwrest)
+        for ii,iwrest in enumerate(self.wrest):
 
             # Velocity
             wvobs = (1+self.z) * iwrest
@@ -1271,7 +1373,7 @@ def navigate(psdict,event,init=False):
     '''
     # Initalize
     if init is True:
-        return ['l','r','b','t','i','o','[',']','W','Z', 'Y', '{', '}']
+        return ['l','r','b','t','i','I', 'o','O', '[',']','W','Z', 'Y', '{', '}']
 
     #
     if (not isinstance(event.xdata,float)) or (not isinstance(event.ydata,float)):
@@ -1289,9 +1391,15 @@ def navigate(psdict,event,init=False):
     elif event.key == 'i':  # Zoom in (and center)
         deltx = (psdict['xmnx'][1]-psdict['xmnx'][0])/4.
         psdict['xmnx'] = [event.xdata-deltx, event.xdata+deltx]
+    elif event.key == 'I':  # Zoom in (and center)
+        deltx = (psdict['xmnx'][1]-psdict['xmnx'][0])/16.
+        psdict['xmnx'] = [event.xdata-deltx, event.xdata+deltx]
     elif event.key == 'o':  # Zoom in (and center)
         deltx = psdict['xmnx'][1]-psdict['xmnx'][0]
         psdict['xmnx'] = [event.xdata-deltx, event.xdata+deltx]
+    elif event.key == 'O':  # Zoom in (and center)
+        deltx = psdict['xmnx'][1]-psdict['xmnx'][0]
+        psdict['xmnx'] = [event.xdata-2*deltx, event.xdata+2*deltx]
     elif event.key == 'Y':  # Zoom in (and center)
         delty = psdict['ymnx'][1]-psdict['ymnx'][0]
         psdict['ymnx'] = [event.ydata-delty, event.ydata+delty]
