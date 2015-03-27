@@ -50,11 +50,17 @@
 # Import libraries
 import numpy as np
 from astropy.table import Table
-import pdb
+
+from xastropy.xutils import xdebug as xdb
+
+# def stod1 :: Input RA/DEC as strings and return RA/DEC in decimal degrees
 
 #### ###############################
 #  Main driver (return decimal values for inputted string)
 def stod1(rads):
+    """
+    Input RA/DEC as strings and return RA/DEC in decimal degrees
+    """
     # RA
     #pdb.set_trace()
     ra = np.array(rads[0].split(':'),dtype='float')
