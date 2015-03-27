@@ -55,7 +55,6 @@ class XSpectrum1D(Spectrum1D):
         pix: array
           Integer list of pixels
         """
-
         if len(args) == 1: # Option 1
             wvmnx = args[0]
         elif len(args) == 3: # Option 2
@@ -71,7 +70,7 @@ class XSpectrum1D(Spectrum1D):
 
         # Fill + Return
         self.sub_pix = gdpix
-        return wvmnx, pixmin, pixmax
+        return gdpix, wvmnx, (pixmin, pixmax)
 
     #### ###############################
     #  Box car smooth
@@ -83,6 +82,9 @@ class XSpectrum1D(Spectrum1D):
         ----------
         nbox: integer
           Number of pixels to smooth over
+
+        Returns:
+          XSpectrum1D of the smoothed spectrum
         """
         from xastropy.xutils import arrays as xxa
         # Truncate arrays as need be

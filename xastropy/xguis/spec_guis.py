@@ -40,9 +40,10 @@ from xastropy.xguis import spec_widgets as xspw
 class XSpecGui(QtGui.QMainWindow):
     ''' GUI to replace XIDL x_specplot
 
-        12-Dec-2014 by JXP
+        12-Dec-2014 by JXP v1.0
+        27-Mar-2015 by JXP v2.0 :: EW, column, better zooming + panning
     '''
-    def __init__(self, spec, parent=None):
+    def __init__(self, spec, parent=None, zsys=None):
         QtGui.QMainWindow.__init__(self, parent)
         '''
         spec = Spectrum1D
@@ -56,10 +57,11 @@ class XSpecGui(QtGui.QMainWindow):
         self.create_status_bar()
 
         # Grab the pieces and tie together
-        self.pltline_widg = xspw.PlotLinesWidget(status=self.statusBar)
+        self.pltline_widg = xspw.PlotLinesWidget(status=self.statusBar, init_z=zsys)
         self.pltline_widg.setMaximumWidth(300)
         self.spec_widg = xspw.ExamineSpecWidget(spec,status=self.statusBar,
-                                                llist=self.pltline_widg.llist)
+                                                llist=self.pltline_widg.llist,
+                                                zsys=zsys)
         self.pltline_widg.spec_widg = self.spec_widg
 
         self.spec_widg.canvas.mpl_connect('button_press_event', self.on_click)
@@ -450,11 +452,18 @@ def run_xspec():
     parser = argparse.ArgumentParser(description='Parse for XSpec')
     parser.add_argument("flag", type=int, help="GUI flag (ignored)")
     parser.add_argument("file", type=str, help="Spectral file")
+    parser.add_argument("-zsys", type=float, help="System Redshift")
     
     args = parser.parse_args()
 
+    # Second spectral file?
+    try:
+        zsys = args.zsys
+    except AttributeError:
+        zsys=None
+
     app = QtGui.QApplication(sys.argv)
-    gui = XSpecGui(args.file)
+    gui = XSpecGui(args.file, zsys=zsys)
     gui.show()
     app.exec_()
 
