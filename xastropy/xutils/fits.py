@@ -23,6 +23,11 @@ from astropy.table import Table, Column
 from xastropy.xutils import xdebug as xdb
 
 #
+def bintab_to_table(fits_fil):
+    ''' Read a binary FITS table into an astropy Table
+    ''' 
+    return Table( fits.open(fits_fil)[1].data )
+
 def table_to_fits(table, outfil, compress=False, comment=None):
     ''' Write an astropy Table as a FITS binary table
     ---

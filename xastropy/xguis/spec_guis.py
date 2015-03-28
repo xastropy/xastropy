@@ -43,7 +43,7 @@ class XSpecGui(QtGui.QMainWindow):
         12-Dec-2014 by JXP v1.0
         27-Mar-2015 by JXP v2.0 :: EW, column, better zooming + panning
     '''
-    def __init__(self, spec, parent=None, zsys=None):
+    def __init__(self, spec, parent=None, zsys=None, norm=None):
         QtGui.QMainWindow.__init__(self, parent)
         '''
         spec = Spectrum1D
@@ -61,7 +61,7 @@ class XSpecGui(QtGui.QMainWindow):
         self.pltline_widg.setMaximumWidth(300)
         self.spec_widg = xspw.ExamineSpecWidget(spec,status=self.statusBar,
                                                 llist=self.pltline_widg.llist,
-                                                zsys=zsys)
+                                                zsys=zsys, norm=norm)
         self.pltline_widg.spec_widg = self.spec_widg
 
         self.spec_widg.canvas.mpl_connect('button_press_event', self.on_click)
@@ -453,8 +453,15 @@ def run_xspec():
     parser.add_argument("flag", type=int, help="GUI flag (ignored)")
     parser.add_argument("file", type=str, help="Spectral file")
     parser.add_argument("-zsys", type=float, help="System Redshift")
+    parser.add_argument("--un_norm", help="Spectrum is NOT normalized",
+                        action="store_true")
     
     args = parser.parse_args()
+
+    # Normalized?
+    norm=True
+    if args.un_norm:
+        norm=False
 
     # Second spectral file?
     try:
@@ -463,7 +470,7 @@ def run_xspec():
         zsys=None
 
     app = QtGui.QApplication(sys.argv)
-    gui = XSpecGui(args.file, zsys=zsys)
+    gui = XSpecGui(args.file, zsys=zsys, norm=norm)
     gui.show()
     app.exec_()
 
