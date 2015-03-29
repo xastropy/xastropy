@@ -215,14 +215,12 @@ class AbsLine(SpectralLine):
 
         # Units
         if spec.wcs.unit == 1.:
-            unit = u.AA
-        else:
-            unit = spec.wcs.unit
+            raise ValueError('Expecting a unit!')
 
         # Simple boxcar
-        EW = np.sum( dwv * (1. - fx) ) * unit
+        EW = np.sum( dwv * (1. - fx) ) 
         varEW = np.sum( dwv**2 * sig**2 )
-        sigEW = np.sqrt(varEW) * unit
+        sigEW = np.sqrt(varEW) 
 
 
         # Fill

@@ -17,6 +17,7 @@ import os, imp
 from astropy import units as u
 from astropy.io import fits, ascii
 from astropy.utils.misc import isiterable
+from astropy.table import Table
 
 from xastropy.outils import roman
 from xastropy.atomic.elements import ELEMENTS
@@ -120,12 +121,14 @@ class Abs_Line_List(object):
         self.read_llist(linelist)
 
     # Read standard line list
-    def read_llist(self,llist, fmt=0):
+    def read_llist(self,llist, fmt=0, set_unit='AA'):
         '''
         fmt: int (0)
            Format of line list.  Follows XIDL formatting..
            0: Standard absorption lines
            1: Galaxy/Quasar lines
+        set_unit: string ('AA')
+           Set units of wavelength. Use None to avoid 
         '''
 
         # Path + Format
@@ -141,6 +144,9 @@ class Abs_Line_List(object):
             self.data = ascii.read(gdfil, format='fixed_width_no_header',data_start=1,
                             names=('wrest', 'flg', 'name'),
                             col_starts=(0,10,13), col_ends=(7,11,23))
+        # Specify Units
+        if not set_unit is None:
+            self.data['wrest'].unit = u.Unit(set_unit)
         return
 
     # Add additional atomic data
@@ -151,7 +157,7 @@ class Abs_Line_List(object):
 
 ## ##############
 # Grab atomic data
-def abs_line_data(wrest, datfil=None, ret_flg=0, tol=1e-3):
+def abs_line_data(wrest, datfil=None, ret_flg=0, tol=1e-3*u.AA):
     """
     wrest : float or array
       -- Input wavelength (Ang)
@@ -166,7 +172,10 @@ def abs_line_data(wrest, datfil=None, ret_flg=0, tol=1e-3):
         datfil = xa_path+'/data/atomic/spec_atomic_lines.fits'
     # Read
     hdu = fits.open(datfil)
-    data = hdu[1].data
+    data = Table(hdu[1].data)
+
+    # Add units
+    data['wrest'].unit = 'AA'
 
     if not isiterable(wrest):
         wrest = [wrest]
@@ -334,13 +343,11 @@ def mk_line_list_fits_table(outfil=None,XIDL=False):
 if __name__ == '__main__':
 
     flg_test = 0
-    flg_test = 1  # Generate Line list
+    #flg_test = 1  # Generate Line list
     #flg_test += 2 # Abs_Line Class
     #flg_test += 2**2 # Abs_Line with spectra
-    #flg_test += 2**3 # abs_line_data
-    #
-    #flg_test += 2**9 # LLS Survey NHI
-    #flg_test += 2**10 # LLS Survey ions
+    flg_test += 2**3 # abs_line_data
+    #flg_test += 2**4 # Line list
 
     
     # Generate spec_lines.fits
@@ -353,12 +360,12 @@ if __name__ == '__main__':
         print(line)
 
     # Spectrum tests for Abs_Line
-    if (flg_test % 2**3) >= 2**2:
-        spec_fil = '/Users/xavier/Keck/HIRES/RedData/PH957/PH957_f.fits'
-        line = Abs_Line(1608.4511, z=2.309, spec_file=spec_fil)
-        line.attrib['vmin'] = -20.
-        line.attrib['vmax'] = 90.
-        print(line.vpeak())
+    #if (flg_test % 2**3) >= 2**2:
+    #    spec_fil = '/Users/xavier/Keck/HIRES/RedData/PH957/PH957_f.fits'
+    #    line = Abs_Line(1608.4511, z=2.309, spec_file=spec_fil)
+    #    line.attrib['vmin'] = -20.
+    #    line.attrib['vmax'] = 90.
+    #    print(line.vpeak())
 
     # abs_line_data
     if (flg_test % 2**4) >= 2**3:
@@ -367,3 +374,7 @@ if __name__ == '__main__':
         lines = abs_line_data([1215.6701,1206.500], ret_flg=1)
         print(lines)
 
+    # Line list
+    if (flg_test % 2**5) >= 2**4:
+        line_file = xa_path+'/data/spec_lines/grb.lst'
+        llist_cls = Abs_Line_List(line_file)

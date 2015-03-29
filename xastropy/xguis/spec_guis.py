@@ -28,8 +28,9 @@ from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as Navigatio
 # Matplotlib Figure object
 from matplotlib.figure import Figure
 
-from xastropy.xutils import xdebug as xdb
+from astropy import units as u
 
+from xastropy.xutils import xdebug as xdb
 from xastropy.xguis import spec_widgets as xspw
 
 #class XSpecGui(QtGui.QMainWindow):
@@ -445,9 +446,21 @@ class XAODMGui(QtGui.QDialog):
 
 
 # Script to run XSpec from the command line
-def run_xspec():
+def run_xspec(*args, **kwargs):
+    '''
+    Runs the XSpecGui
+
+    Command line
+    or from Python
+    Examples:
+      1.  python ~/xastropy/xastropy/xguis/spec_guis.py 1
+      2.  spec_guis.run_xspec(filename)
+      3.  spec_guis.run_xspec(spec1d)
+    '''
 
     import argparse
+    from specutils import Spectrum1D
+    from xastropy.spec.utils import XSpectrum1D
 
     parser = argparse.ArgumentParser(description='Parse for XSpec')
     parser.add_argument("flag", type=int, help="GUI flag (ignored)")
@@ -455,22 +468,34 @@ def run_xspec():
     parser.add_argument("-zsys", type=float, help="System Redshift")
     parser.add_argument("--un_norm", help="Spectrum is NOT normalized",
                         action="store_true")
-    
-    args = parser.parse_args()
 
+    if len(args) == 0:
+        pargs = parser.parse_args()
+    else: # better know what you are doing!
+        #xdb.set_trace()
+        if type(args[0]) in [XSpectrum1D, Spectrum1D]: 
+            app = QtGui.QApplication(sys.argv)
+            gui = XSpecGui(args[0], **kwargs)
+            gui.show()
+            app.exec_()
+            return
+        else: # String parsing 
+            largs = ['1'] + [iargs for iargs in args]
+            pargs = parser.parse_args(largs)
+    
     # Normalized?
     norm=True
-    if args.un_norm:
+    if pargs.un_norm:
         norm=False
 
     # Second spectral file?
     try:
-        zsys = args.zsys
+        zsys = pargs.zsys
     except AttributeError:
         zsys=None
 
     app = QtGui.QApplication(sys.argv)
-    gui = XSpecGui(args.file, zsys=zsys, norm=norm)
+    gui = XSpecGui(pargs.file, zsys=zsys, norm=norm)
     gui.show()
     app.exec_()
 
@@ -500,7 +525,6 @@ def run_xabsid():
     if args.secondfile:
         second_file=args.secondfile
 
-    #xdb.set_trace()
     # Launch
     app = QtGui.QApplication(sys.argv)
     gui = XAbsIDGui(args.file, norm=norm, second_file=second_file)
@@ -520,8 +544,8 @@ if __name__ == "__main__":
         #flg_fig += 2**0  # XSpec
         #flg_fig += 2**1  # XAbsID
         #flg_fig += 2**2  # XVelPlt Gui
-        flg_fig += 2**3  # XVelPlt Gui without ID list; Also tests select wave
-        #flg_fig += 2**4  # XAODM Gui
+        #flg_fig += 2**3  # XVelPlt Gui without ID list; Also tests select wave
+        flg_fig += 2**4  # XAODM Gui
     
         # Read spectrum
         spec_fil = '/u/xavier/Keck/HIRES/RedData/PH957/PH957_f.fits'
@@ -539,7 +563,7 @@ if __name__ == "__main__":
             #spec_fil = '/u/xavier/PROGETTI/LLSZ3/data/normalize/SDSSJ1004+0018_nF.fits'
             #spec = xspec.readwrite.readspec(spec_fil)
             #norm = True
-            spec_fil = '/Users/xavier/Dropbox/CASBAH/jxp_analysis/FBQS0751/fbqs0751_nov2014bin.fits'
+            spec_fil = '/Users/xavier/Dropbox/CASBAH/jxp_analysis/FBQS0751+2919/fbqs0751_nov2014bin.fits'
             norm = False
             absid_fil = '/Users/xavier/paper/LLS/Optical/Data/Analysis/MAGE/SDSSJ1004+0018_z2.746_id.fits'
             absid_fil2 = '/Users/xavier/paper/LLS/Optical/Data/Analysis/MAGE/SDSSJ2348-1041_z2.997_id.fits'
@@ -569,7 +593,7 @@ if __name__ == "__main__":
             #spec_fil = '/u/xavier/PROGETTI/LLSZ3/data/normalize/SDSSJ1004+0018_nF.fits'
             #z=2.746
             #outfil='/Users/xavier/Desktop/J1004+0018_z2.746_id.fits'
-            spec_fil = '/Users/xavier/Dropbox/CASBAH/jxp_analysis/FBQS0751/fbqs0751_nov2014bin.fits'
+            spec_fil = '/Users/xavier/Dropbox/CASBAH/jxp_analysis/FBQS0751+2919/fbqs0751_nov2014bin.fits'
             z=0.
             outfil='/Users/xavier/Desktop/tmp.fits'
             #
@@ -585,9 +609,9 @@ if __name__ == "__main__":
             #z=2.96916
             #lines = [1548.195, 1550.770]
             norm = True
-            spec_fil = '/Users/xavier/Dropbox/CASBAH/jxp_analysis/FBQS0751/fbqs0751_nov2014bin.fits'
+            spec_fil = '/Users/xavier/Dropbox/CASBAH/jxp_analysis/FBQS0751+2919/fbqs0751_nov2014bin.fits'
             z=0.4391
-            lines = [1215.6701, 1025.7223]
+            lines = [1215.6701, 1025.7223] * u.AA
             norm = False
             # Launch
             spec = xspec.readwrite.readspec(spec_fil)

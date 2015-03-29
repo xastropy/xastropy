@@ -27,6 +27,7 @@ from matplotlib.figure import Figure
 
 from astropy.table.table import Table
 from astropy import constants as const
+from astropy import units as u
 from astropy.nddata import StdDevUncertainty
 
 from specutils.spectrum1d import Spectrum1D
@@ -80,7 +81,7 @@ class ExamineSpecWidget(QtGui.QWidget):
 
         # Line List?
         if llist is None:
-            self.llist = {'Plot': False}
+            self.llist = {'Plot': False, 'List': 'None', 'z': 0.}
         else:
             self.llist = llist
 
@@ -120,13 +121,16 @@ class ExamineSpecWidget(QtGui.QWidget):
     # Setup the spectrum plotting info
     def init_spec(self):
         #xy min/max
-        xmin = np.min(self.spec.dispersion)
-        xmax = np.max(self.spec.dispersion)
+        xmin = np.min(self.spec.dispersion).value
+        xmax = np.max(self.spec.dispersion).value
         ymed = np.median(self.spec.flux).value
         ymin = 0. - 0.1*ymed
         ymax = ymed * 1.5
         #
-        self.psdict['xmnx'] = [xmin,xmax]
+        #QtCore.pyqtRemoveInputHook()
+        #xdb.set_trace()
+        #QtCore.pyqtRestoreInputHook()
+        self.psdict['xmnx'] = np.array([xmin,xmax])
         self.psdict['ymnx'] = [ymin,ymax]
         self.psdict['sv_xy'] = [ [xmin,xmax], [ymin,ymax] ]
         self.psdict['nav'] = navigate(0,0,init=True)
@@ -165,7 +169,7 @@ class ExamineSpecWidget(QtGui.QWidget):
             #QtCore.pyqtRemoveInputHook()
             #xdb.set_trace()
             #QtCore.pyqtRestoreInputHook()
-            if (event.key == 'N') & (self.llist['List'] == 'None'):
+            if (event.key in ['N','E']) & (self.llist['List'] == 'None'):
                 print('xspec: Choose a Line list first!')
                 try:
                     self.statusBar().showMessage('Choose a Line list first!')
@@ -185,7 +189,10 @@ class ExamineSpecWidget(QtGui.QWidget):
                 self.adict['flg'] = 2 # Ready to plot + print
 
                 # Sort em + make arrays
-                iwv = np.array(sorted([self.adict['wv_1'], self.adict['wv_2']]))
+                #QtCore.pyqtRemoveInputHook()
+                #xdb.set_trace()
+                #QtCore.pyqtRestoreInputHook()
+                iwv = np.array(sorted([self.adict['wv_1'], self.adict['wv_2']])) * self.spec.wcs.unit
                 ic = np.array(sorted([self.adict['C_1'], self.adict['C_2']]))
 
                 # Calculate the continuum (linear fit)
@@ -887,8 +894,8 @@ class VelPlotWidget(QtGui.QWidget):
         wvmin = np.min(self.spec.dispersion)
         wvmax = np.max(self.spec.dispersion)
         #
-        wrest = self.llist[self.llist['List']]['wrest']
-        wvobs = (1+self.z) * np.array(wrest)
+        wrest = u.Quantity(self.llist[self.llist['List']]['wrest'])
+        wvobs = (1+self.z) * wrest
         gdlin = np.where( (wvobs > wvmin) & (wvobs < wvmax) )[0]
         self.llist['show_line'] = gdlin
 
@@ -897,18 +904,16 @@ class VelPlotWidget(QtGui.QWidget):
         # Update/generate lines
         for idx in gdlin:
             # Generate?
-            #QtCore.pyqtRemoveInputHook()
-            #xdb.set_trace()
-            #QtCore.pyqtRestoreInputHook()
-            if not wrest[idx] in existing_lines:
-                self.abs_sys.lines[wrest[idx]] = xspec.analysis.Spectral_Line(wrest[idx])
-                print('VelPlot: Generating line {:g}'.format(wrest[idx]))
-                self.abs_sys.lines[wrest[idx]].analy['VLIM'] = np.array([self.vmnx[0]/2.,
+            kwrest = wrest[idx].value
+            if not kwrest in existing_lines:
+                self.abs_sys.lines[kwrest] = xspec.analysis.Spectral_Line(kwrest)
+                print('VelPlot: Generating line {:g}'.format(kwrest))
+                self.abs_sys.lines[kwrest].analy['VLIM'] = np.array([self.vmnx[0]/2.,
                                                                 self.vmnx[1]/2.])
-                self.abs_sys.lines[wrest[idx]].analy['FLG_ANLY'] = 2 # Init to ok
+                self.abs_sys.lines[kwrest].analy['FLG_ANLY'] = 2 # Init to ok
             # Spec file
             if not self.spec_fil is None:
-                self.abs_sys.lines[wrest[idx]].analy['DATFIL'] = self.spec_fil
+                self.abs_sys.lines[kwrest].analy['DATFIL'] = self.spec_fil
             
         
     # Key stroke 
@@ -959,12 +964,14 @@ class VelPlotWidget(QtGui.QWidget):
                 wrest = event.inaxes.get_gid()
             except AttributeError:
                 return
+            else:
+                kwrest = wrest.value
 
         ## Velocity limits
         if event.key == '1': 
-            self.abs_sys.lines[wrest].analy['VLIM'][0] = event.xdata
+            self.abs_sys.lines[kwrest].analy['VLIM'][0] = event.xdata
         if event.key == '2': 
-            self.abs_sys.lines[wrest].analy['VLIM'][1] = event.xdata
+            self.abs_sys.lines[kwrest].analy['VLIM'][1] = event.xdata
         if event.key == '!': 
             for key in self.abs_sys.lines.keys():
                 try:
@@ -979,16 +986,16 @@ class VelPlotWidget(QtGui.QWidget):
                     print('Not setting VLIM for {:g}'.format(key))
         ## Line type
         if event.key == 'A': # Add to lines
-            if not wrest in self.abs_sys.lines.keys():
-                self.abs_sys.lines[wrest] = xspec.analysis.Spectral_Line(wrest)
-                print('VelPlot: Generating line {:g}'.format(wrest))
-                self.abs_sys.lines[wrest].analy['VLIM'] = np.array([self.vmnx[0]/2.,
+            if not kwrest in self.abs_sys.lines.keys():
+                self.abs_sys.lines[kwrest] = xspec.analysis.Spectral_Line(wrest)
+                print('VelPlot: Generating line {:g}'.format(kwrest))
+                self.abs_sys.lines[kwrest].analy['VLIM'] = np.array([self.vmnx[0]/2.,
                                                                 self.vmnx[1]/2.])
-                self.abs_sys.lines[wrest].analy['FLG_ANLY'] = 2 # Init to ok
-                self.abs_sys.lines[wrest].analy['DATFIL'] = self.spec_fil
+                self.abs_sys.lines[kwrest].analy['FLG_ANLY'] = 2 # Init to ok
+                self.abs_sys.lines[kwrest].analy['DATFIL'] = self.spec_fil
         if event.key == 'x': # Remove line
-            if wrest in self.abs_sys.lines.keys():
-                self.abs_sys.lines.pop(wrest)
+            if kwrest in self.abs_sys.lines.keys():
+                self.abs_sys.lines.pop(kwrest)
                 print('VelPlot: Removed line {:g}'.format(wrest))
         if event.key == 'X': # Remove all lines (might add warning widget)
             # Double check
@@ -997,32 +1004,32 @@ class VelPlotWidget(QtGui.QWidget):
             if gui.ans is False:
                 return
             #
-            for wrest in self.abs_sys.lines.keys():
+            for kwrest in self.abs_sys.lines.keys():
                 self.abs_sys.lines.pop(wrest)
                 print('VelPlot: Removed line {:g}'.format(wrest))
         if event.key == 'B':  # Toggle blend
             try:
-                feye = self.abs_sys.lines[wrest].analy['FLG_EYE'] 
+                feye = self.abs_sys.lines[kwrest].analy['FLG_EYE'] 
             except KeyError:
                 feye = 0
             feye = (feye + 1) % 2
-            self.abs_sys.lines[wrest].analy['FLG_EYE']  = feye
+            self.abs_sys.lines[kwrest].analy['FLG_EYE']  = feye
         if event.key == 'N':  # Toggle NG
             try:
-                fanly = self.abs_sys.lines[wrest].analy['FLG_ANLY'] 
+                fanly = self.abs_sys.lines[kwrest].analy['FLG_ANLY'] 
             except KeyError:
                 fanly = 2
             if fanly == 0:
                 fanly = 2 # Not using 1 anymore..
             else:
                 fanly = 0
-            self.abs_sys.lines[wrest].analy['FLG_ANLY']  = fanly
+            self.abs_sys.lines[kwrest].analy['FLG_ANLY']  = fanly
         if event.key == 'V':  # Normal
-            self.abs_sys.lines[wrest].analy['FLG_LIMIT'] = 1
+            self.abs_sys.lines[kwrest].analy['FLG_LIMIT'] = 1
         if event.key == 'L':  # Lower limit
-            self.abs_sys.lines[wrest].analy['FLG_LIMIT'] = 2
+            self.abs_sys.lines[kwrest].analy['FLG_LIMIT'] = 2
         if event.key == 'U':  # Upper limit
-            self.abs_sys.lines[wrest].analy['FLG_LIMIT'] = 3
+            self.abs_sys.lines[kwrest].analy['FLG_LIMIT'] = 3
             
         # AODM plot
         if event.key == ':':  # 
@@ -1077,9 +1084,6 @@ class VelPlotWidget(QtGui.QWidget):
         """ Redraws the figure
         """
         #
-        #QtCore.pyqtRemoveInputHook()
-        #xdb.set_trace()
-        #QtCore.pyqtRestoreInputHook()
         if replot is True:
             if fig_clear:
                 self.fig.clf()
@@ -1097,10 +1101,15 @@ class VelPlotWidget(QtGui.QWidget):
                     continue # Likely too few lines
                 # Grab line
                 #wvobs = np.array((1+self.z) * self.llist[self.llist['List']]['wrest'][idx])
-                wrest = self.llist[self.llist['List']]['wrest'][idx]
+                wrest = (self.llist[self.llist['List']]['wrest'][idx] *
+                         self.llist[self.llist['List']]['wrest'].unit)
+                kwrest = wrest.value # For the Dict
+                #QtCore.pyqtRemoveInputHook()
+                #xdb.set_trace()
+                #QtCore.pyqtRestoreInputHook()
                 # Single window?
                 if not in_wrest is None:
-                    if np.abs(wrest-in_wrest) > 1e-3:
+                    if np.abs(wrest-in_wrest) > (1e-3*u.AA):
                         continue
                 # Generate plot
                 self.ax = self.fig.add_subplot(self.sub_xy[0],self.sub_xy[1], subp_idx[jj])
@@ -1128,6 +1137,9 @@ class VelPlotWidget(QtGui.QWidget):
                     self.ax.get_xaxis().set_ticks([])
                 #if ((jj+1) // 2 == 0) & (jj < self.sub_xy[0]):
                 #    self.ax.set_ylabel('Relative Flux')
+                #QtCore.pyqtRemoveInputHook()
+                #xdb.set_trace()
+                #QtCore.pyqtRestoreInputHook()
                 lbl = self.llist[self.llist['List']]['name'][idx]
                 self.ax.text(0.1, 0.05, lbl, color='blue', transform=self.ax.transAxes,
                              size='x-small', ha='left')
@@ -1152,14 +1164,17 @@ class VelPlotWidget(QtGui.QWidget):
 
                 # Abs_Sys: Color the lines
                 if not self.abs_sys is None:
+                    #QtCore.pyqtRemoveInputHook()
+                    #xdb.set_trace()
+                    #QtCore.pyqtRestoreInputHook()
                     try:
-                        vlim = self.abs_sys.lines[wrest].analy['VLIM']
+                        vlim = self.abs_sys.lines[kwrest].analy['VLIM']
                     except KeyError:
                         continue
                     # Color coding
                     clr = 'black'
                     try:  # .clm style
-                        flag = self.abs_sys.lines[wrest].analy['FLAGS'][0]
+                        flag = self.abs_sys.lines[kwrest].analy['FLAGS'][0]
                     except KeyError:
                         flag = None
                     else:
@@ -1171,14 +1186,14 @@ class VelPlotWidget(QtGui.QWidget):
                             clr = 'purple'
                     # ABS ID
                     try: # NG?
-                        flagA = self.abs_sys.lines[wrest].analy['FLG_ANLY']
+                        flagA = self.abs_sys.lines[kwrest].analy['FLG_ANLY']
                     except KeyError:
                         flagA = None
                     else:
                         if (flagA>0) & (clr == 'black'):
                             clr = 'green'
                     try: # Limit?
-                        flagL = self.abs_sys.lines[wrest].analy['FLG_LIMIT']
+                        flagL = self.abs_sys.lines[kwrest].analy['FLG_LIMIT']
                     except KeyError:
                         flagL = None
                     else:
@@ -1187,7 +1202,7 @@ class VelPlotWidget(QtGui.QWidget):
                         if flagL == 3:
                             clr = 'purple'
                     try: # Blends?
-                        flagE = self.abs_sys.lines[wrest].analy['FLG_EYE']
+                        flagE = self.abs_sys.lines[kwrest].analy['FLG_EYE']
                     except KeyError:
                         flagE = None
                     else:
@@ -1290,9 +1305,6 @@ class AODMWidget(QtGui.QWidget):
         """ Redraws the figure
         """
         #
-        #QtCore.pyqtRemoveInputHook()
-        #xdb.set_trace()
-        #QtCore.pyqtRestoreInputHook()
         self.ax = self.fig.add_subplot(1,1,1)
         self.ax.clear()
 
@@ -1313,7 +1325,7 @@ class AODMWidget(QtGui.QWidget):
                 fsplice = 1./ self.spec.flux[gdp]
 
             # AODM
-            cst = (10.**14.5761)/(self.lines[ii].atomic['fval']*iwrest)
+            cst = (10.**14.5761)/(self.lines[ii].atomic['fval']*iwrest.value)
             Naodm = np.log(fsplice)*cst
             ymx = max(ymx,np.max(Naodm))
                 
@@ -1335,6 +1347,9 @@ class AODMWidget(QtGui.QWidget):
         self.ax.set_xlim(self.psdict['xmnx'])
         if rescale:
             self.psdict['ymnx'] = [0.05*ymx, ymx*1.1]
+        #QtCore.pyqtRemoveInputHook()
+        #xdb.set_trace()
+        #QtCore.pyqtRestoreInputHook()
         self.ax.set_ylim(self.psdict['ymnx'])
 
         # Fonts
@@ -1474,17 +1489,13 @@ def set_llist(llist,in_dict=None):
         #xdb.set_trace()
         #QtCore.pyqtRestoreInputHook()
         # Generate a Table
-        col0 = Column(np.array(llist), name='wrest')
+        col0 = Column(np.array(llist), name='wrest', unit=u.AA) # Assumed Angstroms
         col1 = Column(np.array(names), name='name')
         col2 = Column(np.array(fval), name='fval')
         in_dict['input.lst'] = Table( (col0,col1,col2) )
 
-    #
+    # Return
     return in_dict
-
-        #QtCore.pyqtRemoveInputHook()
-        #xdb.set_trace()
-        #QtCore.pyqtRestoreInputHook()
 
 # Read spectrum, pass back it and spec_file name
 def read_spec(ispec, second_file=None):
@@ -1520,13 +1531,13 @@ if __name__ == "__main__":
     from xastropy import spec as xspec
 
     flg_fig = 0 
-    #flg_fig += 2**0  # ExamineSpecWidget
+    flg_fig += 2**0  # ExamineSpecWidget
     #flg_fig += 2**1  # PlotLinesWidget
     #flg_fig += 2**2  # SelectLineWidget
     #flg_fig += 2**3  # AbsSysWidget
     #flg_fig += 2**4  # VelPltWidget
     #flg_fig += 2**5  # SelectedLinesWidget
-    flg_fig += 2**6  # AODMWidget
+    #flg_fig += 2**6  # AODMWidget
 
     # ExamineSpec
     if (flg_fig % 2) == 1:
@@ -1611,7 +1622,7 @@ if __name__ == "__main__":
         spec_fil = '/Users/xavier/PROGETTI/LLSZ3/data/normalize/UM184_nF.fits'
         spec = xspec.readwrite.readspec(spec_fil)
         z=2.96916
-        lines = [1548.195, 1550.770]
+        lines = np.array([1548.195, 1550.770]) * u.AA
         # Launch
         app = QtGui.QApplication(sys.argv)
         app.setApplicationName('AODM')

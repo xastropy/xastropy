@@ -17,6 +17,8 @@ import numpy as np
 import os
 import astropy as apy
 
+from astropy import units as u
+
 from specutils import Spectrum1D
 from xastropy.xutils import xdebug as xdb
 

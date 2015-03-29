@@ -15,9 +15,13 @@ from __future__ import print_function, absolute_import, division, unicode_litera
 
 # Import libraries
 import numpy as np
+import os
+
 from astropy.io import fits, ascii
 from astropy.nddata import StdDevUncertainty
-import os
+from astropy import units as u
+from astropy.io.fits.fitsrec import FITS_rec
+from astropy.io.fits.hdu.table import BinTableHDU
 
 from specutils.io import read_fits as spec_read_fits
 
@@ -25,13 +29,12 @@ from xastropy.xutils import xdebug as xdb
 from xastropy.spec.utils import XSpectrum1D
 
 #### ###############################
-#  Read Spectrum1D from FITS file
-#  from xastropy.spec import readwrite as xsr
-#  sp = xsr.readspec('SDSSJ114435.54+095921.7_F.fits',outfil='SDSSJ114435.54+095921.7.fits')
+#  Generate Spectrum1D from FITS file
 #
 def readspec(specfil, inflg=None, efil=None, outfil=None, show_plot=0,
              use_barak=False, verbose=False, flux_tags=None, sig_tags=None, multi_ivar=False):
     ''' 
+    specfil: string or Table
     multi_ivar: Bool (False)
       BOSS format of  flux, ivar, log10(wave) in multi-extension FITS
     '''
@@ -47,12 +50,18 @@ def readspec(specfil, inflg=None, efil=None, outfil=None, show_plot=0,
     if inflg == None:
         inflg = 0
 
-    # Read header
-    datfil = xfg.chk_for_gz(specfil,chk=chk)
-    if chk == 0:
-        print('xastropy.spec.readwrite: File does not exist ', specfil)
-        return -1
-    hdulist = fits.open(os.path.expanduser(datfil))
+    # Check specfil type
+    if type(specfil) is Table:
+        datfil = 'None'
+        # Dummy hdulist
+        hdulist = [fits.PrimaryHDU(), specfil]
+    else:
+        # Read header
+        datfil = xfg.chk_for_gz(specfil,chk=chk)
+        if chk == 0:
+            print('xastropy.spec.readwrite: File does not exist ', specfil)
+            return -1
+        hdulist = fits.open(os.path.expanduser(datfil))
 
     ## #################
     # Binary FITS table?
@@ -108,7 +117,9 @@ def readspec(specfil, inflg=None, efil=None, outfil=None, show_plot=0,
                     efil=os.path.expanduser(efil)
 
             # Generate Spectrum1D
-            spec1d = spec_read_fits.read_fits_spectrum1d(os.path.expanduser(datfil), efil=efil)
+            spec1d = spec_read_fits.read_fits_spectrum1d(os.path.expanduser(datfil),
+                                                         dispersion_unit='AA',
+                                                         efil=efil)
             xspec1d = XSpectrum1D.from_spec1d(spec1d)
 
             #spec1d = spec_read_fits.read_fits_spectrum1d(os.path.expanduser(datfil))
@@ -131,8 +142,15 @@ def readspec(specfil, inflg=None, efil=None, outfil=None, show_plot=0,
 
     # Generate, as needed
     if 'xspec1d' not in locals():
-        # Generate
-        xspec1d = XSpectrum1D.from_array(wave, fx, uncertainty=StdDevUncertainty(sig))
+        # Give Ang as default
+        if not hasattr(wave, 'unit'):
+            dispersion_unit = u.AA
+        else:
+            dispersion_unit = None
+        #xdb.set_trace()
+        xspec1d = XSpectrum1D.from_array(u.Quantity(wave), u.Quantity(fx),
+                                         uncertainty=StdDevUncertainty(sig),
+                                         dispersion_unit=dispersion_unit)
 
     xspec1d.filename = specfil
 
@@ -195,20 +213,34 @@ def setwave(hdr):
 
 #### ###############################
 #### ###############################
-#  Grab values from the Binary FITS Table
+#  Grab values from the Binary FITS Table or Table
 def get_table_column(tags, hdulist):
     dat = None
     ii = 0
-    #pdb.set_trace()
+    # Use Table
+    if type(hdulist[1]) is BinTableHDU:
+        tab = Table(hdulist[1])
+    else:
+        tab = hdulist[1]
+
+    # Grab
+    for tag in tags:
+        if tag in tab.dtype.names: 
+            dat = tab[tag]
+            break  # Break with first hit
+
+    '''
+    For BinTableHDU (deprecated)
     while(ii < len(tags)):
         if tags[ii] in hdulist[1].columns.names: 
             dat = hdulist[1].data[tags[ii]]
             break  # Break with first hit
         else:
             ii = ii + 1
+    '''
     # Return
     if dat is not None:
-        return dat.flatten(), tags[ii]
+        return dat.flatten(), tag
     else: 
         return dat, 'NONE'
 
