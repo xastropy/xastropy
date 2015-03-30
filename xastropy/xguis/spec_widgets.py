@@ -28,6 +28,7 @@ from matplotlib.figure import Figure
 from astropy.table.table import Table
 from astropy import constants as const
 from astropy import units as u
+u.def_unit(['mAA', 'milliAngstrom'], 0.001 * u.AA, namespace=globals()) # mA
 from astropy.nddata import StdDevUncertainty
 
 from specutils.spectrum1d import Spectrum1D
@@ -243,8 +244,8 @@ class ExamineSpecWidget(QtGui.QWidget):
                         aline.analy['WVMNX'] = iwv
                         aline.restew(conti=conti)
                         mssg = 'Using '+ aline.__repr__()
-                        mssg = mssg + ' ::  EW = {:g} +/- {:g}'.format(aline.attrib['EW'],
-                                                                        aline.attrib['sigEW'])
+                        mssg = mssg + ' ::  EW = {:g} +/- {:g}'.format(aline.attrib['EW'].to('mAA'),
+                                                                        aline.attrib['sigEW'].to('mAA'))
                 # Display values
                 try:
                     self.statusBar().showMessage(mssg)

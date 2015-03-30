@@ -44,6 +44,14 @@ def table_to_fits(table, outfil, compress=False, comment=None):
     '''
 
     # Generate the header
+    table.write(outfil, format='fits', overwrite=True, comment=comment)
+
+    # Compress?
+    if compress:
+        subprocess.call(["gzip", "-f", outfil])
+    '''
+    # Uses the astropy.fits approach
+    # Generate the header
     prihdr = fits.Header()
     if not comment is None:
         prihdr['COMMENT'] = comment
@@ -59,3 +67,4 @@ def table_to_fits(table, outfil, compress=False, comment=None):
     # Compress?
     if compress:
         subprocess.call(["gzip", "-f", outfil])
+    '''

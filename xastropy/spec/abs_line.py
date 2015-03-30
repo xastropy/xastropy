@@ -170,12 +170,9 @@ def abs_line_data(wrest, datfil=None, ret_flg=0, tol=1e-3*u.AA):
     # Data file
     if datfil == None:
         datfil = xa_path+'/data/atomic/spec_atomic_lines.fits'
-    # Read
-    hdu = fits.open(datfil)
-    data = Table(hdu[1].data)
 
-    # Add units
-    data['wrest'].unit = 'AA'
+    # Read
+    data = Table.read(datfil)
 
     if not isiterable(wrest):
         wrest = [wrest]
@@ -231,7 +228,7 @@ def llist_file(llist):
 
     # Format
     tfil = llist[max(0,llist.rfind('/')):]
-    if tfil in ['gal_vac.lst']:
+    if tfil in ['gal_vac.lst', 'qso.lst']:
         fmt = 1
 
     return fil, fmt
@@ -321,6 +318,7 @@ def mk_line_list_fits_table(outfil=None,XIDL=False):
         outfil = xa_path+'/data/atomic/spec_atomic_lines.fits'
 
     # Header
+    '''
     prihdr = fits.Header()
     prihdr['COMMENT'] = "Above are the data sources"
     for ii in range(len(llist.sources)):
@@ -331,9 +329,9 @@ def mk_line_list_fits_table(outfil=None,XIDL=False):
     # Table
     table_hdu = fits.BinTableHDU.from_columns(np.array(llist.data.filled()))
 
+    '''
     # Write
-    thdulist = fits.HDUList([prihdu, table_hdu])
-    thdulist.writeto(outfil,clobber=True)
+    llist.data.write(outfil, overwrite=True, format='fits')
     print('mk_line_list: Wrote {:s}'.format(outfil))
 
 

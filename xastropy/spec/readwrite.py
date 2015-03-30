@@ -144,13 +144,14 @@ def readspec(specfil, inflg=None, efil=None, outfil=None, show_plot=0,
     if 'xspec1d' not in locals():
         # Give Ang as default
         if not hasattr(wave, 'unit'):
-            dispersion_unit = u.AA
+            uwave = u.Quantity(wave, unit=u.AA)
         else:
-            dispersion_unit = None
-        #xdb.set_trace()
-        xspec1d = XSpectrum1D.from_array(u.Quantity(wave), u.Quantity(fx),
-                                         uncertainty=StdDevUncertainty(sig),
-                                         dispersion_unit=dispersion_unit)
+            if wave.unit is None:
+                uwave = u.Quantity(wave, unit=u.AA)
+            else:
+                uwave = u.Quantity(wave)
+        xspec1d = XSpectrum1D.from_array(uwave, u.Quantity(fx),
+                                         uncertainty=StdDevUncertainty(sig))
 
     xspec1d.filename = specfil
 
