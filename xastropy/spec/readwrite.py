@@ -99,10 +99,10 @@ def readspec(specfil, inflg=None, efil=None, outfil=None, show_plot=0,
     elif hdulist[0].header['NAXIS'] == 1: # Data in the zero extension
         # Look for wavelength info
         try:
-            ctype1 = hdulist[0].header['CTYPE1']
+            ctype1 = hdulist[0].header['CTYPE1'].strip()
         except KeyError:
             ctype1 = ''
-        if ('CRVAL1' in hdulist[0].header.keys()) and (multi_ivar is False) and (not ctype1 in ['RA---TAN']):
+        if ('CRVAL1' in hdulist[0].header.keys()) and (multi_ivar is False) and (not ctype1 in ['RA---TAN','PIXEL']):
             # Error
             if efil == None:
                 ipos = max(specfil.find('F.fits'),specfil.find('f.fits'))

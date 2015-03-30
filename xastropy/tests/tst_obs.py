@@ -1,7 +1,7 @@
 # Tests the codes in xastropy.obs 
 #   Requires "requests", "astropy", "aplpy", "PIL"
 from xastropy.obs import x_finder as xf
-from xastropy.obs import x_radec as x_r
+from xastropy.obs import radec as x_r
 
 def finder():
     reload(x_r)
