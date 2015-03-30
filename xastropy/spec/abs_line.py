@@ -113,15 +113,15 @@ class Abs_Line_List(object):
         lines: List of absorption lines
     """
     # Init
-    def __init__(self,linelist):
+    def __init__(self,linelist,silent=False):
         self.lines = []
 
         # Fill her up
         self.sources = [linelist]
-        self.read_llist(linelist)
+        self.read_llist(linelist,silent=silent)
 
     # Read standard line list
-    def read_llist(self,llist, fmt=0, set_unit='AA'):
+    def read_llist(self,llist, fmt=0, set_unit='AA', silent=False):
         '''
         fmt: int (0)
            Format of line list.  Follows XIDL formatting..
@@ -133,7 +133,8 @@ class Abs_Line_List(object):
 
         # Path + Format
         gdfil,fmt = llist_file(llist)
-        print('gdfil = {:s}, fmt={:d}'.format(gdfil,fmt))
+        if not silent:
+            print('gdfil = {:s}, fmt={:d}'.format(gdfil,fmt))
 
         if fmt == 0:
             # Read Absorption Lines with Fixed Format (astropy Table)
@@ -143,7 +144,7 @@ class Abs_Line_List(object):
         elif fmt == 1:
             self.data = ascii.read(gdfil, format='fixed_width_no_header',data_start=1,
                             names=('wrest', 'flg', 'name'),
-                            col_starts=(0,10,13), col_ends=(7,11,23))
+                            col_starts=(0,10,13), col_ends=(8,11,23))
         # Specify Units
         if not set_unit is None:
             self.data['wrest'].unit = u.Unit(set_unit)
@@ -228,7 +229,7 @@ def llist_file(llist):
 
     # Format
     tfil = llist[max(0,llist.rfind('/')):]
-    if tfil in ['gal_vac.lst', 'qso.lst']:
+    if tfil in ['gal_vac.lst', 'agn.lst']:
         fmt = 1
 
     return fil, fmt
