@@ -20,6 +20,7 @@ import os
 from astropy.io import fits, ascii
 from astropy.nddata import StdDevUncertainty
 from astropy import units as u
+from astropy.table import Table
 from astropy.io.fits.fitsrec import FITS_rec
 from astropy.io.fits.hdu.table import BinTableHDU
 
@@ -220,7 +221,7 @@ def get_table_column(tags, hdulist):
     ii = 0
     # Use Table
     if type(hdulist[1]) is BinTableHDU:
-        tab = Table(hdulist[1])
+        tab = Table(hdulist[1].data)
     else:
         tab = hdulist[1]
 
