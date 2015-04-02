@@ -5,6 +5,8 @@
 #  Import libraries
 from __future__ import print_function, absolute_import, division, unicode_literals
 
+assert False # Code is now back in PH136 SVN as code_exercise.py
+
 import numpy as np
 import glob, os, sys
 

@@ -43,8 +43,10 @@ def table_to_fits(table, outfil, compress=False, comment=None):
        Comment to insert into the header
     '''
 
-    # Generate the header
-    table.write(outfil, format='fits', overwrite=True, comment=comment)
+    # Comments
+    if not comment is None:
+        table.meta['comments'] = [comment]
+    table.write(outfil, format='fits', overwrite=True)
 
     # Compress?
     if compress:
