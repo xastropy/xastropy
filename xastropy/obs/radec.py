@@ -26,6 +26,15 @@ from xastropy.xutils import xdebug as xdb
 def stod1(rads):
     """
     Input RA/DEC as strings and return RA/DEC in decimal degrees
+
+    Parameters:
+    ----------
+    rads: tuple (RA, DEC as a string with colon format)
+
+    Returns:
+    ----------
+    rad: tuple (RA, DEC in decimal degrees with units)
+
     """
     # RA
     #pdb.set_trace()
@@ -59,7 +68,7 @@ def dtos1(irad, fmt=0):
     rad = list(irad)
     for ii in range(2):
         try:
-            rad[ii].to('degrees')
+            rad[ii].to('degree')
         except AttributeError:
             rad[ii] = rad[ii] * u.degree
         
