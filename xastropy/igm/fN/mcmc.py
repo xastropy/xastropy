@@ -347,7 +347,7 @@ def save_figures(MC, email):
     #######################################
     #Creates new directory for output
     t = strftime("%Y-%m-%d %H:%M:%S", gmtime())
-    newpath = 'C:/Xastropy Output Files/' + email + t 
+    newpath = 'C:/Xastropy Output Files/' + email
     if not os.path.exists(newpath): os.makedirs(newpath)
     
     #creates ascii file with the best values and their errors 
@@ -376,14 +376,14 @@ def save_figures(MC, email):
 ##########################################
 #  Drives the full MCMC experience
 ##########################################
-def mcmc_main(flg_model=0, flg_plot=0):
+def mcmc_main(**kwargs, flg_model=0, flg_plot=0):
     '''
+    kwargs = Dict containing keyword arguments, with keys
+    'email' and 'datasources' and 'extrasources'
     flg_model = Flag controlling the f(N) model fitted
        0: JXP spline
        1: Inoue+14 functional form
     '''
-    #TODO: Make this main function take in values for user email 
-    # and for list of data
     
     import argparse
 
@@ -402,7 +402,7 @@ def mcmc_main(flg_model=0, flg_plot=0):
 
     # ##########################
     # Set Data
-    fN_data = set_fn_data()
+    fN_data = set_fn_data(kwargs[datasources], kwargs[extrasources])
     
     # Set f(N) functional form 
     fN_model = set_fn_model(flg=flg_model)
@@ -415,13 +415,14 @@ def mcmc_main(flg_model=0, flg_plot=0):
         xifd.tst_fn_data(fN_model=fN_model)
 
     # Run
-    run(fN_data, fN_model, parm)
-	
-	
-    #TODO: call save_figures on output of run, above. 
+    MC = run(fN_data, fN_model, parm, kwargs[email])
+	 
+    # Save files
+    save(MC, kwargs[email])
+    
     # Plot?
-    if flg_plot:
-        xifd.tst_fn_data(fN_model=fN_model)
+    #if flg_plot:
+        #xifd.tst_fn_data(fN_model=fN_model)
 
 #####
 if __name__ == '__main__':
