@@ -263,6 +263,7 @@ def run(fN_cs, fN_model, parm, email, debug=0):
 
     # Define f(N) data for PyMC
     fNvalue=np.array(all_fN)
+    #xdb.set_trace()
     pymc_fN_data = pymc.Normal(str('fNdata'), mu=pymc_fn_model, tau=1.0/np.array(all_sigfN)**2,
                                value=fNvalue, observed=True)
     pymc_list.append(pymc_fN_data)
@@ -356,7 +357,8 @@ def save_figures(MC, email):
     completeAsciiName = os.path.join(newpath, asciifilename+".ascii") 
     f = open(completeAsciiName, 'w+')
     best_pval = print_errors(MC)
-    f.write(best_pval)
+    #db.set_trace()
+    f.write(str(best_pval))
     f.close()
     
     #creates PNG file with test plot from data
@@ -376,10 +378,8 @@ def save_figures(MC, email):
 ##########################################
 #  Drives the full MCMC experience
 ##########################################
-def mcmc_main(**kwargs, flg_model=0, flg_plot=0):
+def mcmc_main(email, datasources, extrasources, flg_model=0, flg_plot=0):
     '''
-    kwargs = Dict containing keyword arguments, with keys
-    'email' and 'datasources' and 'extrasources'
     flg_model = Flag controlling the f(N) model fitted
        0: JXP spline
        1: Inoue+14 functional form
@@ -388,21 +388,21 @@ def mcmc_main(**kwargs, flg_model=0, flg_plot=0):
     import argparse
 
     # PARSE 
-    parser = argparse.ArgumentParser(description='MCMC for f(N)')
-    parser.add_argument("model", type=int, help="Model flag (0=JXP, 1=Inoue+14)")
-    parser.add_argument("--plot", help="Plot the final model", action="store_true")
+    #parser = argparse.ArgumentParser(description='MCMC for f(N)')
+    #parser.add_argument("model", type=int, help="Model flag (0=JXP, 1=Inoue+14)")
+    #parser.add_argument("--plot", help="Plot the final model", action="store_true")
     #parser.add_argument("-id_dir", type=str,
     #                    help="Directory for ID files (ID_LINES is default)")
     
-    args = parser.parse_args()
+    #args = parser.parse_args()
 
-    flg_model = args.model
-    if args.plot:
-        flg_plot = 1
+    #flg_model = args.model
+    #if args.plot:
+        #flg_plot = 1
 
     # ##########################
     # Set Data
-    fN_data = set_fn_data(kwargs[datasources], kwargs[extrasources])
+    fN_data = set_fn_data(datasources, extrasources)
     
     # Set f(N) functional form 
     fN_model = set_fn_model(flg=flg_model)
@@ -415,10 +415,10 @@ def mcmc_main(**kwargs, flg_model=0, flg_plot=0):
         xifd.tst_fn_data(fN_model=fN_model)
 
     # Run
-    MC = run(fN_data, fN_model, parm, kwargs[email])
+    MC = run(fN_data, fN_model, parm, email)
 	 
     # Save files
-    save(MC, kwargs[email])
+    save_figures(MC, email)
     
     # Plot?
     #if flg_plot:
