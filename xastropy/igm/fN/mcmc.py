@@ -341,8 +341,8 @@ def print_errors(MC):
         #ival += 1
     return all_pval
     
-def save_figures(MC, email):
-
+def save_figures(MC, email, fN_model):
+    #xdb.set_trace()
     #######################################
     #   SAVE THE RESULTS
     #######################################
@@ -362,18 +362,17 @@ def save_figures(MC, email):
     f.close()
     
     #creates PNG file with test plot from data
-    png1filename= email + t + 'png1'
-    completepng1name= os.path.join(newpath, png1filename + ".png")
-    g = open(completepng1name, 'w+')
-    g.write(xifd.tst_fn_data(fN_model=fN_model))
-    g.close()
+    #png1filename= email + t + 'png1'
+    #completepng1name= os.path.join(newpath, png1filename + ".png")
+    #g = open(completepng1name, 'w+')
+    #g.write(xifd.tst_fn_data(fN_model=fN_model))
+    #g.close()
     
     #creates PNG file with bottom plot (individual distributions?)
     png2filename= email + t + 'png2'
-    completepng2name= os.path.join(newpath, png1filename + ".png")
-    h = open(completepng2name, 'w+')
-    h.write(pymc.Matplot.plot(MC))
-    h.close()
+    completepng2name= os.path.join(newpath, png2filename + ".png")
+    pymc.Matplot.plot(MC)
+    pymc.Matplot.savefig(completepng2name)
 
 ##########################################
 #  Drives the full MCMC experience
@@ -418,7 +417,7 @@ def mcmc_main(email, datasources, extrasources, flg_model=0, flg_plot=0):
     MC = run(fN_data, fN_model, parm, email)
 	 
     # Save files
-    save_figures(MC, email)
+    save_figures(MC, email, fN_model)
     
     # Plot?
     #if flg_plot:
