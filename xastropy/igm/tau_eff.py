@@ -30,12 +30,13 @@ xa_path = imp.find_module('xastropy')[1]
 
 # def ew_teff_lyman -- Calcualte tau_effective for the HI Lyman series
 # def mk_ew_lyman_spline -- Generates a Pickle file for EW splines
-
+# def teff_obs(z)
 
 #    Calculate tau_effective for the Lyman series using the EW
 #    approximation (e.g. Zuo 93)
 def ew_teff_lyman(ilambda, zem, fN_model, NHI_MIN=11.5, NHI_MAX=22.0, N_eval=5000,
-                  EW_spline=None, bval=24., fNz=False, cosmo=None, debug=False):
+                  EW_spline=None, bval=24., fNz=False, cosmo=None, debug=False,
+                  cumul=None):
     """ tau effective (follows ew_teff_lyman.pro from XIDL)
        teff = ew_teff_lyman(3400., 2.4)
 
@@ -55,6 +56,8 @@ def ew_teff_lyman(ilambda, zem, fN_model, NHI_MIN=11.5, NHI_MAX=22.0, N_eval=500
          -- Inputs f(N,z) instead of f(N,X)
       cosmo: astropy.cosmology (None)
          -- Cosmological model to adopt (as needed)
+      cumul: List of cumulative sums
+         -- Recorded only if cumul is not None
 
     Returns:
       teff: 
@@ -96,6 +99,10 @@ def ew_teff_lyman(ilambda, zem, fN_model, NHI_MIN=11.5, NHI_MAX=22.0, N_eval=500
     Nval = 10.**lgNval
     teff_lyman = np.zeros(nlyman)
 
+    # For cumulative
+    if not cumul is None:
+        cumul.append(lgNval)
+
     # Loop on the lines
     for qq,line in enumerate(gd_Lyman): # Would be great to do this in parallel... 
                              # (Can pack together and should)
@@ -127,6 +134,8 @@ def ew_teff_lyman(ilambda, zem, fN_model, NHI_MIN=11.5, NHI_MAX=22.0, N_eval=500
         # Sum
         intgrnd = 10.**(log_fnX) * dxdz * dz * Nval
         teff_lyman[qq] = np.sum(intgrnd) * dlgN * np.log(10.)
+        if not cumul is None:
+            cumul.append( np.cumsum(intgrnd) * dlgN * np.log(10.) )
         #xdb.set_trace()
 
         # Debug
@@ -255,8 +264,24 @@ def tau_eff_llist():
     return wrest
 
 
+#
+def teff_obs(z):
+    '''
+    Report an 'observed' teff value from one of these studies
+      0 < z < 1.6:  Kirkman+07
+    '''
+    # Low-z
+    if z<1.6:
+        # D_A from Kirkman+07
+        #  No LLS, no metals [masked]
+        #  Unclear in the paper, but I think the range is log NHI = 12-16
+        DA = 0.016 * (1+z)**1.01
+        teff = -1. * np.log(1.-DA)
+    else:
+        raise ValueError('teff_obs: Not ready for z={:g}'.format(z))
 
-
+    # Return
+    return teff
 
         
 

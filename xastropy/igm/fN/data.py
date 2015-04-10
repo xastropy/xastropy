@@ -25,7 +25,7 @@ from astropy.io import fits
 # Path for xastropy
 xa_path = imp.find_module('xastropy')[1]
 
-#from astropy.io import fits, ascii
+#class fN_Constraint(object):
 
 class fN_Constraint(object):
     """A Class for fN constraints

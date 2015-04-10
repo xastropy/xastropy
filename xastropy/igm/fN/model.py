@@ -153,19 +153,23 @@ class fN_Model(object):
         if cumul==True: 
             if nz > 1: #; Have not modified this yet
                 raise ValueError('fN.model: Not ready for this model type %s' % self.fN_mtype)
-            cum_sum = np.cumsum(10.**(lgfNX+lgNHI)) * dlgN * np.log(10.)
-        
+            cum_sum = np.cumsum(10.**(lgfNX[:,ii]+lgNHI)) * dlgN * np.log(10.)
+        #xdb.set_trace()
 
         # Infinity?
         if infinity is True:
+            # This is risky...
+            # Best to cut it off
+            xdb.set_trace()
             neval2 = 1000L
             lgNHI2 = NHI_max + (99.-NHI_max)*np.arange(neval2)/(neval2-1.)
             dlgN = lgNHI2[1]-lgNHI2[0]
             lgfNX = np.zeros((neval2,nz))
             lX2 = np.zeros(nz)
             for ii in range(nz):
-                lgfNX[:,ii] = self.eval(z[ii], lgNHI2)
+                lgfNX[:,ii] = self.eval(lgNHI2, z[ii]).flatten()
                 lX2[ii] = np.sum(10.**(lgfNX[:,ii]+lgNHI2)) * dlgN * np.log(10.)
+                xdb.set_trace()
             # 
             lX = lX + lX2
 
@@ -173,7 +177,7 @@ class fN_Model(object):
         if nz==1:
             lX = lX[0]
         if cumul==True:
-            return lX, cum_sum
+            return lX, cum_sum, lgNHI
         else:
             return lX
     ##
@@ -182,10 +186,10 @@ class fN_Model(object):
         """ Evaluate the model at a set of NHI values
 
         Parameters:
-        z: float or array
-          Redshift for evaluation
         NHI: array
           NHI values
+        z: float or array
+          Redshift for evaluation
         vel_array: array
           Velocities relative to z
 
