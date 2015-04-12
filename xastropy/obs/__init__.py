@@ -1,3 +1,4 @@
-import x_finder
+import finder
 import x_getsdssimg
+import keck
 import radec

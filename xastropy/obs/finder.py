@@ -1,7 +1,7 @@
 """
 #;+ 
 #; NAME:
-#; x_fndchrt   
+#; finder   
 #;    Version 1.1
 #;
 #; PURPOSE:
@@ -93,15 +93,33 @@ def get_coord(targ_file, radec=None):
 
 #### ###############################
 #  Main driver
-#  x_finder.main(['TST', '10:31:38.87', '+25:59:02.3'],radec=1, SDSS=1)
+#  x_finder.main(['TST', '10:31:38.87', '+25:59:02.3'], radec=1)
 #  imsize is in arcmin
-def main(targ_file, survey='2r', radec=None, deci=None, 
+def main(targ_file, survey='2r', radec=None, deci=None, fpath=None,
          EPOCH=0., DSS=None, BW=None, imsize=5.):
+    '''
+    Parameters:
+    ---------
+    targ_file: string or List of string
+       ASCII file for targets (Name, RA, DEC)
+       or a List 
+       Colon separated RA, DEC expected
+    radec: integer (0)
+       Flag indicating type of input
+       0 = ASCII file
+       1 = List or ['Name', 'RA', 'DEC']  
+    '''
+    import x_radec as x_r
+    import matplotlib.pyplot as plt
+    import matplotlib.cm as cm
+
+    # Init
+    if fpath is None:
+        fpath = './'
+    cradius = imsize / 50. 
 
     # Read in the Target list
-    import x_finder as x_f
-    import x_radec as x_r
-    ra_tab = x_f.get_coord(targ_file, radec=radec)
+    ra_tab = get_coord(targ_file, radec=radec)
 
     # Grab ra, dec in decimal degrees
     if deci != None: 
@@ -129,25 +147,22 @@ def main(targ_file, survey='2r', radec=None, deci=None,
         ra_tab['RA'] = str(newfk5.ra.to_string(unit=u.hour,sep=':'))
         ra_tab['DEC'] = str(newfk5.dec.to_string(unit=u.hour,sep=':'))
             
-    ## 
-    # Main Loop
-    import matplotlib.pyplot as plt
-    import matplotlib.cm as cm
 
     
+    ## 
+    # Main Loop
     nobj = len(ra_tab) 
     for qq in range(nobj):
 
         # Outfil
-        outfil = ra_tab['Name'][qq]+'.pdf'
-        print outfil
+        outfil = fpath+ra_tab['Name'][qq]+'.pdf'
+        print(outfil)
 
         # Grab the Image
         from xastropy.obs import x_getsdssimg as xgs
         reload(xgs)
         img = xgs.getimg(ra_tab['RAD'][qq], ra_tab['DECD'][qq], imsize, BW=BW,DSS=DSS)
 
-        #print 'img size = ', img.size
         # Generate the plot
         plt.clf()
         fig = matplotlib.pyplot.gcf()
@@ -178,15 +193,19 @@ def main(targ_file, survey='2r', radec=None, deci=None,
         # Title
         plt.text(0.5,1.24, str(ra_tab['Name'][qq]), fontsize=32, 
         horizontalalignment='center',transform=ax.transAxes)
-        plt.text(0.5,1.16, 'RA(2000) = '+str(ra_tab['RA'][qq]), fontsize=28, 
+        plt.text(0.5,1.16, 'RA (J2000) = '+str(ra_tab['RA'][qq]), fontsize=28, 
         horizontalalignment='center',transform=ax.transAxes)
-        plt.text(0.5,1.10, 'DEC(2000) = '+str(ra_tab['DEC'][qq]), fontsize=28, 
+        plt.text(0.5,1.10, 'DEC (J2000) = '+str(ra_tab['DEC'][qq]), fontsize=28, 
         horizontalalignment='center',transform=ax.transAxes)
         #import pdb; pdb.set_trace()
 
+        # Circle
+        circle=plt.Circle((0,0),cradius,color='y', fill=False)
+        plt.gca().add_artist(circle)
+
         plt.savefig(outfil)
-        print 'x_finder: Wrote '+outfil
+        print 'finder: Wrote '+outfil
         #xdb.set_trace()
 
-    print 'x_finder: All done.'
+    print 'finder: All done.'
     return
