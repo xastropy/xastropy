@@ -31,8 +31,22 @@
 #;------------------------------------------------------------------------------
 
 # Import libraries
+from __future__ import print_function, absolute_import, division, unicode_literals
+
 import requests
 import PIL
+from PIL import Image
+from cStringIO import StringIO
+
+import x_getsdssimg as xgs
+
+from astroquery.sdss import SDSS
+
+from astropy.coordinates import SkyCoord
+from astropy import units as u
+
+from xastropy.xutils import xdebug as xdb
+
 
 # Generate the SDSS URL (default is 202" on a side)
 def sdsshttp(ra, dec, imsize, scale=0.39612, grid=None, label=None, invert=None):#, xs, ys):
@@ -95,9 +109,6 @@ def dsshttp(ra, dec, imsize):
 # ##########################################
 def getimg(ra, dec, imsize, BW=None, DSS=None):
 
-    from PIL import Image
-    from cStringIO import StringIO
-    import x_getsdssimg as xgs
 
     # Get URL
     if DSS == None:  # Default
@@ -121,6 +132,32 @@ def getimg(ra, dec, imsize, BW=None, DSS=None):
         img = img2
 
     return img
+
+# ##########################################
+def get_spec_img(ra, dec):
+
+    from PIL import Image
+    from cStringIO import StringIO
+    import x_getsdssimg as xgs
+
+    # Coord
+    coord = SkyCoord(ra=ra*u.degree, dec=dec*u.degree)
+
+    # Query database
+    radius = 1*u.arcsec
+    spec_catalog = SDSS.query_region(coord,spectro=True, radius=radius.to('degree'))
+
+    # Request
+    url = 'http://skyserver.sdss.org/dr12/en/get/SpecById.ashx?id='+str(int(spec_catalog['specobjid']))
+    rtv = requests.get(url) 
+    img = Image.open(StringIO(rtv.content))
+
+    # DEBUG
+    import matplotlib.pyplot as plt
+    #import pdb; pdb.set_trace()
+
+    return img
+
 
 # #############
 # Call with RA/DEC (decimal degrees)

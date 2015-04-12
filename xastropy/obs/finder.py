@@ -93,10 +93,10 @@ def get_coord(targ_file, radec=None):
 
 #### ###############################
 #  Main driver
-#  x_finder.main(['TST', '10:31:38.87', '+25:59:02.3'], radec=1)
+#  finder.main(['TST', '10:31:38.87', '+25:59:02.3'], radec=1)
 #  imsize is in arcmin
 def main(targ_file, survey='2r', radec=None, deci=None, fpath=None,
-         EPOCH=0., DSS=None, BW=None, imsize=5.):
+         EPOCH=0., DSS=None, BW=None, imsize=5., show_spec=False):
     '''
     Parameters:
     ---------
@@ -108,6 +108,8 @@ def main(targ_file, survey='2r', radec=None, deci=None, fpath=None,
        Flag indicating type of input
        0 = ASCII file
        1 = List or ['Name', 'RA', 'DEC']  
+    show_spec: bool (False)
+       Try to grab and show an SDSS spectrum 
     '''
     import x_radec as x_r
     import matplotlib.pyplot as plt
@@ -165,7 +167,7 @@ def main(targ_file, survey='2r', radec=None, deci=None, fpath=None,
 
         # Generate the plot
         plt.clf()
-        fig = matplotlib.pyplot.gcf()
+        fig = plt.figure(dpi=1200)
         fig.set_size_inches(8.0,10.5)
 
         # Font
@@ -184,12 +186,18 @@ def main(targ_file, survey='2r', radec=None, deci=None, fpath=None,
         else: 
             cmm = None 
         plt.imshow(img,cmap=cmm,aspect='equal',extent=(-imsize/2., imsize/2, -imsize/2.,imsize/2))
+
+        # Axes
+        plt.xlim(-imsize/2., imsize/2.)
+        plt.ylim(-imsize/2., imsize/2.)
+
         # Label
         plt.xlabel('Relative ArcMin', fontsize=20)
         xpos = 0.12*imsize
         ypos = 0.02*imsize
         plt.text(-imsize/2.-xpos, 0., 'EAST', rotation=90.,fontsize=20)
         plt.text(0.,imsize/2.+ypos, 'NORTH', fontsize=20, horizontalalignment='center')
+
         # Title
         plt.text(0.5,1.24, str(ra_tab['Name'][qq]), fontsize=32, 
         horizontalalignment='center',transform=ax.transAxes)
@@ -203,9 +211,33 @@ def main(targ_file, survey='2r', radec=None, deci=None, fpath=None,
         circle=plt.Circle((0,0),cradius,color='y', fill=False)
         plt.gca().add_artist(circle)
 
-        plt.savefig(outfil)
+        # Spectrum??
+        if show_spec:
+            spec_img = xgs.get_spec_img(ra_tab['RAD'][qq], ra_tab['DECD'][qq]) 
+            plt.imshow(spec_img,extent=(-imsize/2.1, imsize*(-0.1), -imsize/2.1, imsize*(-0.2)))
+
+        # Write
+        if show_spec:
+            plt.savefig(outfil, dpi=300)
+        else:
+            plt.savefig(outfil)
         print 'finder: Wrote '+outfil
         #xdb.set_trace()
 
     print 'finder: All done.'
     return
+
+# ################
+if __name__ == "__main__":
+
+    flg_fig = 0 
+    flg_fig += 2**0  # Test standard chart
+    flg_fig += 2**1  # Test with spectrum
+    
+    # 
+    if (flg_fig % 2**1) >= 2**0:
+        main(['TST', '10:31:38.87', '+25:59:02.3'], radec=1)
+
+    # 
+    if (flg_fig % 2**2) >= 2**1:
+        main(['TST2', '16:11:51.946', '+49:45:32.0'], radec=1, show_spec=True)
