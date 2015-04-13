@@ -50,9 +50,9 @@ class ExamineImgWidget(QtGui.QWidget):
         '''
         img = np.array (2D)
         '''
-        super(ExamineSpecWidget, self).__init__(parent)
+        super(ExamineImgWidget, self).__init__(parent)
 
-        # Spectrum
+        # Image
         spec, spec_fil = read_spec(ispec, second_file=second_file)
         self.orig_spec = spec # For smoothing
         self.spec = self.orig_spec 
