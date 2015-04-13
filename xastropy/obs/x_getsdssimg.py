@@ -38,8 +38,6 @@ import PIL
 from PIL import Image
 from cStringIO import StringIO
 
-import x_getsdssimg as xgs
-
 from astroquery.sdss import SDSS
 
 from astropy.coordinates import SkyCoord
@@ -112,9 +110,9 @@ def getimg(ra, dec, imsize, BW=None, DSS=None):
 
     # Get URL
     if DSS == None:  # Default
-        url = xgs.sdsshttp(ra,dec,imsize)
+        url = sdsshttp(ra,dec,imsize)
     else:
-        url = xgs.dsshttp(ra,dec,imsize) # DSS
+        url = dsshttp(ra,dec,imsize) # DSS
 
     # Request
     rtv = requests.get(url) 
@@ -138,7 +136,6 @@ def get_spec_img(ra, dec):
 
     from PIL import Image
     from cStringIO import StringIO
-    import x_getsdssimg as xgs
 
     # Coord
     coord = SkyCoord(ra=ra*u.degree, dec=dec*u.degree)
