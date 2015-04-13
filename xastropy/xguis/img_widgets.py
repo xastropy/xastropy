@@ -25,12 +25,14 @@ from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as Navigatio
 # Matplotlib Figure object
 from matplotlib.figure import Figure
 
+# astropy
 from astropy.table.table import Table
 from astropy import constants as const
 from astropy import units as u
 
+# xastropy
+from xastropy import xutils as xutils
 from xastropy import stats as xstats
-from xastropy import xutils 
 from xastropy.xutils import xdebug as xdb
 from xastropy.plotting import utils as xputils
 from xastropy.xguis import utils as xguiu
