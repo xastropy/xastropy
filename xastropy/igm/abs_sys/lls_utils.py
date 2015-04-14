@@ -300,7 +300,7 @@ class LLS_System(Absline_System):
         return ('[{:s}: {:s} {:s}, {:g}, NHI={:g}, tau={:g}, M/H={:g}]'.format(
                 self.__class__.__name__,
                  self.coord.ra.to_string(unit=u.hour,sep=':',pad=True),
-                 self.coord.dec.to_string(sep=':',pad=True),
+                 self.coord.dec.to_string(sep=':',pad=True,alwayssign=True),
                  self.zabs, self.NHI, self.tau_LL, self.MH))
 
     def print_abs_type(self):

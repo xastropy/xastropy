@@ -49,18 +49,26 @@
 
 # Import libraries
 import numpy as np
-from astropy.io import fits
-from astropy.io import ascii 
-from astropy.table import Table
-from astropy.table import Column
+
+from astropy.io import fits, ascii
+from astropy import units as u
+from astropy.table import QTable, Column
+
 import matplotlib
 import aplpy
 
 from xastropy.xutils import xdebug as xdb
+from xastropy.obs import radec as x_radec
 
 #### ###############################
 #  Deal with the RA/DEC
 def get_coord(targ_file, radec=None):
+    '''
+    radec: int (None)
+      None: Read from ASCII file
+      1: List of [Name, RA, DEC] with RA/DEC as : separated strings
+      2: List of [Name, RA, DEC] with RA/DEC as decimal degrees
+    '''
 
     from astropy.io import ascii 
     # Import Tables
@@ -71,19 +79,29 @@ def get_coord(targ_file, radec=None):
         ra_tab.rename_column('col1','Name')
         ra_tab.rename_column('col2','RA')
         ra_tab.rename_column('col3','DEC')
-    else: 
+    elif radec == 1: 
         # Error check
         if len(targ_file) != 3:
             return -1
         # Manipulate
         arr = np.array(targ_file).reshape(1,3)
         # Generate the Table
-        ra_tab = Table( arr, names=('Name','RA','DEC') )
+        ra_tab = QTable( arr, names=('Name','RA','DEC') )
+    elif radec == 2: 
+        # Error check
+        if len(targ_file) != 3:
+            return -1
+        # Manipulate
+        ras, decs = x_radec.dtos1((targ_file[1], targ_file[2]))
+        # Generate the Table
+        ra_tab = QTable( [ [targ_file[0]], [ras], [decs] ], names=('Name','RA','DEC') )
+    else:
+        raise ValueError('get_coord: Bad flag')
 
     # Add dummy columns for decimal degrees and EPOCH
     nrow = len(ra_tab)
-    col_RAD = Column(name='RAD', data=np.zeros(nrow))
-    col_DECD = Column(name='DECD', data=np.zeros(nrow))
+    col_RAD = Column(name='RAD', data=np.zeros(nrow), unit=u.degree)
+    col_DECD = Column(name='DECD', data=np.zeros(nrow), unit=u.degree)
     col_EPOCH = Column(name='EPOCH', data=np.zeros(nrow))
     ra_tab.add_columns( [col_RAD, col_DECD, col_EPOCH] )
     # Assume 2000 for now
@@ -96,7 +114,7 @@ def get_coord(targ_file, radec=None):
 #  finder.main(['TST', '10:31:38.87', '+25:59:02.3'], radec=1)
 #  imsize is in arcmin
 def main(targ_file, survey='2r', radec=None, deci=None, fpath=None,
-         EPOCH=0., DSS=None, BW=None, imsize=5., show_spec=False):
+         EPOCH=0., DSS=None, BW=False, imsize=5., show_spec=False):
     '''
     Parameters:
     ---------
@@ -108,10 +126,13 @@ def main(targ_file, survey='2r', radec=None, deci=None, fpath=None,
        Flag indicating type of input
        0 = ASCII file
        1 = List or ['Name', 'RA', 'DEC']  
+    BW: bool (False)
+       B&W image?
     show_spec: bool (False)
        Try to grab and show an SDSS spectrum 
     '''
-    import x_radec as x_r
+    import radec as x_r
+    reload(x_r)
     import matplotlib.pyplot as plt
     import matplotlib.cm as cm
 
@@ -163,7 +184,7 @@ def main(targ_file, survey='2r', radec=None, deci=None, fpath=None,
         # Grab the Image
         from xastropy.obs import x_getsdssimg as xgs
         reload(xgs)
-        img = xgs.getimg(ra_tab['RAD'][qq], ra_tab['DECD'][qq], imsize, BW=BW,DSS=DSS)
+        img, oBW = xgs.getimg(ra_tab['RAD'][qq], ra_tab['DECD'][qq], imsize, BW=BW,DSS=DSS)
 
         # Generate the plot
         plt.clf()
@@ -181,7 +202,7 @@ def main(targ_file, survey='2r', radec=None, deci=None, fpath=None,
             label.set_fontproperties(ticks_font)
 
         # Image
-        if BW: 
+        if oBW == 1: 
             cmm = cm.Greys_r
         else: 
             cmm = None 

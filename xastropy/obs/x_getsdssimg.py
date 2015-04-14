@@ -31,7 +31,7 @@
 #;------------------------------------------------------------------------------
 
 # Import libraries
-from __future__ import print_function, absolute_import, division, unicode_literals
+from __future__ import print_function, absolute_import, division#, unicode_literals
 
 import requests
 import PIL
@@ -56,7 +56,7 @@ def sdsshttp(ra, dec, imsize, scale=0.39612, grid=None, label=None, invert=None)
     #from StringIO import StringIO
 
     # Generate the http call
-    name1='http://skyservice.pha.jhu.edu/DR10/ImgCutout/'
+    name1='http://skyservice.pha.jhu.edu/DR12/ImgCutout/'
     name='getjpeg.aspx?ra='
     
     name+=str(ra) 	#setting the ra
@@ -105,9 +105,23 @@ def dsshttp(ra, dec, imsize):
     
 
 # ##########################################
-def getimg(ra, dec, imsize, BW=None, DSS=None):
+def getimg(ira, idec, imsize, BW=False, DSS=None):
+    ''' Grab an SDSS image from the given URL, if possible
 
-
+    Parameters:
+    ----------
+    ira: (float or Quantity) RA in decimal degrees
+    idec: (float or Quantity) DEC in decimal degrees
+    '''
+    # Strip units as need be
+    try:
+        ra = ira.value
+    except KeyError:
+        ra = ira
+        dec = idec
+    else:
+        dec = idec.value
+    
     # Get URL
     if DSS == None:  # Default
         url = sdsshttp(ra,dec,imsize)
@@ -116,20 +130,26 @@ def getimg(ra, dec, imsize, BW=None, DSS=None):
 
     # Request
     rtv = requests.get(url) 
+
+    # Check against outside footprint [KLUDGY!!]
+    # Also had to turn off unicode!!
+    bad_900_1000 = '\x02\x8a(\xa0\x02\x8a(\xa0\x02\x8a(\xa0\x02\x8a(\xa0\x02\x8a(\xa0\x02\x8a(\xa0\x02\x8a(\xa0\x02\x8a(\xa0\x02\x8a(\xa0\x02\x8a(\xa0\x02\x8a(\xa0\x02\x8a(\xa0\x02\x8a(\xa0\x02\x8a(\xa0\x02\x8a(\xa0\x02\x8a(\xa0\x02\x8a(\xa0\x02\x8a(\xa0\x02\x8a(\xa0\x02\x8a(\xa0\x02\x8a(\xa0\x02\x8a(\xa0\x02\x8a(\xa0\x02\x8a(\xa0\x02\x8a(\xa0'
+    if rtv.content[900:1000] == bad_900_1000:
+        print('getimg: Pulling from DSS instead of SDSS')
+        BW = 1
+        url = dsshttp(ra,dec,imsize) # DSS
+        rtv = requests.get(url) 
+
     img = Image.open(StringIO(rtv.content))
 
-    # DEBUG
-    import matplotlib.pyplot as plt
-    #import pdb; pdb.set_trace()
-
     # B&W ?
-    if BW != None:
+    if BW:
         import PIL.ImageOps
         img2 = img.convert("L")
         img2 = PIL.ImageOps.invert(img2)
         img = img2
 
-    return img
+    return img, BW
 
 # ##########################################
 def get_spec_img(ra, dec):
@@ -148,10 +168,6 @@ def get_spec_img(ra, dec):
     url = 'http://skyserver.sdss.org/dr12/en/get/SpecById.ashx?id='+str(int(spec_catalog['specobjid']))
     rtv = requests.get(url) 
     img = Image.open(StringIO(rtv.content))
-
-    # DEBUG
-    import matplotlib.pyplot as plt
-    #import pdb; pdb.set_trace()
 
     return img
 
