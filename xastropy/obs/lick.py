@@ -129,6 +129,7 @@ def starlist(targs, outfil=None):
     targs: Table (targets with RA, DEC)
     outfil: string (None)
     '''
+    reload(x_rad)
     # Init
     if outfil is None:
         outfil = 'starlist.txt'
@@ -138,12 +139,9 @@ def starlist(targs, outfil=None):
     # Name tag
     name_tag = get_name_tag(targs.dtype.names)
 
-    #
-    xdb.set_trace()
-
     # Loop
     for jj,targ in enumerate(targs):
-        ras,decs = x_rad.radec_to_str((targ['RA'], targ['DEC']))
+        ras,decs = x_rad.dtos1((targ['RA'], targ['DEC']))
         #decs = targ['DEC'].replace(':',' ')
         if not decs[0] in ['+','-']:
             decs = '+'+decs
@@ -152,7 +150,7 @@ def starlist(targs, outfil=None):
         while type(targ[name_tag]) is MaskedConstant:
             mask.append(name_tag)
             name_tag = get_name_tag(targs.dtype.names,mask=mask)
-        lin = targ[name_tag][0:4]+'_J'+ras.replace(':','')[0:4]+decs.replace(':','')[0:5]
+        lin = targ[name_tag][0:3]+'_J'+ras.replace(':','')[0:4]+decs.replace(':','')[0:5]
         #xdb.set_trace()
         # RA
         lin = lin + '   ' + ras

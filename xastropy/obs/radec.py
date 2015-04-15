@@ -15,6 +15,7 @@ import numpy as np
 from astropy.table import Table
 from astropy.coordinates import SkyCoord
 from astropy import units as u
+from astropy.units import Quantity
 
 from xastropy.xutils import xdebug as xdb
 
@@ -53,28 +54,31 @@ def stod1(rads):
     return rad*u.degree, decd*u.degree
 
 #### ###############################
-#  Decimal degress to string
+#  Decimal degress or SkyCoord to string
 def dtos1(irad, fmt=0):
     '''
     Converts a tuple of RA/DEC into J## format
 
     Parameters
     ----------
-    rad: tuple (RA, DEC in decimal degrees [with units!])
+    rad: tuple (RA, DEC in decimal degrees [with units!]) or SkyCoord
     fmt: int (0)
       0: colon deliminated, e.g. '11:23:21.23', '+23:11:45.0'
       1: J name, e.g. 'J112321.23+231145.0'
     '''
-    rad = list(irad)
-    for ii in range(2):
-        try:
-            rad[ii].to('degree')
-        except AttributeError:
-            rad[ii] = rad[ii] * u.degree
-        
+    # Get to SkyCoord
     if type(irad) is SkyCoord:
-        coord = rad
-    coord = to_coord(rad) 
+        coord = irad
+    else:
+        rad = list(irad)
+        for ii in range(2):
+            try:
+                rad[ii].to('degree')
+            except AttributeError:
+                rad[ii] = rad[ii] * u.degree
+            
+        coord = to_coord(rad) 
+    # String
     if fmt == 0:
         ras = coord.ra.to_string(unit=u.hour,sep=':',pad=True, precision=2)
         decs = coord.dec.to_string(sep=':',pad=True, alwayssign=True, precision=1)
@@ -122,36 +126,27 @@ def stod(in_rads, radec=None):
 
     
 #### ###############################
-#  
+#  Main conversion
 def to_coord(irad):
     """
-    Input RA/DEC as a tuple and return a SkyCoord
+    Input RA/DEC as a tuple or SkyCoord and return a SkyCoord
     """
-    if not irad.__class__ is tuple:
-        raise TypeError('radec.to_coord: Requires tuple input!')
+    # SkyCoord
+    if type(irad) is SkyCoord:
+        return irad
+    if not type(irad) in [tuple,list]: 
+        raise TypeError('radec.to_coord: Requires tuple, list or SkyCoord input!')
     if len(irad) != 2:
         raise TypeError('radec.to_coord: Requires length two (RA,DEC)')
 
     # String?
     if type(irad[0]) in [str,unicode]:
         rad = stod1(irad)
-    else:
-        rad = irad # Assuming decimal degrees
+    elif type(irad[0]) is Quantity:
+        rad = irad 
+    else: # Assuming two floats
+        rad = [iirad*u.degee for iirad in irad] 
 
     # Return
     return SkyCoord(ra=rad[0], dec=rad[1])
 
-#### ###############################
-#  
-def radec_to_s(irad, fmt=0):
-    """
-    Input RA/DEC as as a tuple with any format and return string
-
-    Parameters
-    ----------
-    fmt: int (0)
-      0: colon deliminated, e.g. '11:23:21.23', '+23:11:45.0'
-      1: J name, e.g. 'J112321.23+231145.0'
-    """
-    # Convert to SkyCoord
-    coord = to_coord(irad)
