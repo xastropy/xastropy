@@ -263,6 +263,7 @@ def run(fN_cs, fN_model, parm, email, debug=0):
 
     # Define f(N) data for PyMC
     fNvalue=np.array(all_fN)
+    #xdb.set_trace()
     pymc_fN_data = pymc.Normal(str('fNdata'), mu=pymc_fn_model, tau=1.0/np.array(all_sigfN)**2,
                                value=fNvalue, observed=True)
     pymc_list.append(pymc_fN_data)
@@ -299,37 +300,6 @@ def run(fN_cs, fN_model, parm, email, debug=0):
     #MC.sample(20000, 5000, verbose=2, tune_interval=500)
     MC.sample(2000, 400, verbose=2, tune_interval=200)
     #MC.isample(10000, 1000, verbose=2)
-
-    #######################################
-    #   PRINT THE RESULTS
-    #######################################
-    #Creates new directory for output
-    newpath = 'C:/Xastropy Output Files/' + email + t 
-    if not os.path.exists(newpath): os.makedirs(newpath)
-    
-    #creates ascii file with the best values and their errors 
-    #& saves to correct directory
-    t = strftime("%Y-%m-%d %H:%M:%S", gmtime())
-    asciifilename = email + t + 'asciifile'
-    completeAsciiName = os.path.join(newpath, asciifilename+".ascii") 
-    f = open(completeAsciiName, 'w+')
-    best_pval = print_errors(MC)
-    f.write(best_pval)
-    f.close()
-    
-    #creates PNG file with test plot from data
-    png1filename= email + t + 'png1'
-    completepng1name= os.path.join(newpath, png1filename + ".png")
-    g = open(completepng1name, 'w+')
-    g.write(xifd.tst_fn_data(fN_model=fN_model))
-    g.close()
-    
-    #creates PNG file with bottom plot (individual distributions?)
-    png2filename= email + t + 'png2'
-    completepng2name= os.path.join(newpath, png1filename + ".png")
-    h = open(completepng2name, 'w+')
-    h.write(pymc.Matplot.plot(MC))
-    h.close()
     
     if debug:
         xifd.tst_fn_data(fN_model=fN_model)
@@ -343,7 +313,8 @@ def run(fN_cs, fN_model, parm, email, debug=0):
     # Save the individual distributions to a file to check convergence
     #pymc.Matplot.plot(MC)
     #xdb.set_trace()
-
+    return MC
+    
 def geterrors(array):
 	arrsort = np.sort(array)
 	arrsize = np.size(array)
@@ -369,35 +340,68 @@ def print_errors(MC):
         all_pval.append(pval)
         #ival += 1
     return all_pval
+    
+def save_figures(MC, email, fN_model):
+    #xdb.set_trace()
+    #######################################
+    #   SAVE THE RESULTS
+    #######################################
+    #Creates new directory for output
+    t = strftime("%Y-%m-%d %H:%M:%S", gmtime())
+    newpath = 'C:/Xastropy Output Files/' + email
+    if not os.path.exists(newpath): os.makedirs(newpath)
+    
+    #creates ascii file with the best values and their errors 
+    #and saves to correct directory
+    asciifilename = email + t + 'asciifile'
+    completeAsciiName = os.path.join(newpath, asciifilename+".ascii") 
+    f = open(completeAsciiName, 'w+')
+    best_pval = print_errors(MC)
+    #db.set_trace()
+    f.write(str(best_pval))
+    f.close()
+    
+    #creates PNG file with test plot from data
+    #png1filename= email + t + 'png1'
+    #completepng1name= os.path.join(newpath, png1filename + ".png")
+    #g = open(completepng1name, 'w+')
+    #g.write(xifd.tst_fn_data(fN_model=fN_model))
+    #g.close()
+    
+    #creates PNG file with bottom plot (individual distributions?)
+    png2filename= email + t + 'png2'
+    completepng2name= os.path.join(newpath, png2filename + ".png")
+    pymc.Matplot.plot(MC)
+    pymc.Matplot.savefig(completepng2name)
 
 ##########################################
 #  Drives the full MCMC experience
 ##########################################
-def mcmc_main(flg_model=0, flg_plot=0):
+def mcmc_main(email, datasources, extrasources, flg_model=0, flg_plot=0):
     '''
     flg_model = Flag controlling the f(N) model fitted
        0: JXP spline
        1: Inoue+14 functional form
     '''
-
+    
     import argparse
 
     # PARSE 
-    parser = argparse.ArgumentParser(description='MCMC for f(N)')
-    parser.add_argument("model", type=int, help="Model flag (0=JXP, 1=Inoue+14)")
-    parser.add_argument("--plot", help="Plot the final model", action="store_true")
+    #parser = argparse.ArgumentParser(description='MCMC for f(N)')
+    #parser.add_argument("model", type=int, help="Model flag (0=JXP, 1=Inoue+14)")
+    #parser.add_argument("--plot", help="Plot the final model", action="store_true")
     #parser.add_argument("-id_dir", type=str,
     #                    help="Directory for ID files (ID_LINES is default)")
     
-    args = parser.parse_args()
+    #args = parser.parse_args()
 
-    flg_model = args.model
-    if args.plot:
-        flg_plot = 1
+    #flg_model = args.model
+    #if args.plot:
+        #flg_plot = 1
 
     # ##########################
     # Set Data
-    fN_data = set_fn_data()
+    fN_data = set_fn_data(datasources, extrasources)
     
     # Set f(N) functional form 
     fN_model = set_fn_model(flg=flg_model)
@@ -410,11 +414,14 @@ def mcmc_main(flg_model=0, flg_plot=0):
         xifd.tst_fn_data(fN_model=fN_model)
 
     # Run
-    run(fN_data, fN_model, parm)
-
+    MC = run(fN_data, fN_model, parm, email)
+	 
+    # Save files
+    save_figures(MC, email, fN_model)
+    
     # Plot?
-    if flg_plot:
-        xifd.tst_fn_data(fN_model=fN_model)
+    #if flg_plot:
+        #xifd.tst_fn_data(fN_model=fN_model)
 
 #####
 if __name__ == '__main__':
