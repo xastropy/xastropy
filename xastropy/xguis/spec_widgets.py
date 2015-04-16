@@ -149,7 +149,7 @@ class ExamineSpecWidget(QtGui.QWidget):
             flg = navigate(self.psdict,event)
 
         ## DOUBLETS
-        if event.key in ['C','M','O','8','B']:  # Set left
+        if event.key in ['C','M','X','8','B']:  # Set left
             wave = set_doublet(self, event)
             #print('wave = {:g},{:g}'.format(wave[0], wave[1]))
             self.ax.plot( [wave[0],wave[0]], self.psdict['ymnx'], '--', color='red')
@@ -381,25 +381,25 @@ class ExamineSpecWidget(QtGui.QWidget):
                 clrs = ['red', 'green', 'cyan', 'orange', 'gray', 'purple']*10
                 for abs_sys in self.abs_sys:
                     ii = self.abs_sys.index(abs_sys)
-                    wrest = np.array(abs_sys.lines.keys()) 
-                    wvobs = wrest * (abs_sys.zabs+1)
-                    gdwv = np.where( ((wvobs+5) > self.psdict['xmnx'][0]) &  # Buffer for region
-                                    ((wvobs-5) < self.psdict['xmnx'][1]))[0]
+                    kwrest = np.array(abs_sys.lines.keys()) 
+                    wvobs = kwrest * (abs_sys.zabs+1) * u.AA
+                    gdwv = np.where( ((wvobs.value+5) > self.psdict['xmnx'][0]) &  # Buffer for region
+                                    ((wvobs.value-5) < self.psdict['xmnx'][1]))[0]
                     for kk in range(len(gdwv)): 
                         jj = gdwv[kk]
-                        if abs_sys.lines[wrest[jj]].analy['FLG_ANLY'] == 0:
+                        if abs_sys.lines[kwrest[jj]].analy['FLG_ANLY'] == 0:
                             continue
                         #QtCore.pyqtRemoveInputHook()
                         #xdb.set_trace()
                         #QtCore.pyqtRestoreInputHook()
                         # Paint spectrum red
-                        wvlim = wvobs[jj]*(1 + abs_sys.lines[wrest[jj]].analy['VLIM']/3e5)
+                        wvlim = wvobs[jj]*(1 + abs_sys.lines[kwrest[jj]].analy['VLIM']/3e5)
                         pix = np.where( (self.spec.dispersion > wvlim[0]) & (self.spec.dispersion < wvlim[1]))[0]
                         self.ax.plot(self.spec.dispersion[pix], self.spec.flux[pix], '-',drawstyle='steps-mid',
                                      color=clrs[ii])
                         # Label
-                        lbl = abs_sys.lines[wrest[jj]].analy['IONNM']+' z={:g}'.format(abs_sys.zabs)
-                        self.ax.text(wvobs[jj], ylbl, lbl, color=clrs[ii], rotation=90., size='x-small')
+                        lbl = abs_sys.lines[kwrest[jj]].analy['IONNM']+' z={:g}'.format(abs_sys.zabs)
+                        self.ax.text(wvobs[jj].value, ylbl, lbl, color=clrs[ii], rotation=90., size='x-small')
             # Analysis? EW, Column
             if self.adict['flg'] == 1:
                 self.ax.plot(self.adict['wv_1'], self.adict['C_1'], 'go')
@@ -972,6 +972,9 @@ class VelPlotWidget(QtGui.QWidget):
         if event.key == '1': 
             self.abs_sys.lines[kwrest].analy['VLIM'][0] = event.xdata
         if event.key == '2': 
+            #QtCore.pyqtRemoveInputHook()
+            #xdb.set_trace()
+            #QtCore.pyqtRestoreInputHook()
             self.abs_sys.lines[kwrest].analy['VLIM'][1] = event.xdata
         if event.key == '!': 
             for key in self.abs_sys.lines.keys():
@@ -1039,7 +1042,7 @@ class VelPlotWidget(QtGui.QWidget):
             gdl = []
             for iwr in self.abs_sys.lines.keys():
                 if self.abs_sys.lines[iwr].analy['FLG_ANLY'] > 0:
-                    gdl.append(iwr)
+                    gdl.append(iwr*u.AA)
             # Launch AODM
             gui = xsgui.XAODMGui(self.spec, self.z, gdl, vmnx=self.vmnx, norm=self.norm)
             gui.exec_()
@@ -1238,7 +1241,7 @@ class AODMWidget(QtGui.QWidget):
         self.norm = norm
         self.z = z
         self.vmnx = vmnx
-        self.wrest = wrest
+        self.wrest = wrest  # Expecting (requires) units
         self.lines = []
         for iwrest in self.wrest:
             self.lines.append(xspec.analysis.Spectral_Line(iwrest))
@@ -1367,7 +1370,7 @@ def set_doublet(iself,event):
     ''' Set z and plot doublet
     '''
     wv_dict = {'C': (1548.195, 1550.770, 'CIV'), 'M': (2796.352, 2803.531, 'MgII'),
-               'O': (1031.9261, 1037.6167, 'OVI'), '8': (770.409, 780.324, 'NeVIII'),
+               'X': (1031.9261, 1037.6167, 'OVI'), '8': (770.409, 780.324, 'NeVIII'),
                'B': (1025.4433, 1215.6701, 'Lyba')}
     wrest = wv_dict[event.key]
 

@@ -214,6 +214,8 @@ class XAbsIDGui(QtGui.QMainWindow):
                 print('Set a line list first!!')
                 return
             # 
+            if self.pltline_widg.llist[self.pltline_widg.llist['List']] == 'None'
+                return
             self.select_line_widg = xspw.SelectLineWidget(
                 self.pltline_widg.llist[self.pltline_widg.llist['List']])
             self.select_line_widg.exec_()
