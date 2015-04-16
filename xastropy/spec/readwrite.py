@@ -43,7 +43,6 @@ def readspec(specfil, inflg=None, efil=None, outfil=None, show_plot=0,
     #from xastropy.plotting import x_guis as xpxg
     from astropy.table import Table
     from astropy.table import Column
-    #reload(bs)
 
     # Initialize
     dat = None

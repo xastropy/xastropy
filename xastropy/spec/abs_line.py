@@ -43,7 +43,13 @@ class Abs_Line(object):
     """
     # Init
     def __init__(self, wrest, z=0., N=0., fill=True, spec_file=None):
+        # Test for Unit
+        try:
+            unit = wrest.unit
+        except AttributeError:
+            raise ValueError('wrest needs to be a Quantity with a Unit, e.g. Ang')
         self.wrest = wrest
+
         self.z = z
 
         # Fill in atomic data from Table (default)

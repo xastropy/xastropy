@@ -161,7 +161,7 @@ class LLS_System(Absline_System):
         atom = ba.readatom()
         self.lls_lines = []
         for line in atom['HI']:
-            tmp = abs_line.Abs_Line(line['wa'],fill=False)
+            tmp = abs_line.Abs_Line(line['wa']*u.AA,fill=False)
             # Atomic data
             tmp.atomic = {'fval': line['osc'], 'gamma': line['gam'],
                           'name': 'HI %s' % line['wa'], 'wrest': line['wa']}
@@ -192,7 +192,7 @@ class LLS_System(Absline_System):
         # LLS first
 
         # Energies in LLS rest-frame
-        wv_rest = spec.dispersion * u.AA / (self.zabs+1)
+        wv_rest = spec.dispersion / (self.zabs+1)
         energy = wv_rest.to(u.eV, equivalencies=u.spectral())
 
         # Get photo_cross and calcualte tau

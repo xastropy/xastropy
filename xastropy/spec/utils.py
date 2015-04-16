@@ -47,9 +47,9 @@ class XSpectrum1D(Spectrum1D):
           wvmnx: Tuple of 2 floats
             wvmin, wvmax in spectral units
 
-        Option 2: zabs, wrest, vmnx
+        Option 2: zabs, wrest, vmnx 
           zabs: Absorption redshift
-          wrest: Rest wavelength
+          wrest: Rest wavelength 
           vmnx: Tuple of 2 floats
             vmin, vmax in km/s
     
@@ -62,7 +62,8 @@ class XSpectrum1D(Spectrum1D):
         elif len(args) == 3: # Option 2
             from astropy import constants as const
             # args = zabs, wrest, vmnx
-            wvmnx = (args[0]+1) * (args[1] + (args[1] * np.array(args[2]) / const.c.to('km/s')).value )
+            wvmnx = (args[0]+1) * (args[1] + (args[1] * args[2] / const.c.to('km/s')) )
+            wvmnx.to(u.AA)
 
         # Locate the values
         pixmin = np.argmin( np.fabs( self.dispersion-wvmnx[0] ) )

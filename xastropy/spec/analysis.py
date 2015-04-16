@@ -65,7 +65,7 @@ class Spectral_Line(object):
 #### ###############################
 def pixminmax(*args):
     ''' Soon to be deprecated..
-    Use  Spectrum1D.pin_minmax()
+    Use  Spectrum1D.pix_minmax()
     '''
     xdb.set_trace()
 
