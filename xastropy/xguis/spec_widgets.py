@@ -149,7 +149,7 @@ class ExamineSpecWidget(QtGui.QWidget):
             flg = navigate(self.psdict,event)
 
         ## DOUBLETS
-        if event.key in ['C','M','X','8','B']:  # Set left
+        if event.key in ['C','M','X','4','8','B']:  # Set left
             wave = set_doublet(self, event)
             #print('wave = {:g},{:g}'.format(wave[0], wave[1]))
             self.ax.plot( [wave[0],wave[0]], self.psdict['ymnx'], '--', color='red')
@@ -222,6 +222,10 @@ class ExamineSpecWidget(QtGui.QWidget):
                         sel_widg.exec_()
                         line = sel_widg.line
                         wrest = float(line.split('::')[1].lstrip())
+                    # Units
+                    if not hasattr(wrest,'unit'):
+                        # Assume Ang
+                        wrest = wrest * u.AA
     
                     # Generate the Spectral Line
                     from xastropy.spec.lines_utils import AbsLine
@@ -236,6 +240,9 @@ class ExamineSpecWidget(QtGui.QWidget):
                             ( iwv/(1+self.llist['z']) - wrest) / wrest )
         
                         # AODM
+                        QtCore.pyqtRemoveInputHook()
+                        xdb.set_trace()
+                        QtCore.pyqtRestoreInputHook()
                         aline.aodm(conti=conti)
                         mssg = 'Using '+ aline.__repr__()
                         mssg = mssg + ' ::  logN = {:g} +/- {:g}'.format(aline.attrib['logN'],
@@ -244,8 +251,8 @@ class ExamineSpecWidget(QtGui.QWidget):
                         aline.analy['WVMNX'] = iwv
                         aline.restew(conti=conti)
                         mssg = 'Using '+ aline.__repr__()
-                        mssg = mssg + ' ::  EW = {:g} +/- {:g}'.format(aline.attrib['EW'].to('mAA'),
-                                                                        aline.attrib['sigEW'].to('mAA'))
+                        mssg = mssg + ' ::  EW = {:g} +/- {:g}'.format(aline.attrib['EW'].to(mAA),
+                                                                        aline.attrib['sigEW'].to(mAA))
                 # Display values
                 try:
                     self.statusBar().showMessage(mssg)
@@ -1370,6 +1377,7 @@ def set_doublet(iself,event):
     ''' Set z and plot doublet
     '''
     wv_dict = {'C': (1548.195, 1550.770, 'CIV'), 'M': (2796.352, 2803.531, 'MgII'),
+               '4': (1393.755, 1402.770, 'SiIV'),
                'X': (1031.9261, 1037.6167, 'OVI'), '8': (770.409, 780.324, 'NeVIII'),
                'B': (1025.4433, 1215.6701, 'Lyba')}
     wrest = wv_dict[event.key]

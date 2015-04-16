@@ -29,87 +29,6 @@ xa_path = imp.find_module('xastropy')[1]
 #class Abs_Line(object):
 #def mk_line_list_fits_table(outfil=None,XIDL=True):
 
-# Class for Absorption Line  --- SHOULD COMBINE WITH Spectral_Line Class
-class Abs_Line(object):
-    """An absorption line
-
-    Attributes:
-        name: string
-          Name of transition
-        wrest: float
-          Rest wavelength (Ang)
-        z: float
-          Redshift
-    """
-    # Init
-    def __init__(self, wrest, z=0., N=0., fill=True, spec_file=None):
-        # Test for Unit
-        try:
-            unit = wrest.unit
-        except AttributeError:
-            raise ValueError('wrest needs to be a Quantity with a Unit, e.g. Ang')
-        self.wrest = wrest
-
-        self.z = z
-
-        # Fill in atomic data from Table (default)
-        # Dict : fval, gamma, A, Elow, Eup, Ex, j, name, wrest 
-        if fill is True:
-            self.atomic = abs_line_data(self.wrest) # Dict
-            self.name = self.atomic['name']
-        else: self.name = ''
-
-        # Attribute dict
-        self.attrib = {'N': 0., 'Nsig': 0., 'flgN': 0,
-                       'b': 0., 'bsig': 0., 'vmin': 0., 'vmax': 0., 
-                       'EW': 0., 'EWsig': 0., 'flgEW': 0}
-
-        # Spectrum info (optional)
-        if spec_file is None:
-            self.spec = None
-        else:
-            import xastropy.spec.readwrite as xspec_rw
-            self.spec = xspec_rw.readspec(spec_file)
-
-    # Method to find the flux-weighted optical-depth velocity (requires spectrum)
-    def vpeak(self, smooth=0):
-        '''
-        Parameters:
-        smooth: int (0)
-          Number of pixels to smooth over
-
-        Returns:
-        vpeak: float [km/s]
-          Flux-weighted velocity of optical depth (aka, minimum flux)
-
-        JXP 06 Dec 2014
-        '''
-        # Get pixels covering the line
-        import xastropy.spec.analysis as xspec_anly
-        pix = xspec_anly.pixminmax(self.spec, self.z, self.wrest,
-                                    (self.attrib['vmin'],self.attrib['vmax']))
-        # Smooth?
-        if smooth > 0:
-            raise ValueError('abs_line.vpeak: Not ready for smoothing')
-
-        # Good data
-        gdp = np.where(self.spec.sig[pix] > 0)[0]
-        gdpix = np.array(pix)[gdp]
-
-        # Set tau with a floor of 0.05 in the flux
-        tau = -1.* np.log( np.maximum( self.spec.flux[gdpix], 0.05*np.ones(len(gdp)) ) )
-
-        # Weight
-        vpeak = np.sum(self.spec.velo[gdpix] * tau) / np.sum( tau ) 
-
-        # Return with units
-        return vpeak * u.Unit('km/s')
-            
-    # Printing
-    def __repr__(self):
-        return '[%s: %s, %.4f]' % (self.__class__.__name__,
-                                   self.name, self.wrest)
-
 # Class for Absorption Line List 
 class Abs_Line_List(object):
     """An absorption line list
@@ -340,6 +259,88 @@ def mk_line_list_fits_table(outfil=None,XIDL=False):
     # Write
     llist.data.write(outfil, overwrite=True, format='fits')
     print('mk_line_list: Wrote {:s}'.format(outfil))
+
+# Class for Absorption Line  --- SHOULD COMBINE WITH Spectral_Line Class
+class Abs_Line(object):
+    """An absorption line
+
+    Attributes:
+        name: string
+          Name of transition
+        wrest: float
+          Rest wavelength (Ang)
+        z: float
+          Redshift
+    """
+    # Init
+    def __init__(self, wrest, z=0., N=0., fill=True, spec_file=None):
+        # Test for Unit
+        xdb.set_trace() # DEPRECATED
+        try:
+            unit = wrest.unit
+        except AttributeError:
+            raise ValueError('wrest needs to be a Quantity with a Unit, e.g. Ang')
+        self.wrest = wrest
+
+        self.z = z
+
+        # Fill in atomic data from Table (default)
+        # Dict : fval, gamma, A, Elow, Eup, Ex, j, name, wrest 
+        if fill is True:
+            self.atomic = abs_line_data(self.wrest) # Dict
+            self.name = self.atomic['name']
+        else: self.name = ''
+
+        # Attribute dict
+        self.attrib = {'N': 0., 'Nsig': 0., 'flgN': 0,
+                       'b': 0., 'bsig': 0., 'vmin': 0., 'vmax': 0., 
+                       'EW': 0., 'EWsig': 0., 'flgEW': 0}
+
+        # Spectrum info (optional)
+        if spec_file is None:
+            self.spec = None
+        else:
+            import xastropy.spec.readwrite as xspec_rw
+            self.spec = xspec_rw.readspec(spec_file)
+
+    # Method to find the flux-weighted optical-depth velocity (requires spectrum)
+    def vpeak(self, smooth=0):
+        '''
+        Parameters:
+        smooth: int (0)
+          Number of pixels to smooth over
+
+        Returns:
+        vpeak: float [km/s]
+          Flux-weighted velocity of optical depth (aka, minimum flux)
+
+        JXP 06 Dec 2014
+        '''
+        # Get pixels covering the line
+        import xastropy.spec.analysis as xspec_anly
+        pix = xspec_anly.pixminmax(self.spec, self.z, self.wrest,
+                                    (self.attrib['vmin'],self.attrib['vmax']))
+        # Smooth?
+        if smooth > 0:
+            raise ValueError('abs_line.vpeak: Not ready for smoothing')
+
+        # Good data
+        gdp = np.where(self.spec.sig[pix] > 0)[0]
+        gdpix = np.array(pix)[gdp]
+
+        # Set tau with a floor of 0.05 in the flux
+        tau = -1.* np.log( np.maximum( self.spec.flux[gdpix], 0.05*np.ones(len(gdp)) ) )
+
+        # Weight
+        vpeak = np.sum(self.spec.velo[gdpix] * tau) / np.sum( tau ) 
+
+        # Return with units
+        return vpeak * u.Unit('km/s')
+            
+    # Printing
+    def __repr__(self):
+        return '[%s: %s, %.4f]' % (self.__class__.__name__,
+                                   self.name, self.wrest)
 
 
 ## ##############
