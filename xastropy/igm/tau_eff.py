@@ -167,7 +167,7 @@ def mk_ew_lyman_spline(bval,ew_fil=None):
     
     from astropy import constants as const
     from xastropy.spec import abs_line as xsab
-    from barak import voigt as bv
+    from xastropy.spec import voigt as xsv
 
     # Outfil
     if ew_fil == None:
@@ -205,7 +205,7 @@ def mk_ew_lyman_spline(bval,ew_fil=None):
         # Voigt
         vd = (bval/line).to(u.Hz)  # Frequency
         a = abl_data['gamma'] / (12.56637 * vd.value)
-        vgt = bv.voigt(a, uval)
+        vgt = xsv.voigtking(uval,a)
 
         # tau
         tau = 0.014971475*abl_data['fval']*vgt/vd  # Normalized to N_HI = 1 cm^-2

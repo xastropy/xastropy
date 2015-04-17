@@ -164,6 +164,8 @@ def readspec(specfil, inflg=None, efil=None, outfil=None, show_plot=0,
         except UnboundLocalError:
             npix = len(xspec1d.flux)
         co = np.nan*np.ones(npix)
+
+    '''
     # Generate a Barak Spectrum Class?
     hd = hdulist[0].header
     if use_barak is True:
@@ -172,6 +174,7 @@ def readspec(specfil, inflg=None, efil=None, outfil=None, show_plot=0,
         from barak import spec as bs
         spec1d = bs.Spectrum(wa=wave, fl=fx, er=sig, co=co, filename=specfil)
         spec1d.header = hd
+    '''
 
     # Plot?
     if show_plot:

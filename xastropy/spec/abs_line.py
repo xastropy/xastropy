@@ -159,106 +159,113 @@ def llist_file(llist):
 
     return fil, fmt
 
-## ##############
-# Create line list 
-def mk_line_list_fits_table(outfil=None,XIDL=False):
-    from barak import absorb as ba
+try:
+    import barak
+except ImportError:
+    pass
+else:
 
-    if XIDL is True:
-        lindat =  os.getenv('XIDL_DIR')+'/Spec/Lines/Lists/grb.lst'
-        finedat = os.getenv('XIDL_DIR')+'/Spec/Lines/Lists/fine_strct.lst'
-    else:
-        lindat = 'grb.lst'  # This pulls from xastropy/data/spec_lines first
-        finedat = os.getenv('XIDL_DIR')+'/Spec/Lines/Lists/fine_strct.lst'
-  
-    # Read XIDL line list
-    llist = Abs_Line_List(lindat)
-    ndata = len(llist.data)
 
-    # Add columns
-    from astropy.table import Column
-    gamma = Column(np.zeros(ndata),name='gamma')
-    A = Column(np.zeros(ndata),name='A') # Einstein coefficient
-    j = Column(np.zeros(ndata),name='j') # Tot ang mom (z projection)
-    Ex = Column(np.zeros(ndata),name='Ex') # Excitation energy (cm^-1)
-    Elow = Column(np.zeros(ndata),name='Elow') # Energy of lower level
-    Eup = Column(np.zeros(ndata),name='Eup') # Energy of upper level
-    Z = Column(np.zeros(ndata,dtype='int'),name='Z') # Atomic number
-    ion = Column(np.zeros(ndata,dtype='int'),name='ion') # Ionic state
-
-    llist.data.add_columns([gamma,A,j,Ex,Elow,Eup,Z,ion])
-
-    # Z,ion
-    for ii in range(ndata):
-        nm = llist.data['name'][ii]
-        # Z
-        if nm[1] == 'I' or nm[1] == 'V': 
-            ielm = 1
+    ## ##############
+    # Create line list 
+    def mk_line_list_fits_table(outfil=None,XIDL=False):
+        from barak import absorb as ba
+    
+        if XIDL is True:
+            lindat =  os.getenv('XIDL_DIR')+'/Spec/Lines/Lists/grb.lst'
+            finedat = os.getenv('XIDL_DIR')+'/Spec/Lines/Lists/fine_strct.lst'
         else:
-            ielm = 2
-        elm = nm[:ielm]
-        try:
-            Zv = ELEMENTS[elm].number
-        except KeyError:
-            if elm in ['CO','CC','HH']: # Molecules
-                Zv = 999
-            elif elm in ['D']: # Deuterium
-                Zv = 1
+            lindat = 'grb.lst'  # This pulls from xastropy/data/spec_lines first
+            finedat = os.getenv('XIDL_DIR')+'/Spec/Lines/Lists/fine_strct.lst'
+            
+        # Read XIDL line list
+        llist = Abs_Line_List(lindat)
+        ndata = len(llist.data)
+    
+        # Add columns
+        from astropy.table import Column
+        gamma = Column(np.zeros(ndata),name='gamma')
+        A = Column(np.zeros(ndata),name='A') # Einstein coefficient
+        j = Column(np.zeros(ndata),name='j') # Tot ang mom (z projection)
+        Ex = Column(np.zeros(ndata),name='Ex') # Excitation energy (cm^-1)
+        Elow = Column(np.zeros(ndata),name='Elow') # Energy of lower level
+        Eup = Column(np.zeros(ndata),name='Eup') # Energy of upper level
+        Z = Column(np.zeros(ndata,dtype='int'),name='Z') # Atomic number
+        ion = Column(np.zeros(ndata,dtype='int'),name='ion') # Ionic state
+    
+        llist.data.add_columns([gamma,A,j,Ex,Elow,Eup,Z,ion])
+    
+        # Z,ion
+        for ii in range(ndata):
+            nm = llist.data['name'][ii]
+            # Z
+            if nm[1] == 'I' or nm[1] == 'V': 
+                ielm = 1
             else:
-                xdb.set_trace()
-        llist.data['Z'][ii] = Zv
-        # ion
-        ispc = nm.find(' ')
-        cion = nm[ielm:ispc].strip('*')
-        if len(cion) == 0:
-            ionv =0
-        else:
-            ionv = roman.fromRoman(cion)
-        llist.data['ion'][ii] = ionv
-
-    # #######
-    # Fill in matches
+                ielm = 2
+            elm = nm[:ielm]
+            try:
+                Zv = ELEMENTS[elm].number
+            except KeyError:
+                if elm in ['CO','CC','HH']: # Molecules
+                    Zv = 999
+                elif elm in ['D']: # Deuterium
+                    Zv = 1
+                else:
+                    xdb.set_trace()
+            llist.data['Z'][ii] = Zv
+            # ion
+            ispc = nm.find(' ')
+            cion = nm[ielm:ispc].strip('*')
+            if len(cion) == 0:
+                ionv =0
+            else:
+                ionv = roman.fromRoman(cion)
+            llist.data['ion'][ii] = ionv
     
-    # Read atom.dat using barak
-    atom, atomflat = ba.readatom(flat=True)
-    #pdb.set_trace()
-    llist.sources.append('atom.dat') # I wish I could pull this from ba.readatom
-
-    # Fine structure
-    fdata = ascii.read(finedat)
-    llist.sources.append(finedat)
-
-    # Loop
-    for ii in range(ndata):
-        # Atom.dat
-        mt = np.where(np.fabs(llist.data['wrest'][ii]-atomflat['wa']) < 1e-3)[0]
-        if len(mt) > 0: llist.data['gamma'][ii] = atomflat['gam'][mt[0]] # Takes the first match
-
+        # #######
+        # Fill in matches
+        
+        # Read atom.dat using barak
+        atom, atomflat = ba.readatom(flat=True)
+        #pdb.set_trace()
+        llist.sources.append('atom.dat') # I wish I could pull this from ba.readatom
+    
         # Fine structure
-        mt = np.where(np.fabs(llist.data['wrest'][ii]-fdata['wrest']) < 1e-3)[0]
-        if len(mt) > 0:
-            llist.data['A'][ii] = fdata['A'][mt[0]] # Takes the first match
-    
-    # Output file
-    if outfil is None:
-        outfil = xa_path+'/data/atomic/spec_atomic_lines.fits'
+        fdata = ascii.read(finedat)
+        llist.sources.append(finedat)
 
-    # Header
-    '''
-    prihdr = fits.Header()
-    prihdr['COMMENT'] = "Above are the data sources"
-    for ii in range(len(llist.sources)):
+        # Loop
+        for ii in range(ndata):
+            # Atom.dat
+            mt = np.where(np.fabs(llist.data['wrest'][ii]-atomflat['wa']) < 1e-3)[0]
+            if len(mt) > 0: llist.data['gamma'][ii] = atomflat['gam'][mt[0]] # Takes the first match
+    
+            # Fine structure
+            mt = np.where(np.fabs(llist.data['wrest'][ii]-fdata['wrest']) < 1e-3)[0]
+            if len(mt) > 0:
+                llist.data['A'][ii] = fdata['A'][mt[0]] # Takes the first match
+        
+        # Output file
+        if outfil is None:
+            outfil = xa_path+'/data/atomic/spec_atomic_lines.fits'
+    
+        # Header
+        '''
+        prihdr = fits.Header()
+        prihdr['COMMENT'] = "Above are the data sources"
+        for ii in range(len(llist.sources)):
         card = 'SOURCE'+str(ii+1)
         prihdr[card] = llist.sources[ii]
-    prihdu = fits.PrimaryHDU(header=prihdr)
-
-    # Table
-    table_hdu = fits.BinTableHDU.from_columns(np.array(llist.data.filled()))
-
-    '''
-    # Write
-    llist.data.write(outfil, overwrite=True, format='fits')
-    print('mk_line_list: Wrote {:s}'.format(outfil))
+        prihdu = fits.PrimaryHDU(header=prihdr)
+    
+        # Table
+        table_hdu = fits.BinTableHDU.from_columns(np.array(llist.data.filled()))
+    
+        '''
+        # Write
+        llist.data.write(outfil, overwrite=True, format='fits')
+        print('mk_line_list: Wrote {:s}'.format(outfil))
 
 # Class for Absorption Line  --- SHOULD COMBINE WITH Spectral_Line Class
 class Abs_Line(object):
@@ -358,7 +365,7 @@ if __name__ == '__main__':
     
     # Generate spec_lines.fits
     if (flg_test % 2**1) >= 2**0:
-        mk_line_list_fits_table()
+        mk_line_list_fits_table() # REQUIRES barak (for now)
 
     # Line
     #if (flg_test % 2**2) >= 2**1:

@@ -55,7 +55,6 @@ from astropy import units as u
 from astropy.table import QTable, Column
 
 import matplotlib
-import aplpy
 
 from xastropy.xutils import xdebug as xdb
 from xastropy.obs import radec as x_radec

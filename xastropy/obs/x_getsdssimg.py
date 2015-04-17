@@ -158,7 +158,10 @@ def get_spec_img(ra, dec):
     from cStringIO import StringIO
 
     # Coord
-    coord = SkyCoord(ra=ra*u.degree, dec=dec*u.degree)
+    if hasattr(ra,'unit'):
+        coord = SkyCoord(ra=ra, dec=dec)
+    else:
+        coord = SkyCoord(ra=ra*u.degree, dec=dec*u.degree)
 
     # Query database
     radius = 1*u.arcsec

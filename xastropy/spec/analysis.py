@@ -12,7 +12,6 @@
 """
 from __future__ import print_function, absolute_import, division, unicode_literals
 
-import barak
 import xastropy
 import numpy as np
 import matplotlib.pyplot as plt
@@ -96,6 +95,7 @@ def velplt(specfil):
     # Call
     pspv.main([specfil, 'f26='+f26_fil, 'transitions='+transfil])
 
+'''
 #### ###############################
 #  Calls Barak routines to fit the continuum
 #    Stolen from N. Tejos by JXP
@@ -162,3 +162,4 @@ def x_contifit(specfil, outfil=None, savfil=None, redshift=0., divmult=1, forest
     ## Output
     # Data file with continuum
 
+'''

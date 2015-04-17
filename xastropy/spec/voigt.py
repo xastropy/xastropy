@@ -80,8 +80,6 @@ def voigt_model(spec, line, Npix=None, flg_ret=1):
     JXP 01 Nov 2014
     """
     # Imports
-    #from barak import spec as bs
-    from barak import convolve as bc
     import copy
     from specutils.spectrum1d import Spectrum1D
 
@@ -177,7 +175,6 @@ def voigt_model(spec, line, Npix=None, flg_ret=1):
 # ##################################################
 if __name__ == '__main__':
     from matplotlib import pyplot as plt
-    from barak import spec as bs
 
     flg_test = 0
     flg_test += 2**0
