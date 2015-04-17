@@ -1,0 +1,37 @@
+Installation instructions for xastropy.
+
+The following assumes you use Anaconda to install Python.
+It also assumes you will use Python 2.7
+
+1.  Install Python with Anaaconda
+
+2.  Install xastropy with git from github
+  git clone https://github.com/profxj/xastropy.git
+  cd xastropy
+  sudo python setup.py develop
+  
+3. Update astropy
+
+  If you have the version from Anaconda, wipe that:
+
+     conda remove astropy
+     git clone https://github.com/profxj/astropy.git   [in ~/local/Python]
+     cd astropy
+     sudo python setup.py develop
+
+     You may need to do this before executing setup:
+        sudo git clean -fxd
+
+4.  Update/install specutils
+
+  At present, you may need my fork. So, scrub any other version you have and do:
+
+     git clone https://github.com/profxj/specutils.git
+     cd specutils
+     sudo python setup.py develop
+     cd specutils
+     git pull origin specwcs_log
+     git checkout specwcs_log
+
+
+
