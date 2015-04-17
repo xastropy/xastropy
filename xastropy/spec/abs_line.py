@@ -275,7 +275,7 @@ class Abs_Line(object):
     # Init
     def __init__(self, wrest, z=0., N=0., fill=True, spec_file=None):
         # Test for Unit
-        xdb.set_trace() # DEPRECATED
+        raise ValueError('DEPRECATED!! Use AbsLine in lines_utils.py') #xdb.set_trace() # DEPRECATED
         try:
             unit = wrest.unit
         except AttributeError:
@@ -349,7 +349,7 @@ class Abs_Line(object):
 if __name__ == '__main__':
 
     flg_test = 0
-    #flg_test = 1  # Generate Line list
+    flg_test = 1  # Generate Line list
     #flg_test += 2 # Abs_Line Class
     #flg_test += 2**2 # Abs_Line with spectra
     flg_test += 2**3 # abs_line_data
@@ -361,9 +361,9 @@ if __name__ == '__main__':
         mk_line_list_fits_table()
 
     # Line
-    if (flg_test % 2**2) >= 2**1:
-        line = Abs_Line(1215.6701)
-        print(line)
+    #if (flg_test % 2**2) >= 2**1:
+        #line = Abs_Line(1215.6701)
+        #print(line)
 
     # Spectrum tests for Abs_Line
     #if (flg_test % 2**3) >= 2**2:

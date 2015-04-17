@@ -240,9 +240,9 @@ class ExamineSpecWidget(QtGui.QWidget):
                             ( iwv/(1+self.llist['z']) - wrest) / wrest )
         
                         # AODM
-                        QtCore.pyqtRemoveInputHook()
-                        xdb.set_trace()
-                        QtCore.pyqtRestoreInputHook()
+                        #QtCore.pyqtRemoveInputHook()
+                        #xdb.set_trace()
+                        #QtCore.pyqtRestoreInputHook()
                         aline.aodm(conti=conti)
                         mssg = 'Using '+ aline.__repr__()
                         mssg = mssg + ' ::  logN = {:g} +/- {:g}'.format(aline.attrib['logN'],

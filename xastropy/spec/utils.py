@@ -18,6 +18,7 @@ import os
 import astropy as apy
 
 from astropy import units as u
+from astropy import constants as const
 
 from specutils import Spectrum1D
 from xastropy.xutils import xdebug as xdb
@@ -49,7 +50,7 @@ class XSpectrum1D(Spectrum1D):
 
         Option 2: zabs, wrest, vmnx 
           zabs: Absorption redshift
-          wrest: Rest wavelength 
+          wrest: Rest wavelength  (with Units!)
           vmnx: Tuple of 2 floats
             vmin, vmax in km/s
     
@@ -103,4 +104,17 @@ class XSpectrum1D(Spectrum1D):
         # Return
         return XSpectrum1D.from_array(new_wv, new_fx,
                                       uncertainty=apy.nddata.StdDevUncertainty(new_sig))
+
+    #
+    def relative_vel(self, wv_obs):
+        ''' Return a velocity array relative to an input wavelength
+        Should consider adding a velocity array to this Class, i.e. self.velo
+
+        Parameters
+        ----------
+        wv_obs : float
+          Wavelength to set the zero of the velocity array.
+          Often (1+z)*wrest
+        '''
+        return  (self.dispersion-wv_obs) * const.c.to('km/s')/wv_obs
 

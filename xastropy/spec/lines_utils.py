@@ -17,6 +17,7 @@ from abc import ABCMeta, abstractmethod
 
 from astropy import constants as const
 from astropy import units as u
+from astropy.units import Quantity
 
 import xastropy.atomic as xatom
 import xastropy.spec as xspec
@@ -133,7 +134,8 @@ class AbsLine(SpectralLine):
 
         # Pixels for evaluation
         pix = spec.pix_minmax(self.analy['z'], self.wrest,
-                        self.analy['VLIM'].to('km/s').value)[0]
+                        self.analy['VLIM'].to('km/s'))[0]
+                        #self.analy['VLIM'].to('km/s').value)[0]
 
         # For convenience + normalize
         velo = spec.velo[pix]
@@ -144,11 +146,11 @@ class AbsLine(SpectralLine):
         delv[0] = delv[1]
 
         # Atomic data
-        cst = (10.**14.5761)/(self.atomic['fval']*self.wrest)
+        cst = (10.**14.5761)/(self.atomic['fval']*self.wrest) / (u.km/u.s) / u.cm * (u.AA/u.cm)
 
         # Mask
         mask = (pix == pix) # True = good
-        nndt = np.zeros(len(pix))
+        nndt = Quantity(np.zeros(len(pix)), unit='s/(km cm cm)')
 
         # Saturated?
         satp = np.where( (fx <= sig/5.) | (fx < 0.05) )[0]
@@ -162,7 +164,6 @@ class AbsLine(SpectralLine):
         # AODM
         nndt[mask] = np.log(1./fx[mask])*cst
 
-
         # Sum it
         ntot = np.sum( nndt*delv )
         tvar = np.sum( (delv*cst*sig/fx)**2 )
@@ -170,7 +171,7 @@ class AbsLine(SpectralLine):
         # Fill
         self.attrib['N'] = ntot
         self.attrib['sigN'] = np.sqrt(tvar)
-        logN, sig_logN = xsb.lin_to_log(self.attrib['N'], self.attrib['sigN'])
+        logN, sig_logN = xsb.lin_to_log(self.attrib['N'].value, self.attrib['sigN'].value)
         self.attrib['logN'] = logN
         self.attrib['sig_logN'] = sig_logN
 
@@ -259,6 +260,24 @@ class AbsLine(SpectralLine):
                 raise IOError('lines_utils: Need a spectrum!')
         return spec
 
+    # Output
+    def __repr__(self):
+        txt = '[{:s}:'.format(self.__class__.__name__)
+        # Name
+        try:
+            txt = txt+' {:s},'.format(self.atomic['name'])
+        except KeyError:
+            pass
+        # wrest
+        txt = txt + ' wrest={:.4f}'.format(self.wrest)
+        # fval
+        try:
+            txt = txt+', f={:g}'.format(self.atomic['fval'])
+        except KeyError:
+            pass
+        txt = txt + ']'
+        return (txt)
+
 
 # ######
 # Check for a spectrum
@@ -289,14 +308,14 @@ def parse_spec(spec, **kwargs):
 if __name__ == '__main__':
 
     flg_test = 0
-    flg_test += 2**0  # AbsLine
+    #flg_test += 2**0  # AbsLine
     flg_test += 2**1  # AODM
-    flg_test += 2**2  # EW
+    #flg_test += 2**2  # EW
 
     # Test Absorption Line creation
     if (flg_test % 2**1) >= 2**0:
         print('-------------------------')
-        aline = AbsLine(1215.6701)
+        aline = AbsLine(1215.6701*u.AA)
         print(aline)
 
     # Test AODM
@@ -304,12 +323,12 @@ if __name__ == '__main__':
         print('------------ AODM -------------')
         # Spectrum
         fil = '~/PROGETTI/LLSZ3/data/normalize/UM669_nF.fits'
-        aline = AbsLine(1302.1685)
+        aline = AbsLine(1302.1685*u.AA)
         aline.spec = xspec.readwrite.readspec(fil)
         # Line info
         aline.analy['z'] = 2.92652
         aline.analy['VLIM'] = const.c.to('km/s') * (
-                    ( np.array([5110.668, 5116.305])/(
+                    ( np.array([5110.668, 5116.305])*u.AA/(
                         1+aline.analy['z']) - aline.wrest) / aline.wrest )
         # Evaluate
         N,sigN = aline.aodm(conti=np.ones(len(aline.spec.flux)))
