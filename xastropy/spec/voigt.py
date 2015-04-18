@@ -82,6 +82,7 @@ def voigt_model(spec, line, Npix=None, flg_ret=1):
     # Imports
     import copy
     from specutils.spectrum1d import Spectrum1D
+    from xastropy.spec.lines_utils import AbsLine
 
     # Spectrum input
     if isinstance(spec,np.ndarray):  # Standard wavelength array
@@ -92,7 +93,7 @@ def voigt_model(spec, line, Npix=None, flg_ret=1):
         raise ValueError('voigt_model: Unknown input')
         
     # Line input
-    if isinstance(line,abs_line.Abs_Line):  # Single line as a Abs_Line Class
+    if isinstance(line,AbsLine):  # Single line as a Abs_Line Class
         par = [0*i for i in range(6)] # Dummy list
         par[0] = line.attrib['N']
         par[1] = line.z
@@ -101,11 +102,10 @@ def voigt_model(spec, line, Npix=None, flg_ret=1):
         par[4] = line.atomic['fval']
         par[5] = line.atomic['gamma']
     elif isinstance(line,list):
-        if isinstance(line[0],abs_line.Abs_Line):  # List of Abs_Line
+        if isinstance(line[0],AbsLine):  # List of Abs_Line
             tau = np.zeros(len(vmodel.flux))
             for iline in line:
                 tau += voigt_model(vmodel.dispersion, iline, Npix=None, flg_ret=2) 
-                #xdb.set_trace()
         else:
             par = line  # Single line as a vector
     else: 
@@ -113,6 +113,7 @@ def voigt_model(spec, line, Npix=None, flg_ret=1):
 
     # tau
     if 'tau' not in locals():
+        #xdb.set_trace()
         cold = 10.0**par[0] / u.cm / u.cm
         zp1=par[1]+1.0
 
@@ -175,9 +176,11 @@ def voigt_model(spec, line, Npix=None, flg_ret=1):
 # ##################################################
 if __name__ == '__main__':
     from matplotlib import pyplot as plt
+    from xastropy.spec import lines_utils as xsl
+    from xastropy.spec.lines_utils import AbsLine
 
     flg_test = 0
-    flg_test += 2**0
+    #flg_test += 2**0
     flg_test += 2**1
     flg_test += 2**2
     flg_test += 2**3
@@ -189,7 +192,7 @@ if __name__ == '__main__':
 
     # Single line (Lya)
     zabs = 0.05
-    line = abs_line.Abs_Line(1215.6701*u.AA)
+    line = AbsLine(1215.6701*u.AA)
     line.z = zabs
     line.attrib['N'] = 20.0
     line.attrib['b'] = 50.0
@@ -202,7 +205,7 @@ if __name__ == '__main__':
     # Two lines (Lya)
     line.attrib['N'] = 13.0
     line.attrib['b'] = 20.0
-    line2 = abs_line.Abs_Line(1215.6701*u.AA)
+    line2 = AbsLine(1215.6701*u.AA)
     line2.z = zabs + 5e-3
     line2.attrib['N'] = 13.5
     line2.attrib['b'] = 20.0

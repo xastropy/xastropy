@@ -164,6 +164,24 @@ class ExamineSpecWidget(QtGui.QWidget):
             self.spec = self.orig_spec
             flg = 1 
 
+        ## Lya Profiles 
+        if event.key in ['D', 'R']:
+            # Set NHI
+            if event.key == 'D':
+                NHI = 20.3
+            elif event.key == 'R':
+                NHI = 19.0
+            zlya = event.xdata/1215.6701 - 1.
+            self.llist['z'] = zlya
+            # Generate Lya profile
+            lya_line = xspec.lines_utils.AbsLine(1215.6701*u.AA)
+            lya_line.z = zlya
+            lya_line.attrib['N'] = NHI
+            lya_line.attrib['b'] = 30.
+            self.lya_line = xspec.voigt.voigt_model(self.spec.dispersion, lya_line, Npix=3.)
+            self.adict['flg'] = 4
+            flg = 1 
+
         ## ANALYSIS:  EW, AODM column density
         if event.key in ['N', 'E', '$']: 
             # If column check for line list
@@ -183,7 +201,7 @@ class ExamineSpecWidget(QtGui.QWidget):
             if self.adict['flg'] == 0:
                 self.adict['wv_1'] = event.xdata # wavelength
                 self.adict['C_1'] = event.ydata # continuum
-                self.adict['flg'] = 1
+                self.adict['flg'] = 1 # Plot dot
             else:
                 self.adict['wv_2'] = event.xdata # wavelength
                 self.adict['C_2'] = event.ydata # continuum
@@ -396,9 +414,6 @@ class ExamineSpecWidget(QtGui.QWidget):
                         jj = gdwv[kk]
                         if abs_sys.lines[kwrest[jj]].analy['FLG_ANLY'] == 0:
                             continue
-                        #QtCore.pyqtRemoveInputHook()
-                        #xdb.set_trace()
-                        #QtCore.pyqtRestoreInputHook()
                         # Paint spectrum red
                         wvlim = wvobs[jj]*(1 + abs_sys.lines[kwrest[jj]].analy['VLIM']/3e5)
                         pix = np.where( (self.spec.dispersion > wvlim[0]) & (self.spec.dispersion < wvlim[1]))[0]
@@ -414,6 +429,12 @@ class ExamineSpecWidget(QtGui.QWidget):
                 self.ax.plot([self.adict['wv_1'], self.adict['wv_2']],
                              [self.adict['C_1'], self.adict['C_2']], 'g--', marker='o')
                 self.adict['flg'] = 0
+            # Lya line?
+            if self.adict['flg'] == 4:
+                #QtCore.pyqtRemoveInputHook()
+                #xdb.set_trace()
+                #QtCore.pyqtRestoreInputHook()
+                self.ax.plot(self.spec.dispersion, self.lya_line.flux, color='green')
         
         # Reset window limits
         self.ax.set_xlim(self.psdict['xmnx'])
@@ -468,8 +489,8 @@ class PlotLinesWidget(QtGui.QWidget):
         self.connect(self.zbox, QtCore.SIGNAL('editingFinished ()'), self.setz)
 
         # Create the line list 
-        self.lists = ['None', 'grb.lst', 'dla.lst', 'lls.lst',
-                      'lyman.lst', 'gal_vac.lst', 'ne8.lst',
+        self.lists = ['None', 'grb.lst', 'dla.lst', 'lls.lst', 'subLLS.lst', 
+                      'lyman.lst', 'Dlyman.lst', 'gal_vac.lst', 'ne8.lst',
                       'lowz_ovi.lst', 'casbah.lst']
         list_label = QtGui.QLabel('Line Lists:')
         self.llist_widget = QtGui.QListWidget(self) 
@@ -1400,7 +1421,7 @@ def navigate(psdict,event,init=False):
     '''
     # Initalize
     if init is True:
-        return ['l','r','b','t','i','I', 'o','O', '[',']','W','Z', 'Y', '{', '}']
+        return ['l','r','b','t','T','i','I', 'o','O', '[',']','W','Z', 'Y', '{', '}']
 
     #
     if (not isinstance(event.xdata,float)) or (not isinstance(event.ydata,float)):
@@ -1415,6 +1436,8 @@ def navigate(psdict,event,init=False):
         psdict['ymnx'][0] = event.ydata
     elif event.key == 't':  # Set Top
         psdict['ymnx'][1] = event.ydata
+    elif event.key == 'T':  # Set Top to 1.1
+        psdict['ymnx'][1] = 1.1
     elif event.key == 'i':  # Zoom in (and center)
         deltx = (psdict['xmnx'][1]-psdict['xmnx'][0])/4.
         psdict['xmnx'] = [event.xdata-deltx, event.xdata+deltx]

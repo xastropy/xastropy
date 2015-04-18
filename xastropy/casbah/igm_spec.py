@@ -24,7 +24,7 @@ from astropy import units as u
 from astropy.table.table import Table
 #from astropy import constants as const
 
-from xastropy import spec as xspec
+from xastropy.spec import readwrite as xsr
 
 from xastropy.xutils import xdebug as xdb
 
@@ -46,7 +46,7 @@ def spec_plot(spec_fil, ID_path=None, ambig_fil=None, dwv=25., outfil='tmp.pdf')
     npy = 4
 
     # Read spectrum
-    spec = xspec.readwrite.readspec(spec_file)
+    spec = xsr.readspec(spec_file)
 
     # Start plot
     pp = PdfPages(outfil)

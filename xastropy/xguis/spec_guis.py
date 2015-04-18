@@ -68,7 +68,7 @@ class XSpecGui(QtGui.QMainWindow):
         self.spec_widg.canvas.mpl_connect('button_press_event', self.on_click)
 
         extras = QtGui.QWidget()
-        extras.setMaximumWidth(200)
+        extras.setMaximumWidth(130)
         vbox = QtGui.QVBoxLayout()
         qbtn = QtGui.QPushButton('Quit', self)
         qbtn.clicked.connect(self.quit)
