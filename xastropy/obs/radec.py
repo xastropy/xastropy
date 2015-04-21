@@ -145,8 +145,46 @@ def to_coord(irad):
     elif type(irad[0]) is Quantity:
         rad = irad 
     else: # Assuming two floats
-        rad = [iirad*u.degee for iirad in irad] 
+        rad = [iirad*u.degree for iirad in irad] 
 
     # Return
     return SkyCoord(ra=rad[0], dec=rad[1])
 
+
+#### ###############################
+#  Offsets
+def offsets(irad1, irad2):
+    """
+    Input a pair of RA/DEC and calculate the RA/DEC offsets between them
+
+    Parameters:
+    ----------
+    irad1 : RA/DEC of source 1 (origin)
+    irad2 : RA/DEC of source 2 (destination)
+
+    Returns:
+    -------
+    offsets, PA : Tuple of offsets (itself a Tuple in arcsec) and Position Angle (degrees)
+    """
+
+    # Convert to SkyCoord
+    coord1 = to_coord(irad1)
+    coord2 = to_coord(irad2)
+
+    # Angular separation
+    sep = coord1.separation(coord2).to('arcsec')
+
+    # PA
+    PA = coord1.position_angle(coord2)
+
+    # RA/DEC
+    dec_off = np.cos(PA) * sep # arcsec
+    ra_off = np.sin(PA) * sep # arcsec
+
+    # Print
+    print('RA Offset from 1 to 2 is {:g}'.format(ra_off))
+    print('DEC Offset from 1 to 2 is {:g}'.format(dec_off))
+    print('PA = {:g}'.format(PA.degree*u.degree))
+
+    # Return
+    return (ra_off, dec_off), PA.degree * u.degree
