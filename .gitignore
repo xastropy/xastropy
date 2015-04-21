@@ -1,2 +1,4 @@
 *.pyc
+TMP*.pdf
+TST*.pdf
 xastropy.egg-info
