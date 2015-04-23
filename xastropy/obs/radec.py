@@ -37,12 +37,19 @@ def stod1(rads):
     rad: tuple (RA, DEC in decimal degrees with units)
 
     """
+    # Look for a colon
+    if rads[0].find(':') == -1:
+        # No colons
+        ra = np.array(rads[0].split(' '),dtype='float')
+        dec = np.array(rads[1].split(' '),dtype='float')
+    else:
+        ra = np.array(rads[0].split(':'),dtype='float')
+        dec = np.array(rads[1].split(':'),dtype='float')
+
+    #xdb.set_trace()
     # RA
-    #pdb.set_trace()
-    ra = np.array(rads[0].split(':'),dtype='float')
     rad = (360./24.)*(ra[0] + ra[1]/60. + ra[2]/3600.)
     # DEC
-    dec = np.array(rads[1].split(':'),dtype='float')
     decd = abs(dec[0]) + dec[1]/60. + dec[2]/3600.
 
     #pdb.set_trace()

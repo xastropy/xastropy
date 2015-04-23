@@ -70,10 +70,11 @@ def wiki(targs, keys, fndr_pth=None, dbx_pth=None, outfil=None):
             x_finder.main([targ[name_tag], targ['RA'], targ['DEC']], radec=1,
                           fpath=fndr_pth)
             # Copy? + Save
-            fil1 = fndr_pth+targ[name_tag]+'.pdf'
+            nm = "".join(targ[name_tag].split()) 
+            fil1 = fndr_pth+ nm + '.pdf'
             fil2 = dbx_folder
             subprocess.call(["cp", fil1, dbx_folder])
-            fndr_files.append(dbx_pth+targ[name_tag]+'.pdf')
+            fndr_files.append(dbx_pth+nm+'.pdf')
         
     # Header
     lin = '||' 
@@ -134,7 +135,7 @@ def starlist(targs, outfil=None):
         while type(targ[name_tag]) is MaskedConstant:
             mask.append(name_tag)
             name_tag = get_name_tag(targs.dtype.names,mask=mask)
-        lin = targ[name_tag][0:4]+'_J'+ras.replace(' ','')[0:4]+decs.replace(' ','')[0:5]
+        lin = "".join(targ[name_tag][0:4].split())+'_J'+ras.replace(' ','')[0:4]+decs.replace(' ','')[0:5]
         #xdb.set_trace()
         # RA
         lin = lin + '   ' + ras

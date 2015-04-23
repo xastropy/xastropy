@@ -177,7 +177,8 @@ def main(targ_file, survey='2r', radec=None, deci=None, fpath=None,
     for qq in range(nobj):
 
         # Outfil
-        outfil = fpath+ra_tab['Name'][qq]+'.pdf'
+        nm = "".join(ra_tab['Name'][qq].split()) 
+        outfil = fpath+ nm + '.pdf'
         print(outfil)
 
         # Grab the Image
@@ -219,7 +220,7 @@ def main(targ_file, survey='2r', radec=None, deci=None, fpath=None,
         plt.text(0.,imsize/2.+ypos, 'NORTH', fontsize=20, horizontalalignment='center')
 
         # Title
-        plt.text(0.5,1.24, str(ra_tab['Name'][qq]), fontsize=32, 
+        plt.text(0.5,1.24, str(nm), fontsize=32, 
         horizontalalignment='center',transform=ax.transAxes)
         plt.text(0.5,1.16, 'RA (J2000) = '+str(ra_tab['RA'][qq]), fontsize=28, 
         horizontalalignment='center',transform=ax.transAxes)
