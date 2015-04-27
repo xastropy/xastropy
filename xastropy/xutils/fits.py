@@ -51,7 +51,7 @@ def bintab_to_table(fits_fil,exten=1, silent=False):
     return QTable( fits.open(infil)[exten].data )
 
 #
-def table_to_fits(table, outfil, compress=False, comment=None):
+def table_to_fits(itable, outfil, compress=False, comment=None):
     ''' Write an astropy Table as a FITS binary table
     ---
     Parameters
@@ -65,6 +65,7 @@ def table_to_fits(table, outfil, compress=False, comment=None):
     '''
 
     # Comments
+    table = Table(itable)
     if not comment is None:
         table.meta['comments'] = [comment]
     table.write(outfil, format='fits', overwrite=True)
