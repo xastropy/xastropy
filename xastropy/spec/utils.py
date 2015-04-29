@@ -118,3 +118,26 @@ class XSpectrum1D(Spectrum1D):
         '''
         return  (self.dispersion-wv_obs) * const.c.to('km/s')/wv_obs
 
+    # Quick plot
+    def plot(self):
+        ''' Plot the spectrum 
+        Parameters
+        ----------
+        '''
+        xdb.xplot(self.dispersion, self.flux, self.sig)
+
+
+# ################
+if __name__ == "__main__":
+
+    flg_fig = 0 
+    #flg_fig += 2**0  # Test plot
+    #flg_fig += 2**1  # Test with spectrum
+    
+    # 
+    #if (flg_fig % 2**1) >= 2**0:
+    #    main(['TST', '10:31:38.87', '+25:59:02.3'], radec=1)
+
+    # 
+    #if (flg_fig % 2**2) >= 2**1:
+    #    main(['TST2', '16:11:51.946', '+49:45:32.0'], radec=1, show_spec=True)

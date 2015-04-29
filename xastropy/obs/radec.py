@@ -12,7 +12,7 @@
 
 # Import libraries
 import numpy as np
-from astropy.table import Table
+from astropy.table import Table, Column
 from astropy.coordinates import SkyCoord
 from astropy import units as u
 from astropy.units import Quantity
@@ -30,21 +30,31 @@ def stod1(rads):
 
     Parameters:
     ----------
-    rads: tuple (RA, DEC as a string with colon format)
+    rads:
+        tuple (RA, DEC as a string with colon format)
+        string (JXXXXXX.X+XXXXXX.X format)
 
     Returns:
     ----------
     rad: tuple (RA, DEC in decimal degrees with units)
 
     """
-    # Look for a colon
-    if rads[0].find(':') == -1:
-        # No colons
-        ra = np.array(rads[0].split(' '),dtype='float')
-        dec = np.array(rads[1].split(' '),dtype='float')
+    # JXXXXXXX+XXXXXX format
+    if len(rads) > 2:
+        i0 = rads.find('J')+1
+        isign = np.max( [rads.find('+'), rads.find('-')] )
+        # Parse
+        ra = np.array( [rads[i0:i0+2], rads[i0+2:i0+4], rads[i0+4:isign]], dtype='float')
+        dec = np.array( [rads[isign:isign+3], rads[isign+3:isign+5], rads[isign+5:]], dtype='float')
     else:
-        ra = np.array(rads[0].split(':'),dtype='float')
-        dec = np.array(rads[1].split(':'),dtype='float')
+        # Look for a colon
+        if rads[0].find(':') == -1:
+            # No colons
+            ra = np.array(rads[0].split(' '),dtype='float')
+            dec = np.array(rads[1].split(' '),dtype='float')
+        else:
+            ra = np.array(rads[0].split(':'),dtype='float')
+            dec = np.array(rads[1].split(':'),dtype='float')
 
     #xdb.set_trace()
     # RA
@@ -95,31 +105,23 @@ def dtos1(irad, fmt=0):
         decs = coord.dec.to_string(sep='',pad=True, alwayssign=True, precision=1)
         return str('J'+ras+decs)
 
-#### ###############################
-#  Deal with arrays of RA, DEC
-#    Not coded yet.  Not sure we'll need it
-#def stod_array(in_ra, in_dec):
-
-#    import radec as x_r
-#    rad = np.zeros(nrow)
-#    decd = np.zeros(nrow)
-#    for k in range(nrow):
-#        rad[k], decd[k] = x_r.stod1( in_arr[k] )
-
-#    return rad, decd
 
 #### ###############################
-#  Loop on rows in the Table
+#  Add RA, DEC to a Table
 def stod_table(table):
+    ''' Converts RAS, DECS columns in a Table to RA, DEC
+    '''
 
-    import radec as x_r
+    # Generate Columns (as needed)
+    for card in ['RA','DEC']:
+        if card not in table.dtype.names:
+            table.add_column( Column( np.zeros(len(table)), name=card, unit=u.degree) )
+
     # Loop on rows
-    for k in range(len(table)):
-        rad, decd = x_r.stod1( (table['RA'][k], table['DEC'][k]) )
-        table['RAD'][k] = rad
-        table['DECD'][k] = decd
-
-        return rad, decd
+    for k,row in enumerate(table):
+        rad, decd = stod1( (row['RAS'], row['DECS']) )
+        table['RA'][k] = rad
+        table['DEC'][k] = decd
 
 #### ###############################
 #  String to decimal degress

@@ -63,9 +63,10 @@ def readspec(specfil, inflg=None, efil=None, outfil=None, show_plot=0,
             return -1
         hdulist = fits.open(os.path.expanduser(datfil))
 
+    head0 = hdulist[0].header
     ## #################
     # Binary FITS table?
-    if hdulist[0].header['NAXIS'] == 0:
+    if head0['NAXIS'] == 0:
         # Flux 
         if flux_tags is None:
             flux_tags = ['SPEC', 'FLUX','FLAM','FX', 'FLUXSTIS', 'FLUX_OPT', 'fl']
@@ -96,13 +97,14 @@ def readspec(specfil, inflg=None, efil=None, outfil=None, show_plot=0,
         if wave is None:
             print('spec.readwrite: Binary FITS Table but no wavelength tag')
             return
-    elif hdulist[0].header['NAXIS'] == 1: # Data in the zero extension
+    elif head0['NAXIS'] == 1: # Data in the zero extension
         # Look for wavelength info
         try:
-            ctype1 = hdulist[0].header['CTYPE1'].strip()
+            ctype1 = head0['CTYPE1'].strip()
         except KeyError:
             ctype1 = ''
-        if ('CRVAL1' in hdulist[0].header.keys()) and (multi_ivar is False) and (not ctype1 in ['RA---TAN','PIXEL']):
+        #if ('CRVAL1' in hdulist[0].header.keys()) and (multi_ivar is False) and (not ctype1 in ['RA---TAN','PIXEL']):
+        if len(hdulist) == 1:
             # Error
             if efil == None:
                 ipos = max(specfil.find('F.fits'),specfil.find('f.fits'))
@@ -131,10 +133,15 @@ def readspec(specfil, inflg=None, efil=None, outfil=None, show_plot=0,
             fx = hdulist[0].data.flatten()
             sig = hdulist[1].data.flatten()
             wave = hdulist[2].data.flatten()
+            # BOSS/SDSS?
+            if head0['TELESCOP'][0:4] in ['SDSS']:
+                multi_ivar = True
+            #
             if multi_ivar is True:
-                ivar = np.zeros(len(sig))
+                tmpsig = np.zeros(len(sig))
                 gdp = np.where(sig > 0.)[0]
-                ivar[gdp] = np.sqrt(1./sig[gdp])
+                tmpsig[gdp] = np.sqrt(1./sig[gdp])
+                sig = tmpsig
                 wave = 10.**wave
     else:  # Should not be here
         print('spec.readwrite: Looks like an image')
@@ -268,7 +275,7 @@ if __name__ == '__main__':
         #efil = '~ers/xavier/PROGETTI/LLSZ3/data/normalize/UM669_nE.fits'
         myspec = readspec(fil)
         #xdb.xplot(myspec.dispersion, myspec.flux)
-        xdb.xplot(myspec.dispersion, myspec.flux, myspec.sig)
+        myspec.plot()
         #xdb.xplot(myspec.dispersion, myspec.flux, myspec.uncertainty.array)
 
     # LowRedux
