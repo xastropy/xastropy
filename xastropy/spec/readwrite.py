@@ -134,8 +134,10 @@ def readspec(specfil, inflg=None, efil=None, outfil=None, show_plot=0,
             sig = hdulist[1].data.flatten()
             wave = hdulist[2].data.flatten()
             # BOSS/SDSS?
-            if head0['TELESCOP'][0:4] in ['SDSS']:
-                multi_ivar = True
+            try:
+                multi_ivar = head0['TELESCOP'][0:4] in ['SDSS']
+            except KeyError:
+                pass
             #
             if multi_ivar is True:
                 tmpsig = np.zeros(len(sig))

@@ -24,6 +24,9 @@ from xastropy.spec import readwrite as xsr
 from xastropy.stats import basic as xsb
 from xastropy.xutils import xdebug as xdb
 
+# class SpectralLine(object):
+# class AbsLine(SpectralLine):
+
 # Class for Spectral line
 class SpectralLine(object):
     """Class for a spectral line.  Emission or absorption 

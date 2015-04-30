@@ -39,6 +39,7 @@ def ion_name(ion,flg=0,nspace=None):
     Parameters
     ----------
     ion: tuple (Z,ion)
+         dict with tags of 'Z' and 'ion'
     nspace: int  (0)
       Number of spaces to insert
 
@@ -47,11 +48,12 @@ def ion_name(ion,flg=0,nspace=None):
     name : string
       e.g. Si II, {\rm Si}^{+}
     """
-    if isiterable(ion): 
+    if type(ion) is tuple:
         elm = ELEMENTS[ion[0]]
         str_elm = elm.symbol
     else: 
-        raise ValueError('ionization.ion_name: Not ready for this input yet.')
+        return ion_name( (ion['Z'], ion['ion']) )
+        #raise ValueError('ionization.ion_name: Not ready for this input yet.')
 
     # Ion state
     if flg == 0: # Roman

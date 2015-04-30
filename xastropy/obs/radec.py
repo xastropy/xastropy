@@ -46,6 +46,7 @@ def stod1(rads):
         # Parse
         ra = np.array( [rads[i0:i0+2], rads[i0+2:i0+4], rads[i0+4:isign]], dtype='float')
         dec = np.array( [rads[isign:isign+3], rads[isign+3:isign+5], rads[isign+5:]], dtype='float')
+        flg_neg = rads[isign] == '-'
     else:
         # Look for a colon
         if rads[0].find(':') == -1:
@@ -55,6 +56,8 @@ def stod1(rads):
         else:
             ra = np.array(rads[0].split(':'),dtype='float')
             dec = np.array(rads[1].split(':'),dtype='float')
+        # Sign
+        flg_neg = rads[1][0].strip() == '-'
 
     #xdb.set_trace()
     # RA
@@ -62,9 +65,7 @@ def stod1(rads):
     # DEC
     decd = abs(dec[0]) + dec[1]/60. + dec[2]/3600.
 
-    #pdb.set_trace()
     # Deal with negative sign
-    flg_neg = rads[1][0].strip() == '-'
     if flg_neg:
         decd = -1. * decd
 
@@ -144,9 +145,11 @@ def to_coord(irad):
     if type(irad) is SkyCoord:
         return irad
     if not type(irad) in [tuple,list]: 
-        raise TypeError('radec.to_coord: Requires tuple, list or SkyCoord input!')
-    if len(irad) != 2:
-        raise TypeError('radec.to_coord: Requires length two (RA,DEC)')
+        if len(irad) < 10:
+            raise TypeError('radec.to_coord: Expecting JXXXXXX.X+XXXXXX.X format')
+    else:
+        if len(irad) != 2:
+            raise TypeError('radec.to_coord: Requires length two (RA,DEC)')
 
     # String?
     if type(irad[0]) in [str,unicode]:
