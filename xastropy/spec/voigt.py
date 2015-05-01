@@ -68,6 +68,7 @@ def voigt_model(spec, line, Npix=None, flg_ret=1):
     """Generates a Voigt model from a line or list of lines
 
     Parameters:
+    ------------
         spec: wave array or Spectrum
         line: Abs_Line, List of Abs_line, or array of parameters
         flg_ret : int (1)  Byte-wise Flag for return
