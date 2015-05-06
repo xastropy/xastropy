@@ -56,6 +56,7 @@ from astropy.table import QTable, Column
 
 import matplotlib
 
+from xastropy.obs import x_getsdssimg as xgs
 from xastropy.xutils import xdebug as xdb
 from xastropy.obs import radec as x_radec
 
@@ -85,7 +86,7 @@ def get_coord(targ_file, radec=None):
         # Manipulate
         arr = np.array(targ_file).reshape(1,3)
         # Generate the Table
-        ra_tab = QTable( arr, names=('Name','RA','DEC') )
+        ra_tab = QTable( arr, names=('Name','RAS','DECS') )
     elif radec == 2: 
         # Error check
         if len(targ_file) != 3:
@@ -129,9 +130,12 @@ def main(targ_file, survey='2r', radec=None, deci=None, fpath=None,
        B&W image?
     show_spec: bool (False)
        Try to grab and show an SDSS spectrum 
+    imsize: float
+       Image size in arcmin
     '''
     import radec as x_r
-    reload(x_r)
+    #reload(x_r)
+    reload(xgs)
     import matplotlib.pyplot as plt
     import matplotlib.cm as cm
 
@@ -158,16 +162,16 @@ def main(targ_file, survey='2r', radec=None, deci=None, fpath=None,
         # Precess to 2000.
         tEPOCH = Time(EPOCH, format='jyear', scale='utc')
         # Load into astropy
-        fk5c = FK5(ra=ra_tab['RAD'], dec=ra_tab['DECD'], equinox=tEPOCH, unit=(u.degree,u.degree))
+        fk5c = FK5(ra=ra_tab['RA'], dec=ra_tab['DEC'], equinox=tEPOCH, unit=(u.degree,u.degree))
         # Precess
         newEPOCH = Time(2000., format='jyear', scale='utc')
         newfk5 = fk5c.precess_to(newEPOCH)
         # Save
-        ra_tab['RAD'] = newfk5.ra.degree
-        ra_tab['DECD'] = newfk5.dec.degree
+        ra_tab['RA'] = newfk5.ra.degree
+        ra_tab['DEC'] = newfk5.dec.degree
         # Strings too?
-        ra_tab['RA'] = str(newfk5.ra.to_string(unit=u.hour,sep=':'))
-        ra_tab['DEC'] = str(newfk5.dec.to_string(unit=u.hour,sep=':'))
+        ra_tab['RAS'] = str(newfk5.ra.to_string(unit=u.hour,sep=':'))
+        ra_tab['DECS'] = str(newfk5.dec.to_string(unit=u.hour,sep=':'))
             
 
     
@@ -182,9 +186,8 @@ def main(targ_file, survey='2r', radec=None, deci=None, fpath=None,
         print(outfil)
 
         # Grab the Image
-        from xastropy.obs import x_getsdssimg as xgs
         reload(xgs)
-        img, oBW = xgs.getimg(ra_tab['RAD'][qq], ra_tab['DECD'][qq], imsize, BW=BW,DSS=DSS)
+        img, oBW = xgs.getimg(ra_tab['RA'][qq], ra_tab['DEC'][qq], imsize, BW=BW,DSS=DSS)
 
         # Generate the plot
         plt.clf()
@@ -222,9 +225,9 @@ def main(targ_file, survey='2r', radec=None, deci=None, fpath=None,
         # Title
         plt.text(0.5,1.24, str(nm), fontsize=32, 
         horizontalalignment='center',transform=ax.transAxes)
-        plt.text(0.5,1.16, 'RA (J2000) = '+str(ra_tab['RA'][qq]), fontsize=28, 
+        plt.text(0.5,1.16, 'RA (J2000) = '+str(ra_tab['RAS'][qq]), fontsize=28, 
         horizontalalignment='center',transform=ax.transAxes)
-        plt.text(0.5,1.10, 'DEC (J2000) = '+str(ra_tab['DEC'][qq]), fontsize=28, 
+        plt.text(0.5,1.10, 'DEC (J2000) = '+str(ra_tab['DECS'][qq]), fontsize=28, 
         horizontalalignment='center',transform=ax.transAxes)
         #import pdb; pdb.set_trace()
 
@@ -234,7 +237,7 @@ def main(targ_file, survey='2r', radec=None, deci=None, fpath=None,
 
         # Spectrum??
         if show_spec:
-            spec_img = xgs.get_spec_img(ra_tab['RAD'][qq], ra_tab['DECD'][qq]) 
+            spec_img = xgs.get_spec_img(ra_tab['RA'][qq], ra_tab['DEC'][qq]) 
             plt.imshow(spec_img,extent=(-imsize/2.1, imsize*(-0.1), -imsize/2.1, imsize*(-0.2)))
 
         # Write
@@ -246,7 +249,7 @@ def main(targ_file, survey='2r', radec=None, deci=None, fpath=None,
         #xdb.set_trace()
 
     print 'finder: All done.'
-    return
+    return oBW
 
 # ################
 if __name__ == "__main__":

@@ -19,8 +19,12 @@ import astropy as apy
 
 from astropy import units as u
 from astropy import constants as const
+from astropy.io import fits 
 
 from specutils import Spectrum1D
+from specutils.wcs import BaseSpectrum1DWCS, Spectrum1DLookupWCS
+from specutils.wcs.specwcs import Spectrum1DPolynomialWCS
+
 from xastropy.xutils import xdebug as xdb
 
 # Child Class of specutils/Spectrum1D 
@@ -105,7 +109,15 @@ class XSpectrum1D(Spectrum1D):
         return XSpectrum1D.from_array(new_wv, new_fx,
                                       uncertainty=apy.nddata.StdDevUncertainty(new_sig))
 
-    #
+    # Quick plot
+    def plot(self):
+        ''' Plot the spectrum 
+        Parameters
+        ----------
+        '''
+        xdb.xplot(self.dispersion, self.flux, self.sig)
+
+    # Velo array
     def relative_vel(self, wv_obs):
         ''' Return a velocity array relative to an input wavelength
         Should consider adding a velocity array to this Class, i.e. self.velo
@@ -118,26 +130,86 @@ class XSpectrum1D(Spectrum1D):
         '''
         return  (self.dispersion-wv_obs) * const.c.to('km/s')/wv_obs
 
-    # Quick plot
-    def plot(self):
-        ''' Plot the spectrum 
+    # Velo array
+    def write_to_fits(self, outfil, clobber=True):
+        ''' Write to a FITS file
+        Should generate a separate code to make a Binary FITS table format
+
         Parameters
         ----------
+        outfil: String
+          Name of the FITS file
+        clobber: bool (True)
+          Clobber existing file?
         '''
-        xdb.xplot(self.dispersion, self.flux, self.sig)
+        # TODO
+        #  1. Add unit support for wavelength arrays
+    
+        from specutils.io import write_fits as sui_wf
+        prihdu = sui_wf._make_hdu(self.data)  # Not for binary table format
+        multi = 0 #  Multi-extension?
+
+        # Type
+        if type(self.wcs) is Spectrum1DPolynomialWCS:  # CRVAL1, etc. WCS
+            # WCS
+            wcs = self.wcs
+            wcs.write_fits_header(prihdu.header)
+            # Error array?
+            if self.sig is not None:
+                sighdu = fits.ImageHDU(self.sig)
+                hdu = fits.HDUList([prihdu, sighdu])
+                multi=1
+            else:
+                hdu = prihdu
+            
+        elif type(self.wcs) is Spectrum1DLookupWCS: # Wavelengths as an array (without units for now)
+            # Add sig, wavelength to HDU
+            sighdu = fits.ImageHDU(self.sig)
+            wvhdu = fits.ImageHDU(self.dispersion.value)
+            hdu = fits.HDUList([prihdu, sighdu, wvhdu])
+            multi=1
+        else:
+            raise ValueError('write_to_fits: Not ready for this type of spectrum wavelengths')
+
+        # Deal with header
+        if hasattr(self,'head'):
+            hdukeys = prihdu.header.keys()
+            # Append ones to avoid
+            hdukeys = hdukeys + ['BUNIT','COMMENT','', 'NAXIS2']
+            for key in self.head.keys():
+                # Use new ones
+                if key in hdukeys:
+                    continue
+                # Update unused ones
+                try:
+                    prihdu.header[key] = self.head[key]
+                except ValueError:
+                    xdb.set_trace()
+
+        # Write
+        hdu.writeto(outfil, clobber=clobber)
+        print('Wrote spectrum to {:s}'.format(outfil))
 
 
 # ################
 if __name__ == "__main__":
 
-    flg_fig = 0 
-    #flg_fig += 2**0  # Test plot
-    #flg_fig += 2**1  # Test with spectrum
-    
-    # 
-    #if (flg_fig % 2**1) >= 2**0:
-    #    main(['TST', '10:31:38.87', '+25:59:02.3'], radec=1)
+    flg_test = 0 
+    #flg_test += 2**0  # Test write (simple)
+    flg_test += 2**1  # Test write with 3 arrays
 
-    # 
-    #if (flg_fig % 2**2) >= 2**1:
-    #    main(['TST2', '16:11:51.946', '+49:45:32.0'], radec=1, show_spec=True)
+    from xastropy.spec import readwrite as xsr
+
+    if (flg_test % 2**1) >= 2**0:
+        # Standard log-linear read + write (MagE)
+        fil = '~/PROGETTI/LLSZ3/data/normalize/UM669_nF.fits'
+        myspec = xsr.readspec(fil)
+        # Write
+        myspec.write_to_fits('tmp.fits')
+
+    if (flg_test % 2**2) >= 2**1:
+        # Now 2D
+        fil = '/Users/xavier/Dropbox/QSOPairs/data/LRIS_redux/SDSSJ231254.65-025403.1_b400_F.fits.gz'
+        myspec = xsr.readspec(fil)
+        myspec.write_to_fits('tmp.fits')
+    

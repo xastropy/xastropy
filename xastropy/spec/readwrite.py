@@ -64,6 +64,7 @@ def readspec(specfil, inflg=None, efil=None, outfil=None, show_plot=0,
         hdulist = fits.open(os.path.expanduser(datfil))
 
     head0 = hdulist[0].header
+
     ## #################
     # Binary FITS table?
     if head0['NAXIS'] == 0:
@@ -98,18 +99,14 @@ def readspec(specfil, inflg=None, efil=None, outfil=None, show_plot=0,
             print('spec.readwrite: Binary FITS Table but no wavelength tag')
             return
     elif head0['NAXIS'] == 1: # Data in the zero extension
-        # Look for wavelength info
-        try:
-            ctype1 = head0['CTYPE1'].strip()
-        except KeyError:
-            ctype1 = ''
-        #if ('CRVAL1' in hdulist[0].header.keys()) and (multi_ivar is False) and (not ctype1 in ['RA---TAN','PIXEL']):
-        if len(hdulist) == 1:
+        # How many entries?
+        if len(hdulist) == 1: # Old school (one file per flux, error)
             # Error
             if efil == None:
                 ipos = max(specfil.find('F.fits'),specfil.find('f.fits'))
                 if ipos < 0: # No error array
-                    sig = np.zeros(fx.size)
+                    efil = None
+                    #sig = np.zeros(fx.size)
                 else:
                     if specfil.find('F.fits') > 0:
                         efil = xfg.chk_for_gz(specfil[0:ipos]+'E.fits')
@@ -117,7 +114,6 @@ def readspec(specfil, inflg=None, efil=None, outfil=None, show_plot=0,
                         efil = xfg.chk_for_gz(specfil[0:ipos]+'e.fits')
                 if efil != None:
                     efil=os.path.expanduser(efil)
-
             # Generate Spectrum1D
             spec1d = spec_read_fits.read_fits_spectrum1d(os.path.expanduser(datfil),
                                                          dispersion_unit='AA',
@@ -125,6 +121,14 @@ def readspec(specfil, inflg=None, efil=None, outfil=None, show_plot=0,
             xspec1d = XSpectrum1D.from_spec1d(spec1d)
 
             #spec1d = spec_read_fits.read_fits_spectrum1d(os.path.expanduser(datfil))
+
+        elif len(hdulist) == 2: # NEW SCHOOL (one file per flux, error)
+            spec1d = spec_read_fits.read_fits_spectrum1d(os.path.expanduser(datfil), dispersion_unit='AA')
+            # Error array
+            sig = hdulist[1].data
+            spec1d.uncertainty = StdDevUncertainty(sig)
+            #
+            xspec1d = XSpectrum1D.from_spec1d(spec1d)
 
         else:  # ASSUMING MULTI-EXTENSION
             if len(hdulist) <= 2:
@@ -196,6 +200,9 @@ def readspec(specfil, inflg=None, efil=None, outfil=None, show_plot=0,
         else:
             xdb.set_trace() # Not ready
 
+    # Add in the header
+    xspec1d.head = head0
+
     # Return 
     return xspec1d
 
@@ -205,6 +212,8 @@ def readspec(specfil, inflg=None, efil=None, outfil=None, show_plot=0,
 #  Set wavelength array using Header cards
 def setwave(hdr):
 
+    # DEPRECATED
+    xdb.set_trace()
     # Initialize
     SCL = 1.
     
