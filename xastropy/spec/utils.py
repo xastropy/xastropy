@@ -130,16 +130,10 @@ class XSpectrum1D(Spectrum1D):
         '''
         return  (self.dispersion-wv_obs) * const.c.to('km/s')/wv_obs
 
-<<<<<<< HEAD
-    # Velo array
+    # Write to fits
     def write_to_fits(self, outfil, clobber=True):
         ''' Write to a FITS file
         Should generate a separate code to make a Binary FITS table format
-=======
-    # Quick plot
-    def plot(self):
-        ''' Plot the spectrum 
->>>>>>> b72215e550d856f819bda2e1d9805b26893c3c86
 
         Parameters
         ----------
