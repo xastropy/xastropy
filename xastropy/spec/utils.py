@@ -121,11 +121,26 @@ class XSpectrum1D(Spectrum1D):
     # Quick plot
     def plot(self):
         ''' Plot the spectrum 
+
         Parameters
         ----------
         '''
         xdb.xplot(self.dispersion, self.flux, self.sig)
 
+    
+# Quick plot
+def bspline_stack(spectra):
+    ''' "Stack" a set of spectra with a bspline algorithm
+    Might be useful for coadding
+
+    Parameters:
+    -----------
+    spectra: List of Spectrum1D
+
+    Returns:
+    -------
+    bspline
+    '''
 
 # ################
 if __name__ == "__main__":

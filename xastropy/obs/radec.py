@@ -56,6 +56,9 @@ def stod1(rads):
         else:
             ra = np.array(rads[0].split(':'),dtype='float')
             dec = np.array(rads[1].split(':'),dtype='float')
+        # Goofy length
+        if len(ra) == 2:
+            ra = np.append(ra, [0.])
         # Sign
         flg_neg = rads[1][0].strip() == '-'
 
