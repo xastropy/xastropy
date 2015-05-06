@@ -130,10 +130,16 @@ class XSpectrum1D(Spectrum1D):
         '''
         return  (self.dispersion-wv_obs) * const.c.to('km/s')/wv_obs
 
+<<<<<<< HEAD
     # Velo array
     def write_to_fits(self, outfil, clobber=True):
         ''' Write to a FITS file
         Should generate a separate code to make a Binary FITS table format
+=======
+    # Quick plot
+    def plot(self):
+        ''' Plot the spectrum 
+>>>>>>> b72215e550d856f819bda2e1d9805b26893c3c86
 
         Parameters
         ----------
@@ -190,6 +196,20 @@ class XSpectrum1D(Spectrum1D):
         hdu.writeto(outfil, clobber=clobber)
         print('Wrote spectrum to {:s}'.format(outfil))
 
+    
+# Quick plot
+def bspline_stack(spectra):
+    ''' "Stack" a set of spectra with a bspline algorithm
+    Might be useful for coadding
+
+    Parameters:
+    -----------
+    spectra: List of Spectrum1D
+
+    Returns:
+    -------
+    bspline
+    '''
 
 # ################
 if __name__ == "__main__":
