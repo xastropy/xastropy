@@ -378,9 +378,10 @@ class ExamineSpecWidget(QtGui.QWidget):
         if replot is True:
             self.ax.clear()        
             self.ax.plot(self.spec.dispersion, self.spec.flux, 'k-',drawstyle='steps-mid')
-            self.ax.plot(self.spec.dispersion, self.spec.sig, 'r:')
-            #self.ax.plot(self.spec.dispersion, self.spec.flux, 'k-',drawstyle='steps-mid')
-            #self.ax.plot(self.spec.dispersion, self.spec.sig, 'r:')
+            try: 
+                self.ax.plot(self.spec.dispersion, self.spec.sig, 'r:')
+            except ValueError:
+                pass
             self.ax.set_xlabel('Wavelength')
             self.ax.set_ylabel('Flux')
 
@@ -1541,6 +1542,8 @@ def read_spec(ispec, second_file=None):
         # Second file?
         if not second_file is None:
             spec2 = xspec.readwrite.readspec(second_file)
+            if spec2.sig is None:
+                spec2.sig = np.zeros(spec.flux.size)
             # Scale for convenience of plotting
             xper1 = xstats.basic.perc(spec.flux, per=0.9)
             xper2 = xstats.basic.perc(spec2.flux, per=0.9)
@@ -1549,7 +1552,6 @@ def read_spec(ispec, second_file=None):
             wave3 = np.append(spec.dispersion, spec2.dispersion)
             flux3 = np.append(spec.flux, spec2.flux*scl)
             sig3 = np.append(spec.sig, spec2.sig*scl)
-            #xdb.set_trace()
             spec3 = Spectrum1D.from_array(wave3, flux3, uncertainty=StdDevUncertainty(sig3))
             # Overwrite
             spec = spec3

@@ -131,10 +131,11 @@ def getimg(ira, idec, imsize, BW=False, DSS=None):
     # Request
     rtv = requests.get(url) 
 
-    # Check against outside footprint [KLUDGY!!]
-    # Also had to turn off unicode!!
-    bad_900_1000 = '\x02\x8a(\xa0\x02\x8a(\xa0\x02\x8a(\xa0\x02\x8a(\xa0\x02\x8a(\xa0\x02\x8a(\xa0\x02\x8a(\xa0\x02\x8a(\xa0\x02\x8a(\xa0\x02\x8a(\xa0\x02\x8a(\xa0\x02\x8a(\xa0\x02\x8a(\xa0\x02\x8a(\xa0\x02\x8a(\xa0\x02\x8a(\xa0\x02\x8a(\xa0\x02\x8a(\xa0\x02\x8a(\xa0\x02\x8a(\xa0\x02\x8a(\xa0\x02\x8a(\xa0\x02\x8a(\xa0\x02\x8a(\xa0\x02\x8a(\xa0'
-    if rtv.content[900:1000] == bad_900_1000:
+    # Query for photometry
+    coord = SkyCoord(ra=ra*u.degree, dec=dec*u.degree)
+    phot = SDSS.query_region(coord, radius=0.02*u.deg)
+
+    if phot is None:
         print('getimg: Pulling from DSS instead of SDSS')
         BW = 1
         url = dsshttp(ra,dec,imsize) # DSS
