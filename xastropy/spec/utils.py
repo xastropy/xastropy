@@ -101,7 +101,6 @@ class XSpectrum1D(Spectrum1D):
             new_fx = convolve(self.flux, Box1DKernel(nbox))
             new_sig = convolve(self.sig, Box1DKernel(nbox))
             new_wv = self.dispersion
-            xdb.set_trace()
         else:
             # Truncate arrays as need be
             npix = len(self.flux)
@@ -218,7 +217,8 @@ if __name__ == "__main__":
 
     flg_test = 0 
     #flg_test += 2**0  # Test write (simple)
-    flg_test += 2**1  # Test write with 3 arrays
+    #flg_test += 2**1  # Test write with 3 arrays
+    flg_test += 2**2  # Test boxcar
 
     from xastropy.spec import readwrite as xsr
 
@@ -234,4 +234,12 @@ if __name__ == "__main__":
         fil = '/Users/xavier/Dropbox/QSOPairs/data/LRIS_redux/SDSSJ231254.65-025403.1_b400_F.fits.gz'
         myspec = xsr.readspec(fil)
         myspec.write_to_fits('tmp.fits')
+    
+    if (flg_test % 2**3) >= 2**2: # Boxcar
+        fil = '~/PROGETTI/LLSZ3/data/normalize/UM669_nF.fits'
+        myspec = xsr.readspec(fil)
+        newspec = myspec.box_smooth(3)
+        # 
+        newspec2 = myspec.box_smooth(3, preserve=True)
+        xdb.xplot(myspec.dispersion, myspec.flux, newspec2.flux)
     
