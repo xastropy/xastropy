@@ -82,7 +82,7 @@ class XSpectrum1D(Spectrum1D):
 
     #### ###############################
     #  Box car smooth
-    def box_smooth(self, nbox):
+    def box_smooth(self, nbox, preserve=False):
         """ Box car smooth spectrum and return a new one
         Is a simple wrapper to the rebin routine
 
@@ -90,20 +90,30 @@ class XSpectrum1D(Spectrum1D):
         ----------
         nbox: integer
           Number of pixels to smooth over
-
+        preserve: bool (False) 
+          Keep the new spectrum at the same number of pixels as original
         Returns:
           XSpectrum1D of the smoothed spectrum
         """
         from xastropy.xutils import arrays as xxa
-        # Truncate arrays as need be
-        npix = len(self.flux)
-        new_npix = npix // nbox # New division
-        orig_pix = np.arange( new_npix * nbox )
+        if preserve:
+            from astropy.convolution import convolve, Box1DKernel
+            new_fx = convolve(self.flux, Box1DKernel(nbox))
+            new_sig = convolve(self.sig, Box1DKernel(nbox))
+            new_wv = self.dispersion
+        else:
+            # Truncate arrays as need be
+            npix = len(self.flux)
+            try:
+                new_npix = npix // nbox # New division
+            except ZeroDivisionError:
+                xdb.set_trace()
+            orig_pix = np.arange( new_npix * nbox )
 
-        # Rebin (mean)
-        new_wv = xxa.scipy_rebin( self.dispersion[orig_pix], new_npix )
-        new_fx = xxa.scipy_rebin( self.flux[orig_pix], new_npix )
-        new_sig = xxa.scipy_rebin( self.sig[orig_pix], new_npix ) / np.sqrt(nbox)
+            # Rebin (mean)
+            new_wv = xxa.scipy_rebin( self.dispersion[orig_pix], new_npix )
+            new_fx = xxa.scipy_rebin( self.flux[orig_pix], new_npix )
+            new_sig = xxa.scipy_rebin( self.sig[orig_pix], new_npix ) / np.sqrt(nbox)
 
         # Return
         return XSpectrum1D.from_array(new_wv, new_fx,
@@ -221,7 +231,8 @@ if __name__ == "__main__":
 
     flg_test = 0
     #flg_test += 2**0  # Test write (simple)
-    flg_test += 2**1  # Test write with 3 arrays
+    #flg_test += 2**1  # Test write with 3 arrays
+    flg_test += 2**2  # Test boxcar
 
     from xastropy.spec import readwrite as xsr
 
@@ -238,3 +249,11 @@ if __name__ == "__main__":
         myspec = xsr.readspec(fil)
         myspec.write_to_fits('tmp.fits')
 
+    if (flg_test % 2**3) >= 2**2: # Boxcar
+        fil = '~/PROGETTI/LLSZ3/data/normalize/UM669_nF.fits'
+        myspec = xsr.readspec(fil)
+        newspec = myspec.box_smooth(3)
+        # 
+        newspec2 = myspec.box_smooth(3, preserve=True)
+        xdb.xplot(myspec.dispersion, myspec.flux, newspec2.flux)
+    

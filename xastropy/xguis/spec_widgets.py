@@ -336,7 +336,7 @@ class ExamineSpecWidget(QtGui.QWidget):
             flg=1
 
         # Dummy keys
-        if event.key in ['shift', 'control']:
+        if event.key in ['shift', 'control', 'shift+super', 'super+shift']:
             flg = 0
 
         # Draw
