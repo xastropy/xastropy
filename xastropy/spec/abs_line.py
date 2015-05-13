@@ -70,6 +70,8 @@ class Abs_Line_List(object):
             self.data = ascii.read(gdfil, format='fixed_width_no_header',data_start=1,
                             names=('wrest', 'flg', 'name'),
                             col_starts=(0,10,13), col_ends=(8,11,23))
+        elif fmt == 2:
+            self.data = ascii.read(gdfil, guess=False, comment=';')
         # Specify Units
         if not set_unit is None:
             self.data['wrest'].unit = u.Unit(set_unit)
@@ -156,6 +158,8 @@ def llist_file(llist):
     tfil = llist[max(0,llist.rfind('/')):]
     if tfil in ['gal_vac.lst', 'agn.lst']:
         fmt = 1
+    if tfil in ['H2.lst']:
+        fmt = 2
 
     return fil, fmt
 
