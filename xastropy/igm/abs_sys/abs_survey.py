@@ -14,6 +14,7 @@
 from __future__ import print_function, absolute_import, division, unicode_literals
 
 import numpy as np
+import imp
 
 from astropy.io import ascii 
 from astropy import units as u
@@ -21,6 +22,8 @@ from astropy import units as u
 from xastropy.igm.abs_sys.ionic_clm import Ions_Clm, Ionic_Clm_File
 from xastropy.xutils import xdebug as xdb
 from xastropy.xutils import arrays as xarray
+
+xa_path = imp.find_module('xastropy')[1]
 
 ###################### ######################
 ###################### ######################

@@ -85,6 +85,7 @@ class Abs_Line_List(object):
 
 ## ##############
 # Grab atomic data
+abs_data = None
 def abs_line_data(wrest, datfil=None, ret_flg=0, tol=1e-3*u.AA):
     """
     wrest : float or array
@@ -100,7 +101,9 @@ def abs_line_data(wrest, datfil=None, ret_flg=0, tol=1e-3*u.AA):
         datfil = xa_path+'/data/atomic/spec_atomic_lines.fits'
 
     # Read
-    data = Table.read(datfil)
+    global abs_data 
+    if abs_data is None:
+        abs_data = Table.read(datfil)
 
     if not isiterable(wrest):
         wrest = [wrest]
@@ -108,7 +111,7 @@ def abs_line_data(wrest, datfil=None, ret_flg=0, tol=1e-3*u.AA):
     # Loop
     all_row = []
     for iwrest in wrest:
-        mt = np.where(np.fabs(data['wrest']-iwrest) < tol)[0]
+        mt = np.where(np.fabs(abs_data['wrest']-iwrest) < tol)[0]
         nm = len(mt)
         # Found?
         if nm == 0:
@@ -120,13 +123,13 @@ def abs_line_data(wrest, datfil=None, ret_flg=0, tol=1e-3*u.AA):
             raise ValueError('abs_line_data: {:g} appears {:d} times in our table {:s}'.format(
                 iwrest,nm,datfil))
 
-    tab = data[all_row]
+    tab = abs_data[all_row]
 
     # Return
     if ret_flg == 0: # Dictionary(ies)
         adict = []
         for row in all_row:
-            adict.append(dict(zip(data.dtype.names,data[row])))
+            adict.append(dict(zip(abs_data.dtype.names,abs_data[row])))
         if len(wrest) == 1:
             return adict[0]
         else:

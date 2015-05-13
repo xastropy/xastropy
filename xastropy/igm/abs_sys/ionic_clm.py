@@ -93,14 +93,16 @@ class Ions_Clm(object):
            raise KeyError 
 
     # Read a .all file
-    def read_all_file(self,all_fil):
+    def read_all_file(self,all_fil,verbose=False):
         """ 
         Read in the .all file in an appropriate manner
-        NOTEIf program breaks in this function, check the all file 
+        
+        NOTE: If program breaks in this function, check the all file 
         to see if it is properly formatted.
         """
         # Read
-        print('Reading {:s}'.format(all_fil))
+        if verbose:
+            print('Reading {:s}'.format(all_fil))
         names=('Z', 'ion', 'clm', 'sig_clm', 'flg_clm', 'flg_inst') 
         table = ascii.read(all_fil, format='no_header', names=names) 
         # Convert to dict
@@ -116,6 +118,9 @@ class Ions_Clm(object):
     def read_ion_file(self,ion_fil):
         """ 
         Read in the .ion file in an appropriate manner
+
+        NOTE: If program breaks in this function, check the all file 
+        to see if it is properly formatted.
         """
         # Read
         names=('wrest', 'clm', 'sig_clm', 'flg_clm', 'flg_inst') 

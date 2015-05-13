@@ -15,7 +15,7 @@ from __future__ import print_function, absolute_import, division, unicode_litera
 
 import os, copy, sys
 import numpy as np
-import yaml
+import yaml, time
 
 from astropy import units as u
 from astropy.io import ascii 
@@ -366,13 +366,17 @@ class LLS_Survey(Absline_Survey):
 
 
 
-
-
-
-
-
-
-
+#
+def profile_read():
+    '''
+    Bit for profiling the main read commands
+    '''
+    # Tree
+    lls = LLS_Survey('Lists/lls_metals.lst', tree=os.getenv('LLSTREE'))
+    # Mask
+    # Ions
+    lls.fill_ions()
+    return lls
 
 
 ## #################################    
@@ -386,10 +390,11 @@ if __name__ == '__main__':
     #flg_test += 2 # LLS plot
     #flg_test += 2**2 # zpeak
     #flg_test += 2**3 # output .dat file
-    flg_test += 2**4 # read/write AbsID
+    #flg_test += 2**4 # read/write AbsID
     #
     #flg_test += 2**9 # LLS Survey NHI
     #flg_test += 2**10 # LLS Survey ions
+    flg_test += 2**11 # Profiling the main read commands
 
     # Test Absorption System
     print('-------------------------')
@@ -454,6 +459,14 @@ if __name__ == '__main__':
                   xlabel=r'$\log_{10} N({\rm C}^{+3})$')
         xdb.xhist(lls.ions((14,2),skip_null=True)['clm'], binsz=0.3,
                   xlabel=r'$\log_{10} N({\rm Si}^{+})$')
+
+    # Profiling the Read
+    if (flg_test % 2**12) >= 2**11:
+        # python -m cProfile -o lls_profile.dat lls_utils.py
+        t0 = time.clock()
+        lls = profile_read()
+        t1 = time.clock()
+        print('Total time = {:g}'.format(t1-t0))
 
     # All done
     print('-------------------------')

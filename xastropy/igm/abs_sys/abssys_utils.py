@@ -48,7 +48,7 @@ class Absline_System(object):
     __metaclass__ = ABCMeta
 
     # Init
-    def __init__(self, abs_type, zabs=0., NHI=0., MH=0., dat_file=None, tree=None):
+    def __init__(self, abs_type, zabs=0., NHI=0., MH=0., dat_file=None, tree=None, verbose=False):
         """  Initiator
 
         Parameters
@@ -82,7 +82,8 @@ class Absline_System(object):
 
         # Fill in
         if dat_file != None:
-            print('absys_utils: Reading {:s} file'.format(dat_file))
+            if verbose:
+                print('absys_utils: Reading {:s} file'.format(dat_file))
             self.parse_dat_file(dat_file)
             self.dat_file = dat_file
 
