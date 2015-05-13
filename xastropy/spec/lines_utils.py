@@ -159,10 +159,10 @@ class AbsLine(SpectralLine):
         satp = np.where( (fx <= sig/5.) | (fx < 0.05) )[0]
         if len(satp) > 0:
             mask[satp] = False
-            lim = np.where(sig[sat] > 0.)[0]
+            lim = np.where(sig[satp] > 0.)[0]
             if len(lim) > 0:
-                sub = np.maximum(0.05, sig[sat[lim]]/5.)
-                nndt[sat[lim]] = np.log(1./sub)*cst
+                sub = np.maximum(0.05, sig[satp[lim]]/5.)
+                nndt[satp[lim]] = np.log(1./sub)*cst
                 flg_sat = len(lim)
         # AODM
         nndt[mask] = np.log(1./fx[mask])*cst

@@ -104,7 +104,10 @@ class XSpectrum1D(Spectrum1D):
         else:
             # Truncate arrays as need be
             npix = len(self.flux)
-            new_npix = npix // nbox # New division
+            try:
+                new_npix = npix // nbox # New division
+            except ZeroDivisionError:
+                xdb.set_trace()
             orig_pix = np.arange( new_npix * nbox )
 
             # Rebin (mean)
