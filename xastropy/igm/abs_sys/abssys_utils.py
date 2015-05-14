@@ -128,15 +128,16 @@ class Absline_System(object):
             ras, decs = ('00 00 00', '+00 00 00')
         self.coord = SkyCoord(ras, decs, 'icrs', unit=(u.hour, u.deg))
 
-        # Name
-        self.name = ('J'+
-                    self.coord.ra.to_string(unit=u.hour,sep='',pad=True)+
-                    self.coord.dec.to_string(sep='',pad=True,alwayssign=True))
-
         # zabs
         try: 
             self.zabs = float(datdict['zabs'])
         except: self.zabs=0.
+
+        # Name
+        self.name = ('J'+
+                    self.coord.ra.to_string(unit=u.hour,sep='',pad=True)+
+                    self.coord.dec.to_string(sep='',pad=True,alwayssign=True)+
+                    '_z{:0.3f}'.format(self.zabs))
 
         # NHI
         try: 
