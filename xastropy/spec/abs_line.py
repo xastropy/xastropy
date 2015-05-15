@@ -159,7 +159,7 @@ def llist_file(llist):
 
     # Format
     tfil = llist[max(0,llist.rfind('/')):]
-    if tfil in ['gal_vac.lst', 'agn.lst']:
+    if tfil inZZ ['gal_vac.lst', 'agn.lst']:
         fmt = 1
     if tfil in ['H2.lst']:
         fmt = 2
