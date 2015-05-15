@@ -131,6 +131,7 @@ class LLS_System(Absline_System):
             self.subsys[lbls[ii]].clm_analy = Ionic_Clm_File(clm_fil)
             ion_fil = self.tree+self.subsys[lbls[ii]].clm_analy.ion_fil 
             all_fil = ion_fil.split('.ion')[0]+'.all'
+            self.all_fil=all_fil #MF: useful to have
             self.subsys[lbls[ii]].ions = Ions_Clm(all_fil, trans_file=ion_fil)
 
         # Combine
@@ -144,7 +145,7 @@ class LLS_System(Absline_System):
             self.ions = self.subsys['A'].ions
             self.clm_analy = self.subsys['A'].clm_analy
             print('lls_utils.get_ions: Need to update multiple subsystems!! Taking A.')
-
+            
 
     # #############
     def fill_lls_lines(self, bval=20.):
