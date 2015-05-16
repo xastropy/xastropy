@@ -197,7 +197,7 @@ class XSpectrum1D(Spectrum1D):
         if hasattr(self,'head'):
             hdukeys = prihdu.header.keys()
             # Append ones to avoid
-            hdukeys = hdukeys + ['BUNIT','COMMENT','', 'NAXIS2', 'HISTORY']
+            hdukeys = hdukeys +ZZ ['BUNIT','COMMENT','', 'NAXIS2', 'HISTORY']
             for key in self.head.keys():
                 # Use new ones
                 if key in hdukeys:
