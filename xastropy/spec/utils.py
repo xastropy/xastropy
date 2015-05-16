@@ -141,7 +141,7 @@ class XSpectrum1D(Spectrum1D):
         return  (self.dispersion-wv_obs) * const.c.to('km/s')/wv_obs
 
     # Write to fits
-    def write_to_fits(self, outfil, clobber=True):
+    def write_to_fits(self, outfil, clobber=True, add_wave=False):
         ''' Write to a FITS file
         Should generate a separate code to make a Binary FITS table format
 
@@ -151,10 +151,8 @@ class XSpectrum1D(Spectrum1D):
           Name of the FITS file
         clobber: bool (True)
           Clobber existing file?
-        add_prihdr: dict
-          Add input cards to the primary header
-        comments: string
-          Add input string as COMMENT in primary header
+        add_wave: bool (False)
+          Force writing of wavelength array
         '''
         # TODO
         #  1. Add unit support for wavelength arrays
@@ -173,7 +171,13 @@ class XSpectrum1D(Spectrum1D):
             if self.sig is not None:
                 sighdu = fits.ImageHDU(self.sig)
                 sighdu.name='ERROR'
-                hdu = fits.HDUList([prihdu, sighdu])
+                # 
+                if add_wave:
+                    wvhdu = fits.ImageHDU(self.dispersion.value)
+                    wvhdu.name = 'WAVELENGTH'
+                    hdu = fits.HDUList([prihdu, sighdu, wvhdu])
+                else:
+                    hdu = fits.HDUList([prihdu, sighdu])
                 multi=1
             else:
                 hdu = prihdu

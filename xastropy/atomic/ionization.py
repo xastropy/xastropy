@@ -40,6 +40,9 @@ def ion_name(ion,flg=0,nspace=None):
     ----------
     ion: tuple (Z,ion)
          dict with tags of 'Z' and 'ion'
+    flg: int (0)
+      0: Roman numeral
+      1: Latex with ion notation (e.g C^+)
     nspace: int  (0)
       Number of spaces to insert
 
