@@ -119,13 +119,75 @@ class XSpectrum1D(Spectrum1D):
         return XSpectrum1D.from_array(new_wv, new_fx,
                                       uncertainty=apy.nddata.StdDevUncertainty(new_sig))
 
+    #### ###############################
+    #  Rebin
+    def rebin(self, new_wv):
+        """ Rebin the existing spectrum to a new wavelength array
+        Uses simple linear interpolation.  The default (and only) option 
+        conserves counts (and flambda).
+        
+        WARNING: Do not trust either edge pixel of the new array
+
+        Parameters
+        ----------
+        new_wv: Quantity array
+          New wavelength array
+
+        Returns:
+        ----------
+          XSpectrum1D of the rebinned spectrum
+        """
+        from scipy.interpolate import interp1d
+
+        # Endpoints of original pixels
+        npix = len(self.dispersion)
+        wvh = (self.dispersion + np.roll(self.dispersion, -1))/2.
+        wvh[npix-1] = self.dispersion[npix-1] + (self.dispersion[npix-1] - self.dispersion[npix-2])/2.
+        dwv = wvh - np.roll(wvh,1)
+        dwv[0] = 2*(wvh[0]-self.dispersion[0])
+
+        # Cumulative Sum
+        cumsum = np.cumsum(self.flux * dwv)
+
+        # Interpolate
+        fcum = interp1d(wvh, cumsum, fill_value=0., bounds_error=False)
+
+        # Endpoints of new pixels
+        nnew = len(new_wv)
+        nwvh = (new_wv + np.roll(new_wv, -1))/2.
+        nwvh[nnew-1] = new_wv[nnew-1] + (new_wv[nnew-1] - new_wv[nnew-2])/2.
+        # Pad starting point
+        bwv = np.zeros(nnew+1) * new_wv.unit
+        #xdb.set_trace()
+        bwv[0] = new_wv[0] - (new_wv[1] - new_wv[0])/2.
+        bwv[1:] = nwvh
+
+        # Evaluate
+        newcum = fcum(bwv)
+        # Endpoint
+        if (bwv[-1] > wvh[-1]):
+            newcum[-1] = cumsum[-1]
+
+        # Rebinned flux
+        new_fx = (np.roll(newcum,-1)-newcum)[:-1]
+
+        # Normalize (preserve counts and flambda)
+        new_dwv = bwv - np.roll(bwv,1)
+        new_fx = new_fx / new_dwv[1:]
+
+        # Return new spectrum
+        return XSpectrum1D.from_array(new_wv, new_fx)
+
     # Quick plot
     def plot(self):
         ''' Plot the spectrum
         Parameters
         ----------
         '''
-        xdb.xplot(self.dispersion, self.flux, self.sig)
+        if self.sig is not None:
+            xdb.xplot(self.dispersion, self.flux, self.sig)
+        else:
+            xdb.xplot(self.dispersion, self.flux)
 
     # Velo array
     def relative_vel(self, wv_obs):
@@ -240,7 +302,8 @@ if __name__ == "__main__":
     flg_test = 0
     #flg_test += 2**0  # Test write (simple)
     #flg_test += 2**1  # Test write with 3 arrays
-    flg_test += 2**2  # Test boxcar
+    #flg_test += 2**2  # Test boxcar
+    flg_test += 2**3  # Test rebin
 
     from xastropy.spec import readwrite as xsr
 
@@ -265,3 +328,25 @@ if __name__ == "__main__":
         newspec2 = myspec.box_smooth(3, preserve=True)
         xdb.xplot(myspec.dispersion, myspec.flux, newspec2.flux)
     
+    if (flg_test % 2**4) >= 2**3: # Rebin array
+        fil = '~/PROGETTI/LLSZ3/data/normalize/UM669_nF.fits'
+        myspec = xsr.readspec(fil)
+
+        new_wv = np.arange(3000., 9000., 5) * u.AA
+        newspec = myspec.rebin(new_wv)
+        #xdb.xplot(myspec.dispersion, myspec.flux,
+        #    xtwo=new_wv, ytwo=newspec.flux)
+        # Test EW
+        wvmnx = np.array((4859., 4961.))*u.AA
+        gd1 = np.where( (myspec.dispersion > wvmnx[0]) & 
+            (myspec.dispersion < wvmnx[1]))[0]
+        dwv1 = myspec.dispersion - np.roll(myspec.dispersion,1)
+        EW1 = np.sum(dwv1[gd1]*(1.-myspec.flux[gd1].value))
+        gd2 = np.where( (newspec.dispersion > wvmnx[0]) & 
+            (newspec.dispersion < wvmnx[1]))[0]
+        dwv2 = newspec.dispersion - np.roll(newspec.dispersion,1)
+        EW2 = np.sum(dwv2[gd2]*(1.-newspec.flux[gd2].value))
+        print('EW1={:g} and EW2={:g} for wvmnx={:g},{:g}'.format(
+            EW1,EW2,wvmnx[0],wvmnx[1]))
+        print('Percent diff = {:0.2f}%'.format(100*(EW2-EW1)/EW1))
+
