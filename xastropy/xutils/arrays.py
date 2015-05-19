@@ -56,7 +56,7 @@ def scipy_rebin(a, *args):
 
 #
 def scipy_congrid(a, newdims, method='linear', centre=False, minusone=False):
-    ''' Method to rebin an input array to an arbitrary .
+    ''' Method to rebin an input array to an arbitrary grid.
     Akin to IDL's routine of the same name.
     Taken from scipy documentation: http://wiki.scipy.org/Cookbook/Rebinning
     '''
