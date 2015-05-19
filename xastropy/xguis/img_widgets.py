@@ -31,7 +31,7 @@ from astropy import constants as const
 from astropy import units as u
 
 # xastropy
-from xastropy import xutils as xutils
+import xastropy.xutils as xxu
 from xastropy import stats as xstats
 from xastropy.xutils import xdebug as xdb
 from xastropy.plotting import utils as xputils
@@ -47,6 +47,7 @@ class ExamineImgWidget(QtGui.QWidget):
 
         12-Apr-2015 by JXP
     '''
+    
     def __init__(self, ispec, parent=None, status=None, llist=None,
                  abs_sys=None, norm=True, second_file=None, zsys=None):
         '''
@@ -282,7 +283,7 @@ class ExamineImgWidget(QtGui.QWidget):
                 else:
                     path = self.spec.filename[0:i0]+'/ID_LINES/'
                 outfil = path + self.spec.filename[i0+1:i1]+'_z'+'{:.4f}'.format(z)+'_id.fits'
-                xutils.files.ensure_dir(outfil)
+                xxu.files.ensure_dir(outfil)
                 self.outfil = outfil
                 #QtCore.pyqtRemoveInputHook()
                 #xdb.set_trace()

@@ -137,6 +137,10 @@ class XSpectrum1D(Spectrum1D):
         wv_obs : float
           Wavelength to set the zero of the velocity array.
           Often (1+z)*wrest
+
+        Returns:
+        ---------
+        velo: Quantity array (km/s)
         '''
         return  (self.dispersion-wv_obs) * const.c.to('km/s')/wv_obs
 
