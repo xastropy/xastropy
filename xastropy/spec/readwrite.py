@@ -46,7 +46,6 @@ def readspec(specfil, inflg=None, efil=None, outfil=None, show_plot=0,
 
     # Initialize
     dat = None
-    chk = None
     if inflg == None:
         inflg = 0
 
@@ -57,7 +56,7 @@ def readspec(specfil, inflg=None, efil=None, outfil=None, show_plot=0,
         hdulist = [fits.PrimaryHDU(), specfil]
     else:
         # Read header
-        datfil = xfg.chk_for_gz(specfil,chk=chk)
+        datfil,chk = xfg.chk_for_gz(specfil)
         if chk == 0:
             print('xastropy.spec.readwrite: File does not exist ', specfil)
             return -1
@@ -109,9 +108,9 @@ def readspec(specfil, inflg=None, efil=None, outfil=None, show_plot=0,
                     #sig = np.zeros(fx.size)
                 else:
                     if specfil.find('F.fits') > 0:
-                        efil = xfg.chk_for_gz(specfil[0:ipos]+'E.fits')
+                        efil,chk = xfg.chk_for_gz(specfil[0:ipos]+'E.fits')
                     else:
-                        efil = xfg.chk_for_gz(specfil[0:ipos]+'e.fits')
+                        efil,chk = xfg.chk_for_gz(specfil[0:ipos]+'e.fits')
                 if efil != None:
                     efil=os.path.expanduser(efil)
             # Generate Spectrum1D
@@ -283,6 +282,7 @@ if __name__ == '__main__':
     # Standard log-linear read (MagE)
     if (flg_test % 2**1) >= 2**0:
         fil = '~/PROGETTI/LLSZ3/data/normalize/UM669_nF.fits'
+        #fil = '/Users/xavier/Dropbox/QSOPairs/data/MAGE_redux/SDSSJ085357.49-001106.1_F.fits.gz'
         #efil = '~ers/xavier/PROGETTI/LLSZ3/data/normalize/UM669_nE.fits'
         myspec = readspec(fil)
         #xdb.xplot(myspec.dispersion, myspec.flux)

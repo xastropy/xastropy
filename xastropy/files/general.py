@@ -28,17 +28,17 @@ def chk_for_gz(filenm,chk=None):
     # File exist?
     if os.path.lexists(filenm): 
         chk=1
-        return filenm
+        return filenm, chk
 
     # .gz already
     if filenm.find('.gz') > 0:
         chk=0
-        return filenm
+        return filenm, chk
 
     # Add .gz
     if os.path.lexists(filenm+'.gz'): 
         chk=1
-        return filenm+'.gz'
+        return filenm+'.gz', chk
     else:
         chk=0
-        return filenm
+        return filenm, chk

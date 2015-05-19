@@ -40,6 +40,37 @@ class XSpectrum1D(Spectrum1D):
         return cls(flux=spec1d.flux, wcs=spec1d.wcs, unit=spec1d.unit,
                    uncertainty=spec1d.uncertainty, mask=spec1d.mask, meta=spec1d.meta)
 
+    #### ###############################
+    #  Normalize
+    def normalize(self, conti, verbose=False, no_check=False):
+        """
+        Normalize the spectrum with an input continuum
+
+        Parameters
+        ----------
+        conti: numpy array
+          Continuum
+        verbose: bool (False)
+        no_check: bool (False)
+          Check size of array?
+        """
+        # Sanity check
+        if (len(conti) != len(self.flux)): 
+            if no_check:
+                print('WARNING: Continuum length differs from flux')
+                if len(conti) > len(self.flux):
+                    self.flux = self.flux / conti[0:len(self.flux)]
+                    return
+                else:
+                    raise ValueError('normalize: Continuum needs to be longer!')
+            else:
+                raise ValueError('normalize: Continuum needs to be same length as flux array')
+
+        # Adjust the flux
+        self.flux = self.flux / conti
+        if verbose:
+            print('spec.utils: Normalizing the spectrum')
+
 
     #### ###############################
     #  Grabs spectrum pixels in a velocity window
