@@ -83,7 +83,7 @@ class XSpectrum1D(Spectrum1D):
           wvmnx: Tuple of 2 floats
             wvmin, wvmax in spectral units
 
-        Option 2: zabs, wrest, vmnx
+        Option 2: zabs, wrest, vmnx  [not as a tuple or list!]
           zabs: Absorption redshift
           wrest: Rest wavelength  (with Units!)
           vmnx: Tuple of 2 floats

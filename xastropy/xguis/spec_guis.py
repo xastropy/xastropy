@@ -60,6 +60,8 @@ class XSpecGui(QtGui.QMainWindow):
         # Grab the pieces and tie together
         self.pltline_widg = xspw.PlotLinesWidget(status=self.statusBar, init_z=zsys)
         self.pltline_widg.setMaximumWidth(300)
+
+        # Hook the spec widget to Plot Line
         self.spec_widg = xspw.ExamineSpecWidget(spec,status=self.statusBar,
                                                 llist=self.pltline_widg.llist,
                                                 zsys=zsys, norm=norm)
