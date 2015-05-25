@@ -32,6 +32,7 @@ u.def_unit(['mAA', 'milliAngstrom'], 0.001 * u.AA, namespace=globals()) # mA
 from astropy.nddata import StdDevUncertainty
 
 from specutils.spectrum1d import Spectrum1D
+from linetools.spectra import io as lsi
 
 from xastropy import spec as xspec 
 from xastropy import stats as xstats
@@ -1538,10 +1539,10 @@ def read_spec(ispec, second_file=None):
     #
     if isinstance(ispec,str) or isinstance(ispec,unicode):
         spec_fil = ispec
-        spec = xspec.readwrite.readspec(spec_fil)
+        spec = lsi.readspec(spec_fil)
         # Second file?
         if not second_file is None:
-            spec2 = xspec.readwrite.readspec(second_file)
+            spec2 = lsi.readspec(second_file)
             if spec2.sig is None:
                 spec2.sig = np.zeros(spec.flux.size)
             # Scale for convenience of plotting
@@ -1580,7 +1581,7 @@ if __name__ == "__main__":
     if (flg_fig % 2) == 1:
         app = QtGui.QApplication(sys.argv)
         spec_fil = '/u/xavier/Keck/HIRES/RedData/PH957/PH957_f.fits'
-        spec = xspec.readwrite.readspec(spec_fil)
+        spec = lsi.readspec(spec_fil)
         app.setApplicationName('XSpec')
         main = ExamineSpecWidget(spec)
         main.show()
@@ -1623,7 +1624,7 @@ if __name__ == "__main__":
         if specf == 0: # PH957 DLA
             # Spectrum
             spec_fil = '/u/xavier/Keck/HIRES/RedData/PH957/PH957_f.fits'
-            spec = xspec.readwrite.readspec(spec_fil)
+            spec = lsi.readspec(spec_fil)
             # Abs_sys
             abs_sys = xiaa.Generic_System(None)
             abs_sys.clm_fil = '/Users/xavier/DLA/Abund/PH957.z2309.clm'
@@ -1632,7 +1633,7 @@ if __name__ == "__main__":
         elif specf == 1: # UM184 LLS
             # Spectrum
             spec_fil = '/Users/xavier/PROGETTI/LLSZ3/data/normalize/UM184_nF.fits'
-            spec = xspec.readwrite.readspec(spec_fil)
+            spec = lsi.readspec(spec_fil)
             # Abs_sys
             abs_fil = '/Users/xavier/paper/LLS/Optical/Data/Analysis/MAGE/UM184_z2.930_id.fits'
             abs_sys = xiaa.Generic_System(None)
@@ -1657,7 +1658,7 @@ if __name__ == "__main__":
     # AODM Widget
     if (flg_fig % 2**7) >= 2**6:
         spec_fil = '/Users/xavier/PROGETTI/LLSZ3/data/normalize/UM184_nF.fits'
-        spec = xspec.readwrite.readspec(spec_fil)
+        spec = lsi.readspec(spec_fil)
         z=2.96916
         lines = np.array([1548.195, 1550.770]) * u.AA
         # Launch

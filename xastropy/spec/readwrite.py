@@ -1,4 +1,5 @@
 """
+DEPRECATED
 #;+ 
 #; NAME:
 #; io  (used to be readwrite)
@@ -43,6 +44,8 @@ def readspec(specfil, inflg=None, efil=None, outfil=None, show_plot=0,
     #from xastropy.plotting import x_guis as xpxg
     from astropy.table import Table
     from astropy.table import Column
+
+    raise ValueError('USE LINETOOLS.spectra.io INSTEAD!!')
 
     # Initialize
     dat = None

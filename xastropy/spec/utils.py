@@ -223,7 +223,8 @@ class XSpectrum1D(Spectrum1D):
     # Velo array
     def relative_vel(self, wv_obs):
         ''' Return a velocity array relative to an input wavelength
-        Should consider adding a velocity array to this Class, i.e. self.velo
+        Should consider adding a velocity array to this Class, 
+        i.e. self.velo
 
         Parameters
         ----------

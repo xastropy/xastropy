@@ -539,7 +539,7 @@ def run_xabsid():
 # ################
 if __name__ == "__main__":
     import sys
-    from xastropy import spec as xspec
+    from linetools.spectra import io as lsi
     from xastropy.igm import abs_sys as xiabs
 
     if len(sys.argv) == 1: # TESTING
@@ -553,7 +553,7 @@ if __name__ == "__main__":
     
         # Read spectrum
         spec_fil = '/u/xavier/Keck/HIRES/RedData/PH957/PH957_f.fits'
-        spec = xspec.readwrite.readspec(spec_fil)
+        spec = lsi.readspec(spec_fil)
     
         # XSpec
         if (flg_fig % 2) == 1:
@@ -618,7 +618,7 @@ if __name__ == "__main__":
             lines = [1215.6701, 1025.7223] * u.AA
             norm = False
             # Launch
-            spec = xspec.readwrite.readspec(spec_fil)
+            spec = lsi.readspec(spec_fil)
             app = QtGui.QApplication(sys.argv)
             app.setApplicationName('AODM')
             main = XAODMGui(spec, z, lines, norm=norm)
