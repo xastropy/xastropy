@@ -19,8 +19,9 @@ from astropy import constants as const
 from astropy import units as u
 from astropy.units import Quantity
 
+from linetools.spectra import io as lsio
+
 import xastropy.atomic as xatom
-from xastropy.spec import readwrite as xsr
 from xastropy.stats import basic as xsb
 from xastropy.xutils import xdebug as xdb
 
@@ -327,7 +328,7 @@ if __name__ == '__main__':
         # Spectrum
         fil = '~/PROGETTI/LLSZ3/data/normalize/UM669_nF.fits'
         aline = AbsLine(1302.1685*u.AA)
-        aline.spec = xsr.readspec(fil)
+        aline.spec = lsio.readspec(fil)
         # Line info
         aline.analy['z'] = 2.92652
         aline.analy['VLIM'] = const.c.to('km/s') * (
@@ -344,7 +345,7 @@ if __name__ == '__main__':
         # Spectrum
         fil = '~/PROGETTI/LLSZ3/data/normalize/UM669_nF.fits'
         aline = AbsLine(1302.1685)
-        aline.spec = xsr.readspec(fil)
+        aline.spec = lsio.readspec(fil)
         # Line info
         aline.analy['z'] = 2.92652
         aline.analy['WVMNX'] = [5110.668, 5116.305]
