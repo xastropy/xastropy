@@ -257,7 +257,7 @@ class ExamineSpecWidget(QtGui.QWidget):
                         wrest = wrest * u.AA
     
                     # Generate the Spectral Line
-                    aline = AbsLine(wrest,linelist=self.llist['List'])
+                    aline = AbsLine(wrest,linelist=self.llist[self.llist['List']])
                     aline.attrib['z'] = self.llist['z']
                     aline.analy['spec'] = self.spec
     
