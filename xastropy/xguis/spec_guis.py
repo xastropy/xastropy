@@ -28,7 +28,9 @@ from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as Navigatio
 # Matplotlib Figure object
 from matplotlib.figure import Figure
 
+from astropy.units import Quantity
 from astropy import units as u
+
 from linetools.lists.linelist import LineList
 
 from xastropy.xutils import xdebug as xdb
@@ -97,14 +99,16 @@ class XSpecGui(QtGui.QMainWindow):
             if self.pltline_widg.llist['List'] is None:
                 return
             self.select_line_widg = xspw.SelectLineWidget(
-                self.pltline_widg.llist[self.pltline_widg.llist['List']])
+                self.pltline_widg.llist[self.pltline_widg.llist['List']]._data)
             self.select_line_widg.exec_()
             line = self.select_line_widg.line
             if line.strip() == 'None':
                 return
             #
-            wrest = float(line.split('::')[1].lstrip())
-            z = event.xdata/wrest - 1.
+            quant = line.split('::')[1].lstrip()
+            spltw = quant.split(' ')
+            wrest = Quantity(float(spltw[0]), unit=spltw[1])
+            z = event.xdata/wrest.value - 1.
             self.pltline_widg.llist['z'] = z
             self.statusBar().showMessage('z = {:f}'.format(z))
 
@@ -220,14 +224,16 @@ class XAbsIDGui(QtGui.QMainWindow):
             if self.pltline_widg.llist[self.pltline_widg.llist['List']] == 'None':
                 return
             self.select_line_widg = xspw.SelectLineWidget(
-                self.pltline_widg.llist[self.pltline_widg.llist['List']])
+                self.pltline_widg.llist[self.pltline_widg.llist['List']]._data)
             self.select_line_widg.exec_()
             line = self.select_line_widg.line
             if line.strip() == 'None':
                 return
             #
-            wrest = float(line.split('::')[1].lstrip())
-            z = event.xdata/wrest - 1.
+            quant = line.split('::')[1].lstrip()
+            spltw = quant.split(' ')
+            wrest = Quantity(float(spltw[0]), unit=spltw[1])
+            z = event.xdata/wrest.value - 1.
             self.pltline_widg.llist['z'] = z
             self.statusBar().showMessage('z = {:f}'.format(z))
 
@@ -355,10 +361,12 @@ class XVelPltGui(QtGui.QDialog):
         if event.key == 'T':  # Try another rest wavelength for input line
             # Get line from User
             self.select_line_widg = xspw.SelectLineWidget(
-                self.pltline_widg.llist[self.pltline_widg.llist['List']])
+                self.pltline_widg.llist[self.pltline_widg.llist['List']]._data)
             self.select_line_widg.exec_()
             line = self.select_line_widg.line
-            wrest = float(line.split('::')[1].lstrip())
+            quant = line.split('::')[1].lstrip()
+            spltw = quant.split(' ')
+            wrest = Quantity(float(spltw[0]), unit=spltw[1])
             # Set redshift
             self.z = self.sel_wv / wrest - 1.
             print('Setting z = {:g}'.format(self.z))

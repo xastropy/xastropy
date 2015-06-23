@@ -35,6 +35,7 @@ from astropy.nddata import StdDevUncertainty
 from specutils.spectrum1d import Spectrum1D
 
 from linetools.spectra import io as lsi
+from linetools.spectralline import AbsLine
 from linetools.lists.linelist import LineList
 
 from xastropy import spec as xspec 
@@ -221,13 +222,13 @@ class ExamineSpecWidget(QtGui.QWidget):
                 # Calculate the continuum (linear fit)
                 param = np.polyfit(iwv, ic, 1)
                 cfunc = np.poly1d(param)
-                conti = cfunc(self.spec.dispersion)
+                self.spec.conti = cfunc(self.spec.dispersion)
 
                 if event.key == '$': # Simple stats
                     pix = self.spec.pix_minmax(iwv)[0]
                     mean = np.mean(self.spec.flux[pix])
                     median = np.median(self.spec.flux[pix])
-                    stdv = np.std(self.spec.flux[pix]-conti[pix])
+                    stdv = np.std(self.spec.flux[pix]-self.spec.conti[pix])
                     S2N = median / stdv
                     mssg = 'Mean={:g}, Median={:g}, S/N={:g}'.format(mean,median,S2N)
                 else:
@@ -256,11 +257,9 @@ class ExamineSpecWidget(QtGui.QWidget):
                         wrest = wrest * u.AA
     
                     # Generate the Spectral Line
-                    from xastropy.spec.lines_utils import AbsLine
-                    raise ValueError('DEPRECATE THE NEXT LINE! OR ADD LineList')
-                    aline = AbsLine(wrest)
-                    aline.analy['z'] = self.llist['z']
-                    aline.spec = self.spec
+                    aline = AbsLine(wrest,linelist=self.llist['List'])
+                    aline.attrib['z'] = self.llist['z']
+                    aline.analy['spec'] = self.spec
     
                     # AODM
                     if event.key == 'N': 
@@ -278,7 +277,7 @@ class ExamineSpecWidget(QtGui.QWidget):
                                                                         aline.attrib['sig_logN'])
                     elif event.key == 'E':  #EW
                         aline.analy['WVMNX'] = iwv
-                        aline.restew(conti=conti)
+                        aline.restew()
                         mssg = 'Using '+ aline.__repr__()
                         mssg = mssg + ' ::  EW = {:g} +/- {:g}'.format(aline.attrib['EW'].to(mAA),
                                                                         aline.attrib['sigEW'].to(mAA))
@@ -332,7 +331,8 @@ class ExamineSpecWidget(QtGui.QWidget):
 
             # Launch
             gui = xsgui.XVelPltGui(self.spec, z=z, outfil=outfil, llist=self.llist,
-                                   abs_sys=ini_abs_sys, norm=self.norm, sel_wv=self.xval)
+                                   abs_sys=ini_abs_sys, norm=self.norm, 
+                                   sel_wv=self.xval*self.spec.wcs.unit)
             gui.exec_()
             if gui.flg_quit == 0: # Quit without saving (i.e. discarded)
                 self.vplt_flg = 0 
@@ -658,9 +658,9 @@ class SelectedLinesWidget(QtGui.QWidget):
             self.lines = inp._data
             self.llst = inp
         elif isinstance(inp,Table):
-            raise ValueError('SelectLineWidget: DEPRECATED')
+            raise ValueError('SelectedLineWidget: DEPRECATED')
         else:
-            raise ValueError('SelectLineWidget: Wrong type of input')
+            raise ValueError('SelectedLineWidget: Wrong type of input')
 
         self.plot_widget = plot_widget
 
