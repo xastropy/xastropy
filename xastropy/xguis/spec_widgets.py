@@ -279,7 +279,7 @@ class ExamineSpecWidget(QtGui.QWidget):
                         aline.analy['WVMNX'] = iwv
                         aline.restew()
                         mssg = 'Using '+ aline.__repr__()
-                        mssg = mssg + ' ::  EW = {:g} +/- {:g}'.format(aline.attrib['EW'].to(mAA),
+                        mssg = mssg + ' ::  Rest EW = {:g} +/- {:g}'.format(aline.attrib['EW'].to(mAA),
                                                                         aline.attrib['sigEW'].to(mAA))
                 # Display values
                 try:
