@@ -73,22 +73,3 @@ def table_to_fits(itable, outfil, compress=False, comment=None):
     # Compress?
     if compress:
         subprocess.call(["gzip", "-f", outfil])
-    '''
-    # Uses the astropy.fits approach
-    # Generate the header
-    prihdr = fits.Header()
-    if not comment is None:
-        prihdr['COMMENT'] = comment
-    prihdu = fits.PrimaryHDU(header=prihdr)
-
-    # Table HDU
-    table_hdu = fits.BinTableHDU.from_columns(np.array(table.filled()))
-
-    # Write
-    thdulist = fits.HDUList([prihdu, table_hdu])
-    thdulist.writeto(outfil,clobber=True)
-
-    # Compress?
-    if compress:
-        subprocess.call(["gzip", "-f", outfil])
-    '''

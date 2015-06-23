@@ -259,7 +259,6 @@ def tst_fn_data(fN_model=None, model_two=None, data_list=None, outfil=None):
     # f(N) data
     main.set_ylabel(r'$\log f(N_{\rm HI})$')
     main.set_xlabel(r'$\log N_{\rm HI}$')
-    main.set_xlabel(r'$\log N_{\rm HI}$')
     main.set_ylim(-25., -9)
 
     for fN_c in fN_cs: 

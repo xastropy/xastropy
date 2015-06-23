@@ -82,16 +82,19 @@ def voigt_model(spec, line, Npix=None, flg_ret=1):
     """
     # Imports
     import copy
-    from specutils.spectrum1d import Spectrum1D
+    from linetools.spectra.utils import XSpectrum1D
+    from astropy.nddata import StdDevUncertainty
     from xastropy.spec.lines_utils import AbsLine
 
     # Spectrum input
     if isinstance(spec,np.ndarray):  # Standard wavelength array
-        vmodel = Spectrum1D.from_array(spec, np.zeros(len(spec)))
+        vmodel = XSpectrum1D.from_array(spec, np.ones(len(spec)), 
+        	uncertainty=StdDevUncertainty(np.zeros(len(spec))))
     elif isinstance(spec,Spectrum1D):
         vmodel = copy.deepcopy(spec)
     else:
         raise ValueError('voigt_model: Unknown input')
+    #xdb.set_trace()
         
     # Line input
     if isinstance(line,AbsLine):  # Single line as a Abs_Line Class

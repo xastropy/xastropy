@@ -29,6 +29,7 @@ from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as Navigatio
 from matplotlib.figure import Figure
 
 from astropy import units as u
+from linetools.lists.linelist import LineList
 
 from xastropy.xutils import xdebug as xdb
 from xastropy.xguis import spec_widgets as xspw
@@ -545,11 +546,11 @@ if __name__ == "__main__":
     if len(sys.argv) == 1: # TESTING
 
         flg_fig = 0 
-        #flg_fig += 2**0  # XSpec
+        flg_fig += 2**0  # XSpec
         #flg_fig += 2**1  # XAbsID
         #flg_fig += 2**2  # XVelPlt Gui
         #flg_fig += 2**3  # XVelPlt Gui without ID list; Also tests select wave
-        flg_fig += 2**4  # XAODM Gui
+        #flg_fig += 2**4  # XAODM Gui
     
         # Read spectrum
         spec_fil = '/u/xavier/Keck/HIRES/RedData/PH957/PH957_f.fits'

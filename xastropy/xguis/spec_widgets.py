@@ -28,11 +28,14 @@ from matplotlib.figure import Figure
 from astropy.table.table import Table
 from astropy import constants as const
 from astropy import units as u
+from astropy.units import Quantity
 u.def_unit(['mAA', 'milliAngstrom'], 0.001 * u.AA, namespace=globals()) # mA
 from astropy.nddata import StdDevUncertainty
 
 from specutils.spectrum1d import Spectrum1D
+
 from linetools.spectra import io as lsi
+from linetools.lists.linelist import LineList
 
 from xastropy import spec as xspec 
 from xastropy import stats as xstats
@@ -230,17 +233,23 @@ class ExamineSpecWidget(QtGui.QWidget):
                 else:
                     # Find the spectral line (or request it!)
                     rng_wrest = iwv / (self.llist['z']+1)
-                    gdl = np.where( (self.llist[self.llist['List']]['wrest']-rng_wrest[0]) *
-                                    (self.llist[self.llist['List']]['wrest']-rng_wrest[1]) < 0.)[0] 
+                    #QtCore.pyqtRemoveInputHook()
+                    #xdb.set_trace()
+                    #QtCore.pyqtRestoreInputHook()
+                    gdl = np.where( (self.llist[self.llist['List']].wrest-rng_wrest[0]) *
+                                    (self.llist[self.llist['List']].wrest-rng_wrest[1]) < 0.)[0]
                     if len(gdl) == 1:
-                        wrest = self.llist[self.llist['List']]['wrest'][gdl[0]]
+                        wrest = self.llist[self.llist['List']].wrest[gdl[0]]
                     else:
                         if len(gdl) == 0: # Search through them all
                             gdl = np.arange(len(self.llist[self.llist['List']]))
-                        sel_widg = SelectLineWidget(self.llist[self.llist['List']][gdl])
+                        sel_widg = SelectLineWidget(self.llist[self.llist['List']]._data[gdl])
                         sel_widg.exec_()
                         line = sel_widg.line
-                        wrest = float(line.split('::')[1].lstrip())
+                        #wrest = float(line.split('::')[1].lstrip())
+                        quant = line.split('::')[1].lstrip()
+                        spltw = quant.split(' ')
+                        wrest = Quantity(float(spltw[0]), unit=spltw[1])
                     # Units
                     if not hasattr(wrest,'unit'):
                         # Assume Ang
@@ -248,6 +257,7 @@ class ExamineSpecWidget(QtGui.QWidget):
     
                     # Generate the Spectral Line
                     from xastropy.spec.lines_utils import AbsLine
+                    raise ValueError('DEPRECATE THE NEXT LINE! OR ADD LineList')
                     aline = AbsLine(wrest)
                     aline.analy['z'] = self.llist['z']
                     aline.spec = self.spec
@@ -390,13 +400,13 @@ class ExamineSpecWidget(QtGui.QWidget):
             if self.llist['Plot'] is True:
                 ylbl = self.psdict['ymnx'][1]-0.2*(self.psdict['ymnx'][1]-self.psdict['ymnx'][0])
                 z = self.llist['z']
-                wvobs = np.array((1+z) * self.llist[self.llist['List']]['wrest'])
+                wvobs = np.array((1+z) * self.llist[self.llist['List']].wrest)
                 gdwv = np.where( (wvobs > self.psdict['xmnx'][0]) &
                                  (wvobs < self.psdict['xmnx'][1]))[0]
                 for kk in range(len(gdwv)): 
                     jj = gdwv[kk]
-                    wrest = self.llist[self.llist['List']]['wrest'][jj]
-                    lbl = self.llist[self.llist['List']]['name'][jj]
+                    wrest = self.llist[self.llist['List']].wrest[jj].value
+                    lbl = self.llist[self.llist['List']].name[jj]
                     # Plot
                     self.ax.plot(wrest*np.array([z+1,z+1]), self.psdict['ymnx'], 'b--')
                     # Label
@@ -491,9 +501,10 @@ class PlotLinesWidget(QtGui.QWidget):
         self.connect(self.zbox, QtCore.SIGNAL('editingFinished ()'), self.setz)
 
         # Create the line list 
-        self.lists = ['None', 'grb.lst', 'dla.lst', 'lls.lst', 'subLLS.lst', 
-                      'lyman.lst', 'Dlyman.lst', 'gal_vac.lst', 'ne8.lst',
-                      'lowz_ovi.lst', 'casbah.lst', 'H2.lst']
+        self.lists = ['None', 'ISM', 'Strong', 'H2'] 
+        #'grb.lst', 'dla.lst', 'lls.lst', 'subLLS.lst', 
+#                      'lyman.lst', 'Dlyman.lst', 'gal_vac.lst', 'ne8.lst',
+#                      'lowz_ovi.lst', 'casbah.lst', 'H2.lst']
         list_label = QtGui.QLabel('Line Lists:')
         self.llist_widget = QtGui.QListWidget(self) 
         for ilist in self.lists:
@@ -632,8 +643,8 @@ class SelectLineWidget(QtGui.QDialog):
 # #####
 class SelectedLinesWidget(QtGui.QWidget):
     ''' Widget to show and enable lines to be selected
-    inp: Table or (future: string or dict) 
-      Input line list
+    inp: LineList
+      Input LineList
 
     24-Dec-2014 by JXP
     '''
@@ -643,8 +654,11 @@ class SelectedLinesWidget(QtGui.QWidget):
         super(SelectedLinesWidget, self).__init__(parent)
 
         # Line list Table
-        if isinstance(inp,Table):
-            self.lines = inp
+        if isinstance(inp,LineList):
+            self.lines = inp._data
+            self.llst = inp
+        elif isinstance(inp,Table):
+            raise ValueError('SelectLineWidget: DEPRECATED')
         else:
             raise ValueError('SelectLineWidget: Wrong type of input')
 
@@ -685,7 +699,7 @@ class SelectedLinesWidget(QtGui.QWidget):
         nlin = len(self.lines['wrest'])
         for ii in range(nlin):
             self.lines_widget.addItem('{:s} :: {:.3f}'.format(self.lines['name'][ii],
-                                                         self.lines['wrest'][ii]))
+                                                         self.lines['wrest'][ii].value))
 
     def on_item_change(self): #,item):
         # For big changes
@@ -925,7 +939,7 @@ class VelPlotWidget(QtGui.QWidget):
         wvmin = np.min(self.spec.dispersion)
         wvmax = np.max(self.spec.dispersion)
         #
-        wrest = u.Quantity(self.llist[self.llist['List']]['wrest'])
+        wrest = self.llist[self.llist['List']].wrest
         wvobs = (1+self.z) * wrest
         gdlin = np.where( (wvobs > wvmin) & (wvobs < wvmax) )[0]
         self.llist['show_line'] = gdlin
@@ -1135,8 +1149,8 @@ class VelPlotWidget(QtGui.QWidget):
                     continue # Likely too few lines
                 # Grab line
                 #wvobs = np.array((1+self.z) * self.llist[self.llist['List']]['wrest'][idx])
-                wrest = (self.llist[self.llist['List']]['wrest'][idx] *
-                         self.llist[self.llist['List']]['wrest'].unit)
+                wrest = self.llist[self.llist['List']].wrest[idx] # *
+                        # self.llist[self.llist['List']].wrest.unit)
                 kwrest = wrest.value # For the Dict
                 #QtCore.pyqtRemoveInputHook()
                 #xdb.set_trace()
@@ -1174,7 +1188,7 @@ class VelPlotWidget(QtGui.QWidget):
                 #QtCore.pyqtRemoveInputHook()
                 #xdb.set_trace()
                 #QtCore.pyqtRestoreInputHook()
-                lbl = self.llist[self.llist['List']]['name'][idx]
+                lbl = self.llist[self.llist['List']].name[idx]
                 self.ax.text(0.1, 0.05, lbl, color='blue', transform=self.ax.transAxes,
                              size='x-small', ha='left')
 
@@ -1485,10 +1499,11 @@ def navigate(psdict,event,init=False):
 def set_llist(llist,in_dict=None):
     ''' Method to set a line list dict for the Widgets
     '''
+    from linetools.lists.linelist import LineList
     if in_dict is None:
         in_dict = {}
 
-    if isinstance(llist,str) or isinstance(llist,unicode): # Set line list from a file
+    if type(llist) in [str,unicode]: # Set line list from a file
         in_dict['List'] = llist
         if llist == 'None':
             in_dict['Plot'] = False
@@ -1497,8 +1512,9 @@ def set_llist(llist,in_dict=None):
             # Load?
             if not (llist in in_dict):
                 #line_file = xa_path+'/data/spec_lines/'+llist
-                llist_cls = xspec.abs_line.Abs_Line_List(llist)
-                in_dict[llist] = llist_cls.data
+                #llist_cls = xspec.abs_line.Abs_Line_List(llist)
+                llist_cls = LineList(llist)
+                in_dict[llist] = llist_cls
     elif isinstance(llist,list): # Set from a list of wrest
 
         from astropy.table import Column
@@ -1509,6 +1525,9 @@ def set_llist(llist,in_dict=None):
         llist.sort()
         tmp_dict = {}
         # Parse from grb.lst
+        llist_cls = LineList('ISM', gd_lines=llist)
+        in_dict['input.lst'] = llist_cls
+        '''
         line_file = xa_path+'/data/spec_lines/grb.lst'
         llist_cls = xspec.abs_line.Abs_Line_List(line_file)
         adict = llist_cls.data
@@ -1530,6 +1549,7 @@ def set_llist(llist,in_dict=None):
         col1 = Column(np.array(names), name='name')
         col2 = Column(np.array(fval), name='fval')
         in_dict['input.lst'] = Table( (col0,col1,col2) )
+        '''
 
     # Return
     return in_dict
@@ -1568,17 +1588,20 @@ def read_spec(ispec, second_file=None):
 if __name__ == "__main__":
     from xastropy import spec as xspec
 
-    flg_fig = 0 
-    flg_fig += 2**0  # ExamineSpecWidget
-    #flg_fig += 2**1  # PlotLinesWidget
-    #flg_fig += 2**2  # SelectLineWidget
-    #flg_fig += 2**3  # AbsSysWidget
-    #flg_fig += 2**4  # VelPltWidget
-    #flg_fig += 2**5  # SelectedLinesWidget
-    #flg_fig += 2**6  # AODMWidget
+    if len(sys.argv) == 1: #
+        flg_tst = 0
+        flg_tst += 2**0  # ExamineSpecWidget
+        #flg_tst += 2**1  # PlotLinesWidget
+        #flg_tst += 2**2  # SelectLineWidget
+        #flg_tst += 2**3  # AbsSysWidget
+        #flg_tst += 2**4  # VelPltWidget
+        #flg_tst += 2**5  # SelectedLinesWidget
+        #flg_tst += 2**6  # AODMWidget
+    else:
+        flg_tst = int(sys.argv[1])
 
     # ExamineSpec
-    if (flg_fig % 2) == 1:
+    if (flg_tst % 2) == 1:
         app = QtGui.QApplication(sys.argv)
         spec_fil = '/u/xavier/Keck/HIRES/RedData/PH957/PH957_f.fits'
         spec = lsi.readspec(spec_fil)
@@ -1588,7 +1611,7 @@ if __name__ == "__main__":
         sys.exit(app.exec_())
 
     # PltLineWidget
-    if (flg_fig % 2**2) >= 2**1:
+    if (flg_tst % 2**2) >= 2**1:
         app = QtGui.QApplication(sys.argv)
         app.setApplicationName('PltLine')
         main = PlotLinesWidget()
@@ -1596,20 +1619,25 @@ if __name__ == "__main__":
         sys.exit(app.exec_())
 
     # SelectLineWidget
-    if (flg_fig % 2**3) >= 2**2:
-        line_file = xa_path+'/data/spec_lines/grb.lst'
-        llist_cls = xspec.abs_line.Abs_Line_List(line_file)
+    if (flg_tst % 2**3) >= 2**2:
+        orig = False
+        llist_cls = LineList('ISM')
 
         app = QtGui.QApplication(sys.argv)
         app.setApplicationName('SelectLine')
-        main = SelectLineWidget(llist_cls.data)
+        main = SelectLineWidget(llist_cls._data)
         main.show()
         app.exec_()
         print(main.line)
+        # Another test
+        quant = main.line.split('::')[1].lstrip()
+        spltw = quant.split(' ')
+        wrest = Quantity(float(spltw[0]), unit=spltw[1])
+        print(wrest)
         sys.exit()
     
     # AbsSys Widget
-    if (flg_fig % 2**4) >= 2**3:
+    if (flg_tst % 2**4) >= 2**3:
         abs_fil = '/Users/xavier/paper/LLS/Optical/Data/Analysis/MAGE/SDSSJ1004+0018_z2.746_id.fits'
         abs_fil2 = '/Users/xavier/paper/LLS/Optical/Data/Analysis/MAGE/SDSSJ2319-1040_z2.675_id.fits'
         app = QtGui.QApplication(sys.argv)
@@ -1619,7 +1647,7 @@ if __name__ == "__main__":
         sys.exit(app.exec_())
 
     # VelPlt Widget
-    if (flg_fig % 2**5) >= 2**4:
+    if (flg_tst % 2**5) >= 2**4:
         specf = 1
         if specf == 0: # PH957 DLA
             # Spectrum
@@ -1646,17 +1674,18 @@ if __name__ == "__main__":
         sys.exit(app.exec_())
 
     # SelectedLines Widget
-    if (flg_fig % 2**6) >= 2**5:
-        llist = set_llist('grb.lst') 
+    if (flg_tst % 2**6) >= 2**5:
+        print('Test: SelectedLines Widget')
+        llist = set_llist('ISM')
         # Launch
         app = QtGui.QApplication(sys.argv)
         app.setApplicationName('SelectedLines')
-        main = SelectedLinesWidget(llist['grb.lst'])
+        main = SelectedLinesWidget(llist['ISM'])#._data)
         main.show()
         sys.exit(app.exec_())
 
     # AODM Widget
-    if (flg_fig % 2**7) >= 2**6:
+    if (flg_tst % 2**7) >= 2**6:
         spec_fil = '/Users/xavier/PROGETTI/LLSZ3/data/normalize/UM184_nF.fits'
         spec = lsi.readspec(spec_fil)
         z=2.96916

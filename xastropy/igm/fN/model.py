@@ -515,9 +515,9 @@ if __name__ == '__main__':
     from xastropy.igm.fN import model as xifm
 
     flg_test = 0 
-    #flg_test += 4 # Data
-    #flg_test += 8 # l(X)
-    flg_test += 64 # Akio
+    flg_test += 2**2 # Standard model
+    #flg_test += 2**3 # l(X)
+    #flg_test += 64 # Akio
     #flg_test = 0 + 64
     
     if (flg_test % 2) == 1:
@@ -535,10 +535,6 @@ if __name__ == '__main__':
     # Compare default against P+13
     if (flg_test % 4) >= 2:
         fN_model = xifm.default_model()
-        #p13_pivots = ([12.000000,       15.000000,       17.000000,      18.000000,
-        #        20.000000,       21.000000,       21.500000,       22.000000])
-        #p13_fN = ([-9.7233782,      -14.411575,      -17.941498,      -19.392904,
-        #        -21.282812,      -22.820860,      -23.945236,      -25.502331])
         p13_file = (os.environ.get('DROPBOX_DIR')+'IGM/fN/fN_spline_z24.fits.gz')
         hdu = fits.open(p13_file)
         p13_data = hdu[1].data
@@ -555,7 +551,7 @@ if __name__ == '__main__':
 
     # Reproduce the main figure from P14
     # Plot with Data
-    if (flg_test % 8) >= 4:
+    if (flg_test % 2**3) >= 2**2:
         fN_model = xifm.default_model()
         fN_data.tst_fn_data(fN_model=fN_model)
 

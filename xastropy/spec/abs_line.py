@@ -52,6 +52,7 @@ class Abs_Line_List(object):
            Format of line list.  Follows XIDL formatting..
            0: Standard absorption lines
            1: Galaxy/Quasar lines
+           2: H2
         set_unit: string ('AA')
            Set units of wavelength. Use None to avoid 
         '''
@@ -276,7 +277,8 @@ else:
 
 # Class for Absorption Line  --- SHOULD COMBINE WITH Spectral_Line Class
 class Abs_Line(object):
-    """An absorption line
+    """ DEPRECATED
+    An absorption line
 
     Attributes:
         name: string
