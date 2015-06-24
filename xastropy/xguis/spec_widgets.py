@@ -35,7 +35,13 @@ from astropy.nddata import StdDevUncertainty
 from specutils.spectrum1d import Spectrum1D
 
 from linetools.spectra import io as lsi
-from linetools.spectralline import AbsLine
+try:
+    from linetools.spectralline import AbsLine
+except ImportError:
+    print('-----------------------------------------------------------')
+    print('-----------------------------------------------------------')
+    print('AbsLine not available yet.  Coming soon....')
+    print('-----------------------------------------------------------')
 from linetools.lists.linelist import LineList
 
 from xastropy import spec as xspec 
