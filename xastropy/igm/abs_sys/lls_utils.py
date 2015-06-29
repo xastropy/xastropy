@@ -13,7 +13,7 @@
 
 from __future__ import print_function, absolute_import, division, unicode_literals
 
-import os, copy, sys
+import os, copy, sys, imp, glob
 import numpy as np
 import yaml, time
 
@@ -28,6 +28,8 @@ from xastropy.igm.abs_sys.ionclms import Ionic_Clm_File, IonClms
 from xastropy.spec import abs_line, voigt
 from xastropy.atomic import ionization as xatomi
 from xastropy.xutils import xdebug as xdb
+
+xa_path = imp.find_module('xastropy')[1]
 
 #class LLSSystem(AbslineSystem):
 #class LLS_Survey(Absline_Survey):
@@ -371,9 +373,10 @@ class LLSSurvey(AbslineSurvey):
         # Return
         return gdNHI, bdNHI
 
-    # Default sample of LLS (high-z)
+    # Default sample of LLS (HD-LLS, DR1)
     @classmethod
     def default_sample(cls):
+        '''
         # Local
         sys.path.append(os.path.abspath(os.environ.get('LLSPAP')+
                                         "/Optical/Data/Analysis/py"))
@@ -385,6 +388,35 @@ class LLSSurvey(AbslineSurvey):
         lls.upd_mask(msk)
 
         # Return
+        return lls
+        '''
+        import urllib2
+        # Pull from Internet (as necessary)
+        summ_fil = glob.glob(xa_path+"/data/LLS/HD-LLS_DR1.fits")
+        if len(summ_fil) > 0:
+            summ_fil = summ_fil[0]
+        else:
+            url = 'http://www.ucolick.org/~xavier/HD-LLS/DR1/HD-LLS_DR1.fits'
+            f = urllib2.urlopen(url)
+            summ_fil = xa_path+"/data/LLS/HD-LLS_DR1.fits"
+            with open(summ_fil, "wb") as code:
+                code.write(f.read())
+
+        # Ions
+        ions_fil = glob.glob(xa_path+"/data/LLS/HD-LLS_ions.json")
+        if len(ions_fil) > 0:
+            ions_fil = ions_fil[0]
+        else:
+            url = 'http://www.ucolick.org/~xavier/HD-LLS/DR1/HD-LLS_ions.json'
+            f = urllib2.urlopen(url)
+            ions_fil = xa_path+"/data/LLS/HD-LLS_ions.json"
+            with open(ions_fil, "wb") as code:
+                code.write(f.read())
+
+        # Read
+        lls = cls(summ_fits=summ_fil)
+        lls.fill_ions(jfile=ions_fil)
+
         return lls
 
 
