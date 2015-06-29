@@ -328,16 +328,16 @@ class LLSSystem(AbslineSystem):
 # #######################################################################
 # #######################################################################
 # Class for LLS Survey
-class LLS_Survey(AbslineSurvey):
+class LLSSurvey(AbslineSurvey):
     """An LLS Survey class
 
     Attributes:
         
     """
     # Initialize with a .dat file
-    def __init__(self, dat_file, tree=None):
+    def __init__(self, **kwargs): 
         # Generate with type
-        AbslineSurvey.__init__(self,dat_file, abs_type='LLS', tree=tree)
+        AbslineSurvey.__init__(self, 'LLS', **kwargs)
 
     # Cut on NHI
     def cut_nhi_quality(self, sig_cut=0.4):
@@ -454,23 +454,23 @@ if __name__ == '__main__':
     # Read and Write AbsID
     if (flg_test % 2**5) >= 2**4:
         abs_fil = '/Users/xavier/paper/LLS/Optical/Data/Analysis/MAGE/SDSSJ1004+0018_z2.746_id.fits'
-        lls = LLS_System.from_absid_fil(abs_fil)
+        lls = LLSSystem.from_absid_fil(abs_fil)
         tmpfil= '/Users/xavier/Desktop/tmp.fits'
         xdb.set_trace()
         lls.write_absid_file(tmpfil)
-        lls = LLS_System.from_absid_fil(tmpfil)
+        lls = LLSSystem.from_absid_fil(tmpfil)
         xdb.set_trace()
 
     # #############################
     # LLS Survey
     if (flg_test % 2**10) >= 2**9:
         print('-------------------------')
-        lls = LLS_Survey('Lists/lls_metals.lst', tree=os.environ.get('LLSTREE'))
+        lls = LLSSurvey('Lists/lls_metals.lst', tree=os.environ.get('LLSTREE'))
         xdb.xhist(lls.NHI, binsz=0.30)
 
     # LLS Survey ions
     if (flg_test % 2**11) >= 2**10:
-        lls = LLS_Survey('Lists/lls_metals.lst', tree=os.environ.get('LLSTREE'))
+        lls = LLSSurvey('Lists/lls_metals.lst', tree=os.environ.get('LLSTREE'))
         lls.fill_ions()
         xdb.xhist(lls.ions((6,4),skip_null=True)['clm'], binsz=0.3,
                   xlabel=r'$\log_{10} N({\rm C}^{+3})$')

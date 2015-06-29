@@ -15,6 +15,7 @@ from __future__ import print_function, absolute_import, division, unicode_litera
 import numpy as np
 
 from astropy import units as u
+from astropy.units.quantity import Quantity
 
 from xastropy.xutils import xdebug as xdb
 
@@ -25,9 +26,9 @@ def lst_to_array(lst,mask=None):
     '''
     # Set mask
     if mask is None:
-        mask = (lst == lst)
+        mask = np.array([True]*len(lst))
     
-    if isinstance(lst[0],u.quantity.Quantity):
+    if isinstance(lst[0],Quantity):
         #Mask and create an array
         unit = lst[0].unit
         newlst= []

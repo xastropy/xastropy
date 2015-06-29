@@ -360,7 +360,7 @@ class AbslineSystem(object):
 
 
 # Class for Generic Absorption Line System
-class Generic_System(AbslineSystem):
+class GenericAbsSystem(AbslineSystem):
     """A simple absorption system
     """
     def __init__(self, **kwargs):

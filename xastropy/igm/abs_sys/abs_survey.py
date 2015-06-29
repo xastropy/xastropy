@@ -15,6 +15,7 @@ from __future__ import print_function, absolute_import, division, unicode_litera
 
 import numpy as np
 import imp
+from abc import ABCMeta, abstractmethod
 
 from astropy.io import ascii 
 from astropy import units as u
@@ -38,8 +39,10 @@ class AbslineSurvey(object):
         ref: Reference to the Survey
     """
 
+    __metaclass__ = ABCMeta
+
     # Init
-    def __init__(self, flist, abs_type=None, tree='', ref=None):
+    def __init__(self, abs_type, flist=None, tree='', ref=''):
         # Expecting a list of files describing the absorption systems
         """  Initiator
 
@@ -60,7 +63,7 @@ class AbslineSurvey(object):
         self._abs_sys = []
 
         # Load up (if possible)
-        if len(flist) > 0:  # Should improve this..
+        if flist is not None:
             data = ascii.read(tree+flist, data_start=0, guess=False,format='no_header')
 
             self.dat_files = list(data['col1'])
@@ -71,14 +74,14 @@ class AbslineSurvey(object):
             # Generate AbsSys list
             for dat_file in self.dat_files:
                 if abs_type == 'LLS':
-                    from xastropy.igm.abs_sys.lls_utils import LLS_System
-                    self._abs_sys.append(LLS_System(dat_file=dat_file,tree=tree))
+                    from xastropy.igm.abs_sys.lls_utils import LLSSystem
+                    self._abs_sys.append(LLSSystem(dat_file=dat_file,tree=tree))
                 elif abs_type == 'DLA':
                     from xastropy.igm.abs_sys.dla_utils import DLA_System
                     self._abs_sys.append(DLA_System(dat_file=dat_file,tree=tree))
                 else: # Generic
-                    from xastropy.igm.abs_sys.abssys_utils import Generic_System
-                    self._abs_sys.append(Generic_System(abs_type,dat_file=tree+dat_file))
+                    from xastropy.igm.abs_sys.abssys_utils import GenericAbsSystem
+                    self._abs_sys.append(GenericAbsSystem(abs_type,dat_file=tree+dat_file))
             # Mask
             self.mask = (np.ones(self.nsys) == np.ones(self.nsys))
         else:
@@ -176,16 +179,21 @@ class AbslineSurvey(object):
 
     # Printing
     def __repr__(self):
-        return '[Absline_Survey: {:s} {:s}, nsys={:d}, type={:s}, ref={:s}]'.format(self.tree, self.flist,
-                                                            self.nsys, self.abs_type, self.ref)
+        if self.flist is not None:
+            return '[AbslineSurvey: {:s} {:s}, nsys={:d}, type={:s}, ref={:s}]'.format(
+                self.tree, self.flist, self.nsys, self.abs_type, self.ref)
+        else:
+            return '[AbslineSurvey: nsys={:d}, type={:s}, ref={:s}]'.format(
+                self.nsys, self.abs_type, self.ref)
+
+# Class for Generic Absorption Line System
+class GenericAbsSurvey(AbslineSurvey):
+    """A simple absorption line survey
+    """
+    def __init__(self, **kwargs):
+        AbslineSurvey.__init__(self,'Generic',**kwargs)
 
 
-
-
-
-
-
-    
 ###################### ###################### ######################
 ###################### ###################### ######################
 ###################### ###################### ######################
@@ -193,15 +201,8 @@ class AbslineSurvey(object):
 ###################### ###################### ######################
 if __name__ == '__main__':
 
-    # Test Absorption System
-    tmp1 = Absline_System('LLS')
-    tmp1.parse_dat_file('/Users/xavier/LLS/Data/UM669.z2927.dat')
-    print(tmp1)
-
-    #pdb.set_trace()
-
     # Test the Survey
-    tmp = Absline_Survey('Lists/lls_metals.lst',abs_type='LLS',
+    tmp = AbslineSurvey('Lists/lls_metals.lst',abs_type='LLS',
                          tree='/Users/xavier/LLS/')
     print(tmp)
     print('z  NHI')

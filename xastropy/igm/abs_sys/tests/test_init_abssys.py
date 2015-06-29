@@ -1,4 +1,4 @@
-# Module to run tests on initializing AbsLine
+# Module to run tests on initializing AbslineSystem
 
 # TEST_UNICODE_LITERALS
 
@@ -19,13 +19,13 @@ def data_path(filename):
 
 def test_generic():
 	# Init 
-    gensys = xabsys.Generic_System(NHI=16., zabs=1.244)
+    gensys = xabsys.GenericAbsSystem(NHI=16., zabs=1.244)
     #
     assert gensys.abs_type == 'Generic'
 
 def test_lines_generic():
     # Init 
-    gensys = xabsys.Generic_System()
+    gensys = xabsys.GenericAbsSystem()
     #
     few_lines = [1215.6700, 1334.5323]*u.AA
     for ilin in few_lines:
