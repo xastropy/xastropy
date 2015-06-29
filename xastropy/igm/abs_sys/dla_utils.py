@@ -20,8 +20,8 @@ import yaml
 from astropy import units as u
 from astropy.io import ascii 
 
-from xastropy.igm.abs_sys.abssys_utils import Absline_System, Abs_Sub_System
-from xastropy.igm.abs_sys.abs_survey import Absline_Survey
+from xastropy.igm.abs_sys.abssys_utils import AbslineSystem, Abs_Sub_System
+from xastropy.igm.abs_sys.abs_survey import AbslineSurvey
 from xastropy.igm.abs_sys.ionic_clm import Ionic_Clm_File
 from xastropy.spec import abs_line, voigt
 from xastropy.atomic import ionization as xatomi
@@ -31,7 +31,7 @@ from xastropy.xutils import xdebug as xdb
 #class DLA_Survey(Absline_Survey):
 
 # Class for DLA Absorption Lines 
-class DLA_System(AbslineSystem):
+class DLASystem(AbslineSystem):
     """A DLA absorption system
 
     Attributes:
@@ -40,7 +40,7 @@ class DLA_System(AbslineSystem):
     # Initialize with a .dat file
     def __init__(self, dat_file=None, tree=None):
         # Generate with type
-        Absline_System.__init__(self,'DLA')
+        AbslineSystem.__init__(self,'DLA')
         # Over-ride tree?
         if tree != None:
             self.tree = tree
@@ -80,7 +80,7 @@ class DLA_System(AbslineSystem):
 # #######################################################################
 # #######################################################################
 # Class for DLA Survey
-class DLA_Survey(AbslineSurvey):
+class DLASurvey(AbslineSurvey):
     """An DLA Survey class
 
     Attributes:
@@ -89,7 +89,7 @@ class DLA_Survey(AbslineSurvey):
     # Initialize with a .dat file
     def __init__(self, dat_file, tree=None):
         # Generate with type
-        Absline_Survey.__init__(self,dat_file,abs_type='DLA', tree=tree)
+        AbslineSurvey.__init__(self,dat_file,abs_type='DLA', tree=tree)
 
 
     # Default sample of DLA:  Neeleman

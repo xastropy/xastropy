@@ -38,10 +38,13 @@ class AbslineSystem(object):
     Attributes:
         abs_type: str
         name: str
+            Name of the system
         coord: SkyCoord
             RA/Dec of the sightline
         zabs : float
           Absorption redshift
+        zem : float
+          Emission redshift of background source
         vlim : Quantity array (2) 
           Velocity limits of the system
         NHI:  float
@@ -50,14 +53,19 @@ class AbslineSystem(object):
           Log10 error of the HI column density (-/+)
         MH:  float
           Metallicity (log10)
-        _ionclms:  IonClms Class
+        RA:  Quantity
+          RA of the System (deg)
+        Dec:  Quantity
+          Dec of the System (deg)
     """
 
     __metaclass__ = ABCMeta
 
     # Init
     def __init__(self, abs_type, zabs=0., vlim=np.zeros(2)*u.km/u.s, NHI=0., MH=0., 
-        dat_file=None, tree=None, verbose=False, linelist=None):
+        name='No_Name',
+        dat_file=None, tree=None, verbose=False, linelist=None, zem=0., 
+        RA=None, Dec=None, sigNHI=np.zeros(2)):
         """  Initiator
 
         Parameters
@@ -68,11 +76,17 @@ class AbslineSystem(object):
           ASCII .dat file summarizing the system
         """
 
+        self.name = name
         self.zabs = zabs
+        self.zem = zem
         self.vlim = vlim
         self.NHI = NHI
+        self.sigNHI = sigNHI
         self.MH = MH
-        self.coord = None
+        if (RA is not None) & (Dec is not None):
+            self.coord = SkyCoord(ra=RA, dec=Dec)
+        else:
+            self.coord = None
 
         # Abs type
         if abs_type == None:
@@ -302,7 +316,7 @@ class AbslineSystem(object):
         ion_fil = self.tree+self.clm_analy.ion_fil # Should check for existence
         all_fil = ion_fil.split('.ion')[0]+'.all'
         if skip_ions is False:
-            self.ions = Ions_Clm(all_fil, trans_file=ion_fil)
+            self._ionclms = Ions_Clm(all_fil, trans_file=ion_fil)
 
     # #################
     # Load low_ion kinematics

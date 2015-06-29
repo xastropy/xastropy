@@ -16,6 +16,7 @@ import numpy as np
 
 from astropy.io import fits, ascii
 from astropy.units.quantity import Quantity
+from astropy.table import QTable, Table
 
 from xastropy.atomic import ionization as xai
 import xastropy as xa
@@ -38,11 +39,13 @@ class IonClms(object):
     """
 
     # Initialize with wavelength
-    def __init__(self, all_file=None, trans_file=None):
+    def __init__(self, all_file=None, trans_file=None, idict=None):
         '''
         all_file -- .all file
            File for ionic column values 
            Generally a .all file for parsing
+        idict -- Input dict
+           Often from a JSON file, e.g. "HD-LLS_ions.json"
         trans_file -- string  [DEPRECATED]
            File for transition-by-transition measurements
            Usually has extension .ion
@@ -52,17 +55,45 @@ class IonClms(object):
         # Dictionary stuff
         self.keys= ('clm', 'sig_clm', 'flg_clm', 'flg_inst') 
         self.key_dtype=('f4','f4','i4','i4')
+
+        # .all file?
         if all_file is not None:
-            self.read_all_file(all_file)
+            self.from_all_file(all_file)
             self.all_file = all_file
 
-        # Transitions?
+        # dict?
+        if idict is not None:
+            self.from_dict(idict)
+
+        # Transitions? [DEPRECATED]
         if trans_file is not None:
             raise ValueError('Read these in as AbsLine(s)')
-            self.read_ion_file(trans_file)
+            #self.read_ion_file(trans_file)
 
     # Read a .all file
-    def read_all_file(self,all_fil,verbose=False):
+    def from_dict(self,idict,verbose=False):
+        # Manipulate for astropy Table
+        table = None
+        for ion in idict.keys():
+            Zion = xai.name_ion(ion)
+            if table is None:
+                tkeys = idict[ion].keys()
+                lst = [[idict[ion][tkey]] for tkey in tkeys]
+                table = Table(lst, names=tkeys)
+                # Extra columns
+                #table.add_column(Column([Zion[0]],name='Z'))
+                #table.add_column(Column([Zion[1]],name='ion'))
+            else:
+                tdict = idict[ion]
+                #tdict['Z'] = Zion[0]
+                #tdict['ion'] = Zion[1]
+                # Add
+                table.add_row(idict[ion])
+        # Finish
+        self._data = table
+
+    # Read a .all file
+    def from_all_file(self,all_fil,verbose=False):
         """Read in JXP-style .all file in an appropriate manner
         
         NOTE: If program breaks in this function, check the all file 
@@ -120,14 +151,17 @@ class IonClms(object):
         Dict (from row in the data table)
         '''
         if isinstance(ion,tuple):
-            mt = (self._data['Z'] == ion[0]) & (self._data['ion'] == ion[1])
+            mt = np.where((self._data['Z'] == ion[0]) & (self._data['ion'] == ion[1]))[0]
         elif isinstance(ion,basestring):
             # Convert to tuple
             return self.__getitem__(xai.name_ion(ion))
         else:
             raise ValueError('Not prepared for this type')
 
-        return dict(zip(self._data.dtype.names,self._data[mt][0]))
+        if len(mt) == 0:
+            raise KeyError
+        else:
+            return dict(zip(self._data.dtype.names,self._data[mt][0]))
 
     # Printing
     def __repr__(self):
