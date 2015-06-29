@@ -1,0 +1,7 @@
+Data files related to LLS.
+  Note:  This directory may be empty until
+  you attempt to use the datasets.
+###
+HD-LLS DR1
+  Summary FITS file - http://www.ucolick.org/~xavier/HD-LLS/DR1/HD-LLS_DR1.fits
+  JSON ions file - http://www.ucolick.org/~xavier/HD-LLS/DR1/HD-LLS_ions.json 
