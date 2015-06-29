@@ -397,6 +397,7 @@ class LLSSurvey(AbslineSurvey):
             summ_fil = summ_fil[0]
         else:
             url = 'http://www.ucolick.org/~xavier/HD-LLS/DR1/HD-LLS_DR1.fits'
+            print('LLSSurvey: Grabbing summary file from {:s}'.format(url))
             f = urllib2.urlopen(url)
             summ_fil = xa_path+"/data/LLS/HD-LLS_DR1.fits"
             with open(summ_fil, "wb") as code:
@@ -408,6 +409,7 @@ class LLSSurvey(AbslineSurvey):
             ions_fil = ions_fil[0]
         else:
             url = 'http://www.ucolick.org/~xavier/HD-LLS/DR1/HD-LLS_ions.json'
+            print('LLSSurvey: Grabbing JSON ion file from {:s}'.format(url))
             f = urllib2.urlopen(url)
             ions_fil = xa_path+"/data/LLS/HD-LLS_ions.json"
             with open(ions_fil, "wb") as code:
