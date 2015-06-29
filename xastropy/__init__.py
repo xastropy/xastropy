@@ -7,6 +7,7 @@ import obs
 import phot
 import plotting
 import spec
+import stats
 import xguis
 import xutils
 import PH136

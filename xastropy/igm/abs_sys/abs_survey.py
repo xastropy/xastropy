@@ -28,7 +28,7 @@ xa_path = imp.find_module('xastropy')[1]
 ###################### ######################
 ###################### ######################
 # Class for Absorption Line Survey
-class Absline_Survey(object):
+class AbslineSurvey(object):
     """A survey of absorption line systems. Each system may be a
     collection of Absline_System's
 

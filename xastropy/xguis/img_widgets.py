@@ -31,8 +31,6 @@ from astropy import constants as const
 from astropy import units as u
 
 # xastropy
-import xastropy.xutils as xxu
-from xastropy import stats as xstats
 from xastropy.xutils import xdebug as xdb
 from xastropy.plotting import utils as xputils
 from xastropy.xguis import utils as xguiu
@@ -48,6 +46,9 @@ class ExamineImgWidget(QtGui.QWidget):
         12-Apr-2015 by JXP
     '''
     
+    import xastropy.xutils as xxu
+    from xastropy import stats as xstats
+
     def __init__(self, ispec, parent=None, status=None, llist=None,
                  abs_sys=None, norm=True, second_file=None, zsys=None):
         '''

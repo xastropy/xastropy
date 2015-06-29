@@ -19,47 +19,57 @@ from collections import OrderedDict
 
 from astropy.io import ascii, fits 
 from astropy import units as u
-
-from xastropy.igm.abs_sys.ionic_clm import Ions_Clm, Ionic_Clm_File
-from xastropy.xutils import xdebug as xdb
-from xastropy import spec as xspec 
-from xastropy import kinematics as xkin
+from astropy.units import Quantity
 from astropy.coordinates import SkyCoord
+
+from linetools.spectralline import AbsLine
+
+from xastropy.igm.abs_sys.ionclms import IonClms, Ionic_Clm_File
+from xastropy.xutils import xdebug as xdb
+from xastropy.atomic import ionization as xai
 
 ###################### ######################
 ###################### ######################
 ###################### ######################
 # Class for Absorption Line System
-class Absline_System(object):
+class AbslineSystem(object):
     """An absorption line system
 
     Attributes:
-        name: Coordinates
-        coord: Coordinates
+        abs_type: str
+        name: str
+        coord: SkyCoord
+            RA/Dec of the sightline
         zabs : float
           Absorption redshift
+        vlim : Quantity array (2) 
+          Velocity limits of the system
         NHI:  float
           Log10 of the HI column density
         sigNHI:  np.array(2)
           Log10 error of the HI column density (-/+)
-        ions:  Ions_Clm Class
+        MH:  float
+          Metallicity (log10)
+        _ionclms:  IonClms Class
     """
 
     __metaclass__ = ABCMeta
 
     # Init
-    def __init__(self, abs_type, zabs=0., NHI=0., MH=0., dat_file=None, tree=None, verbose=False):
+    def __init__(self, abs_type, zabs=0., vlim=np.zeros(2)*u.km/u.s, NHI=0., MH=0., 
+        dat_file=None, tree=None, verbose=False, linelist=None):
         """  Initiator
 
         Parameters
         ----------
-        abs_type : string
+        abs_type : str
           Type of Abs Line System, e.g.  MgII, DLA, LLS, CGM
-        dat_file : string
+        dat_file : str, optional
           ASCII .dat file summarizing the system
         """
 
         self.zabs = zabs
+        self.vlim = vlim
         self.NHI = NHI
         self.MH = MH
         self.coord = None
@@ -74,7 +84,8 @@ class Absline_System(object):
         self.tree = tree
 
         # Lines
-        self.lines = {}  # Dict of Spectra_Line classes
+        self.linelist = linelist
+        self.lines = []  # List of SpectraLine classes
         self.absid_file = None
 
         # Kinematics
@@ -89,12 +100,17 @@ class Absline_System(object):
 
         # Initialize coord
         if self.coord is None:
-            ras, decs = ('00 00 00', '+00 00 00')
-            self.coord = SkyCoord(ras, decs, 'icrs', unit=(u.hour, u.deg))
+            radec = (0.*u.deg, 0.*u.deg)
+            self.coord = SkyCoord(ra=radec[0], dec=radec[0])
+
+        # Refs (list of references)
+        self.Refs = []
+
+
 
     # Read a .dat file
     def parse_dat_file(self,dat_file,verbose=False,flg_out=None):
-        '''
+        ''' Parse an ASCII ".dat" file from JXP format 'database'
         Parameters
         flg_out: int
           1: Return the dictionary
@@ -186,6 +202,7 @@ class Absline_System(object):
     # Parse AbsID file
     def parse_absid_file(self, abs_fil):
 
+        from xastropy import spec as xxspec 
         # FITS binary table
         hdu = fits.open(abs_fil)
         table = hdu[1].data
@@ -197,7 +214,7 @@ class Absline_System(object):
 
         # Load up lines
         for row in table:
-            self.lines[row['WREST']] = xspec.analysis.Spectral_Line(row['WREST'])
+            self.lines[row['WREST']] = xxspec.analysis.Spectral_Line(row['WREST'])
             # Velocity limits and flags
             try:
                 self.lines[row['WREST']].analy['VLIM'] = row['VLIM']
@@ -208,6 +225,38 @@ class Absline_System(object):
             self.lines[row['WREST']].analy['FLG_LIMIT'] = row['FLG_LIMIT']
             self.lines[row['WREST']].analy['DATFIL'] = row['DATFIL']
             self.lines[row['WREST']].analy['IONNM'] = row['IONNM']
+
+    # Read a .ion file (transitions)
+    def read_ion_file(self,ion_fil,zabs=0.,RA=0.*u.deg, Dec=0.*u.deg):
+        """Read in JXP-style .ion file in an appropriate manner
+
+        NOTE: If program breaks in this function, check the all file 
+        to see if it is properly formatted.
+        """
+        # Read
+        names=('wrest', 'clm', 'sig_clm', 'flg_clm', 'flg_inst') 
+        table = ascii.read(ion_fil, format='no_header', names=names) 
+
+        if self.linelist is None:
+            self.linelist = LineList('ISM')
+
+        # Generate AbsLine's
+        for row in table:
+            # Generate the line
+            aline = AbsLine(row['wrest']*u.AA, linelist=self.linelist, closest=True)
+            # Set z, RA, DEC, etc.
+            aline.attrib['z'] = self.zabs
+            aline.attrib['RA'] = self.coord.ra
+            aline.attrib['Dec'] = self.coord.dec
+            # Check against existing lines
+            mt = [kk for kk,oline in enumerate(self.lines) if oline.ismatch(aline)]
+            if len(mt) > 0:
+                mt.reverse()
+                for imt in mt:
+                    print('read_ion_file: Removing line {:g}'.format(self.lines[imt].wrest))
+                    self.lines.pop(imt)
+            # Append
+            self.lines.append(aline)
 
     # ##
     # Write AbsID file
@@ -258,6 +307,7 @@ class Absline_System(object):
     # #################
     # Load low_ion kinematics
     def load_low_kin(self):
+        from xastropy import kinematics as xkin
         # Grab spectrum from ions
         xdb.set_trace()
         out_kin = xkin.orig_kin(spec, vmnx)
@@ -267,9 +317,42 @@ class Absline_System(object):
         """"Return a string representing the type of vehicle this is."""
         pass
 
+    #
+    def __getitem__(self, k):
+        '''Passback list of lines with this input
+
+        Parameters:
+        -----------
+        k: Quantity, tuple, or str
+          float -- Rest wavelength, e.g. 1215.6701*u.AA
+          tuple   -- Zion, e.g. (14,2)
+          str     -- Name of the ion, e.g. 'SiII'
+
+        Returns:
+        ----------
+        float: List of all matching absorption lines 
+        str:   Dict of info on that ion and wavelengths of matching lines
+        '''
+        if isinstance(k,Quantity):  # List of AbsLines
+            return [ilin for ilin in self.lines if np.abs(ilin.wrest-k)<1e-4*u.AA]
+        elif isinstance(k,(basestring,tuple)):  # 
+            # Column densities
+            idict = self._ionclms[k]
+            # Matching Absorption lines matching
+            if isinstance(k,basestring):
+                Zion = xai.name_ion(k)
+            else:
+                Zion = k
+            idict[str('lines')] = [ilin.wrest for ilin in self.lines if ( 
+                (ilin.data['Z']==Zion[0]) & (ilin.data['ion']==Zion[1]))]
+            return idict
+            #lines = [ilin for ilin in self.lines if ilin.trans==k]
+        else:
+            raise ValueError('Not prepared for this type')
+
     # #############
     def __repr__(self):
-        return ('[Absline_System: %s %s %s %s, %g, NHI=%g]' %
+        return ('[AbslineSystem: %s %s %s %s, z=%g, NHI=%g]' %
                 (self.name, self.abs_type,
                  self.coord.ra.to_string(unit=u.hour,sep=':',pad=True),
                  self.coord.dec.to_string(sep=':',pad=True),
@@ -277,16 +360,19 @@ class Absline_System(object):
 
 
 # Class for Generic Absorption Line System
-class Generic_System(Absline_System):
+class Generic_System(AbslineSystem):
     """A simple absorption system
-
     """
+    def __init__(self, **kwargs):
+        AbslineSystem.__init__(self,'Generic',**kwargs)
+        self.name = 'Foo'
+
     def print_abs_type(self):
         """"Return a string representing the type of vehicle this is."""
         return 'Generic'
 
 # Class for Generic Absorption Line System
-class Abs_Sub_System(Absline_System):
+class Abs_Sub_System(AbslineSystem):
     """A simple absorption system
 
     """

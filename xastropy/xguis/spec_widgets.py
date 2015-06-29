@@ -46,11 +46,10 @@ from linetools.lists.linelist import LineList
 
 from xastropy import spec as xspec 
 from xastropy import stats as xstats
-from xastropy import xutils 
 from xastropy.xutils import xdebug as xdb
 from xastropy.plotting import utils as xputils
 from xastropy.igm.abs_sys import abssys_utils as xiaa
-from xastropy.igm.abs_sys.lls_utils import LLS_System
+from xastropy.igm.abs_sys.lls_utils import LLSSystem
 from xastropy.xguis import utils as xguiu
 
 xa_path = imp.find_module('xastropy')[1]

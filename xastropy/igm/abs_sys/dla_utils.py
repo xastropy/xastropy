@@ -31,7 +31,7 @@ from xastropy.xutils import xdebug as xdb
 #class DLA_Survey(Absline_Survey):
 
 # Class for DLA Absorption Lines 
-class DLA_System(Absline_System):
+class DLA_System(AbslineSystem):
     """A DLA absorption system
 
     Attributes:
@@ -80,7 +80,7 @@ class DLA_System(Absline_System):
 # #######################################################################
 # #######################################################################
 # Class for DLA Survey
-class DLA_Survey(Absline_Survey):
+class DLA_Survey(AbslineSurvey):
     """An DLA Survey class
 
     Attributes:

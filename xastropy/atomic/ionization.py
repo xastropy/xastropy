@@ -28,12 +28,13 @@ from astropy.utils.misc import isiterable
 xa_path = imp.find_module('xastropy')[1]
 
 #def ion_name(ion):
+#def name_ion(ion):
 #def photo_cross(Z, ion, E, datfil=None, silent=False):
 
 ########################## ##########################
 ########################## ##########################
 def ion_name(ion,flg=0,nspace=None):
-    """ Convert ion into a string
+    """ Convert ion tuple into a string
     JXP on 16 Nov 2014
 
     Parameters
@@ -51,7 +52,7 @@ def ion_name(ion,flg=0,nspace=None):
     name : string
       e.g. Si II, {\rm Si}^{+}
     """
-    if type(ion) is tuple:
+    if isinstance(ion,tuple):
         elm = ELEMENTS[ion[0]]
         str_elm = elm.symbol
     else: 
@@ -80,6 +81,41 @@ def ion_name(ion,flg=0,nspace=None):
         raise ValueError('ionization.ion_name: Not ready for this flg.')
 
     return outp
+
+
+########################## ##########################
+########################## ##########################
+def name_ion(ion,flg=0,nspace=None):
+    """ Convert string into ion tuple 
+    JXP on 28 June 2015
+
+    Parameters
+    ----------
+    ion: str
+      Name of the ion, e.g. 'SiII' or 'Si II'
+
+    Returns
+    -------
+    ion_tup : tuple
+      e.g. (14,2)
+    """
+    if isinstance(ion,basestring):
+        pass
+    else: 
+        raise ValueError('ionization.name_ion: Not ready for this input yet.')
+
+    if ion[1] in ['I','V', 'X', ' ']:
+        iion = 1
+    else:
+        iion = 2
+
+    # Element
+    Z = ELEMENTS[ion[0:iion]].number
+
+    # Ion
+    ion_state = roman.fromRoman(ion[iion:].strip())
+
+    return (Z,ion_state)
 
 
 ########################## ##########################

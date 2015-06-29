@@ -20,18 +20,20 @@ import yaml, time
 from astropy import units as u
 from astropy.io import ascii 
 
-from xastropy.igm.abs_sys.abssys_utils import Absline_System, Abs_Sub_System
-from xastropy.igm.abs_sys.abs_survey import Absline_Survey
-from xastropy.igm.abs_sys.ionic_clm import Ionic_Clm_File, Ions_Clm
+from linetools.lists.linelist import LineList
+
+from xastropy.igm.abs_sys.abssys_utils import AbslineSystem, Abs_Sub_System
+from xastropy.igm.abs_sys.abs_survey import AbslineSurvey
+from xastropy.igm.abs_sys.ionclms import Ionic_Clm_File, IonClms
 from xastropy.spec import abs_line, voigt
 from xastropy.atomic import ionization as xatomi
 from xastropy.xutils import xdebug as xdb
 
-#class LLS_System(Absline_System):
+#class LLSSystem(AbslineSystem):
 #class LLS_Survey(Absline_Survey):
 
 # Class for LLS Absorption Lines 
-class LLS_System(Absline_System):
+class LLSSystem(AbslineSystem):
     """An LLS absorption system
 
     Attributes:
@@ -46,10 +48,9 @@ class LLS_System(Absline_System):
         # Return
         return lls
 
-    # Initialize with a .dat file
-    def __init__(self, dat_file=None, tree=None):
+    def __init__(self, dat_file=None, tree=None, **kwargs):
         # Generate with type
-        Absline_System.__init__(self,'LLS')
+        AbslineSystem.__init__(self,'LLS', **kwargs)
         # Over-ride tree?
         if tree != None:
             self.tree = tree
@@ -69,7 +70,7 @@ class LLS_System(Absline_System):
     # Modify standard dat parsing
     def parse_dat_file(self,dat_file):
         # Standard Call
-        out_list = Absline_System.parse_dat_file(self,dat_file,flg_out=1)
+        out_list = AbslineSystem.parse_dat_file(self,dat_file,flg_out=1)
 
         # LLS keys
         self.qso = self.datdict['QSO name']
@@ -99,6 +100,7 @@ class LLS_System(Absline_System):
                 self.subsys[lbls[i]].name = self.name
                 self.subsys[lbls[i]].coord = self.coord
                 self.subsys[lbls[i]].tree = self.tree
+                self.subsys[lbls[i]].linelist = self.linelist
                 # Fill in
                 for ii,key in enumerate(keys):
                     try:
@@ -116,14 +118,20 @@ class LLS_System(Absline_System):
                             setattr(self.subsys[lbls[i]], att[ii], (map(type(val),[tmpc]))[0] )
 
     # Fill up the ions
-    def get_ions(self):
-        """
-        Parse the ions for each Subsystem
+    def get_ions(self, closest=False):
+        """Parse the ions for each Subsystem
         And put them together for the full system
-
         Fills .ions with a Ions_Clm Class
+
+        Parameters:
+        -----------
+        closest : bool, optional
+          Take the closest line to input wavelength? [False]
         """
         # Subsystems
+        if self.nsub > 0:  # This speeds things up (but is rarely used)
+            if self.linelist is None:
+                self.linelist = LineList('ISM')
         lbls= map(chr, range(65, 91))
         for ii in range(self.nsub):
             clm_fil = self.tree+self.subsys[lbls[ii]].clm_file
@@ -132,18 +140,26 @@ class LLS_System(Absline_System):
             ion_fil = self.tree+self.subsys[lbls[ii]].clm_analy.ion_fil 
             all_fil = ion_fil.split('.ion')[0]+'.all'
             self.all_fil=all_fil #MF: useful to have
-            self.subsys[lbls[ii]].ions = Ions_Clm(all_fil, trans_file=ion_fil)
+            self.subsys[lbls[ii]]._ionclms = IonClms(all_fil)
+            # Linelist (for speed)
+            if self.subsys[lbls[ii]].linelist is None:
+                self.subsys[lbls[ii]].linelist = self.linelist
+            self.subsys[lbls[ii]].linelist.closest = closest
+            # Parse .ion file
+            self.subsys[lbls[ii]].read_ion_file(ion_fil)
 
         # Combine
         if self.nsub == 1:
-            self.ions = self.subsys['A'].ions
+            self._ionclms = self.subsys['A']._ionclms
             self.clm_analy = self.subsys['A'].clm_analy
+            self.lines = self.subsys['A'].lines
             #xdb.set_trace()
         elif self.nsub == 0:
             raise ValueError('lls_utils.get_ions: Cannot have 0 subsystems..')
         else:
-            self.ions = self.subsys['A'].ions
+            self._ionclms = self.subsys['A']._ionclms
             self.clm_analy = self.subsys['A'].clm_analy
+            self.lines = self.subsys['A'].lines
             print('lls_utils.get_ions: Need to update multiple subsystems!! Taking A.')
             
 
@@ -298,7 +314,7 @@ class LLS_System(Absline_System):
 
     # Output
     def __repr__(self):
-        return ('[{:s}: {:s} {:s}, {:g}, NHI={:g}, tau={:g}, M/H={:g}]'.format(
+        return ('[{:s}: {:s} {:s}, z={:g}, NHI={:g}, tau={:g}, [M/H]={:g}dex]'.format(
                 self.__class__.__name__,
                  self.coord.ra.to_string(unit=u.hour,sep=':',pad=True),
                  self.coord.dec.to_string(sep=':',pad=True,alwayssign=True),
@@ -312,7 +328,7 @@ class LLS_System(Absline_System):
 # #######################################################################
 # #######################################################################
 # Class for LLS Survey
-class LLS_Survey(Absline_Survey):
+class LLS_Survey(AbslineSurvey):
     """An LLS Survey class
 
     Attributes:
@@ -321,7 +337,7 @@ class LLS_Survey(Absline_Survey):
     # Initialize with a .dat file
     def __init__(self, dat_file, tree=None):
         # Generate with type
-        Absline_Survey.__init__(self,dat_file,abs_type='LLS', tree=tree)
+        AbslineSurvey.__init__(self,dat_file, abs_type='LLS', tree=tree)
 
     # Cut on NHI
     def cut_nhi_quality(self, sig_cut=0.4):
