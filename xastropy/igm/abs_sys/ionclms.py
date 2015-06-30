@@ -13,10 +13,11 @@
 from __future__ import print_function, absolute_import, division, unicode_literals
 
 import numpy as np
+import copy
 
 from astropy.io import fits, ascii
 from astropy.units.quantity import Quantity
-from astropy.table import QTable, Table
+from astropy.table import QTable, Table, Column
 
 from xastropy.atomic import ionization as xai
 import xastropy as xa
@@ -53,8 +54,8 @@ class IonClms(object):
         # Generate -- Other options will appear
 
         # Dictionary stuff
-        self.keys= ('clm', 'sig_clm', 'flg_clm', 'flg_inst') 
-        self.key_dtype=('f4','f4','i4','i4')
+        #self.keys= ('clm', 'sig_clm', 'flg_clm', 'flg_inst') 
+        #self.key_dtype=('f4','f4','i4','i4')
 
         # .all file?
         if all_file is not None:
@@ -81,14 +82,16 @@ class IonClms(object):
                 lst = [[idict[ion][tkey]] for tkey in tkeys]
                 table = Table(lst, names=tkeys)
                 # Extra columns
-                #table.add_column(Column([Zion[0]],name='Z'))
-                #table.add_column(Column([Zion[1]],name='ion'))
+                if 'Z' not in tkeys:
+                    table.add_column(Column([Zion[0]],name='Z'))
+                    table.add_column(Column([Zion[1]],name='ion'))
             else:
                 tdict = idict[ion]
-                #tdict['Z'] = Zion[0]
-                #tdict['ion'] = Zion[1]
+                if 'Z' not in tkeys:
+                    tdict['Z'] = Zion[0]
+                    tdict['ion'] = Zion[1]
                 # Add
-                table.add_row(idict[ion])
+                table.add_row(tdict)
         # Finish
         self._data = table
 
@@ -105,19 +108,65 @@ class IonClms(object):
         names=('Z', 'ion', 'clm', 'sig_clm', 'flg_clm', 'flg_inst') 
         table = ascii.read(all_fil, format='no_header', names=names) 
 
-        '''
-        # Convert to dict
-        tmp = {}
-        for row in table:
-            tmp[(row['Z'],row['ion'])] = {}
-            for key in self.keys:
-                tmp[(row['Z'],row['ion'])][key] = row[key]
-        '''
-
         # Write
         #self._data = tmp
         self._data = table
 
+
+    ##
+    def sum(self,other):
+        '''Sum two IonClms classes
+        Parameters:
+        ----------
+        other: IonClms Class  
+          Another one
+
+        Returns:
+        --------
+        A new instance of IonClms with the column densities summed
+        '''
+        # Instantiate and use data form original as starting point
+        newIC = IonClms()
+        newIC._data = copy.deepcopy(self._data)
+        # Loop through other
+        for row in other._data:
+            # New?
+            Zion = (row['Z'], row['ion'])
+            try:
+                sdict = newIC[Zion]
+            except KeyError:
+                # Add in the new row
+                newIC._data.add_row(row)
+            else:
+                idx = np.where((newIC.Z==Zion[0]) & (newIC.ion==Zion[1]))[0][0]
+                # Clm
+                newIC._data['clm'][idx] = np.log10(
+                    np.sum(10.**np.array([sdict['clm'],row['clm']])))
+                # Error
+                newIC._data['sig_clm'][idx] = np.sqrt(
+                    np.sum([(sdict['sig_clm']*(10.**sdict['clm']))**2,
+                    (row['sig_clm']*(10.**row['clm']))**2]))/(10.**newIC._data['clm'][idx])
+                # Flag
+                flags = [sdict['flg_clm'], row['flg_clm']]
+                if 2 in flags:   # At least one saturated
+                    flag = 2
+                elif 1 in flags: # None saturated; at least one detection
+                    flag = 1
+                else:            # Both upper limits
+                    flag = 3  
+                newIC._data['flg_clm'][idx] = flag
+                # Instrument (assuming binary flag)
+                if 'flg_inst' in sdict.keys():
+                    binflg = [0]*10
+                    for jj in range(10):
+                        if (row['flg_inst'] % 2**(jj+1)) >= 2**jj:
+                            binflg[jj] = 1
+                        if (sdict['flg_inst'] % 2**(jj+1)) >= 2**jj:
+                            binflg[jj] = 1
+                    newIC._data['flg_inst'][idx] = int(np.sum(
+                        [2**kk for kk,ibinf in enumerate(binflg) if ibinf==1]))
+            # Return
+        return newIC
 
     #####
     def __getattr__(self,k):

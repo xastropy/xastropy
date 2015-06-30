@@ -70,6 +70,24 @@ class LLSSystem(AbslineSystem):
 
 
     # Modify standard dat parsing
+    def mk_subsys(self,nsub):
+        '''Generate subsystems from Parent
+        Parameters:
+        ----------
+        nsub: int
+          Number to generate
+        '''
+        lbls= map(chr, range(65, 91))
+        self.nsub = nsub
+        self.subsys = {}
+        for i in range(self.nsub):
+            self.subsys[lbls[i]] = Abs_Sub_System('LLS')
+            self.subsys[lbls[i]].name = self.name+lbls[i]
+            self.subsys[lbls[i]].coord = self.coord
+            self.subsys[lbls[i]].zem = self.zem
+            self.subsys[lbls[i]].linelist = self.linelist
+
+    # Modify standard dat parsing
     def parse_dat_file(self,dat_file):
         # Standard Call
         out_list = AbslineSystem.parse_dat_file(self,dat_file,flg_out=1)
@@ -99,7 +117,7 @@ class LLSSystem(AbslineSystem):
             for i in range(self.nsub):
                 # Generate
                 self.subsys[lbls[i]] = Abs_Sub_System('LLS')
-                self.subsys[lbls[i]].name = self.name
+                self.subsys[lbls[i]].name = self.name+lbls[i]
                 self.subsys[lbls[i]].coord = self.coord
                 self.subsys[lbls[i]].tree = self.tree
                 self.subsys[lbls[i]].linelist = self.linelist
