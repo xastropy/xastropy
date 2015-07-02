@@ -480,6 +480,209 @@ def meiring07():
     fin_slls = [ills for ills in all_lls if ills.NHI < 20.3]
     return fin_slls
 
+def meiring08():
+    '''Meiring et al. 2008, MNRAS, 384, 1015
+    SLLS with Magellan
+    Abundances from Table 3 from astro-ph (LateX) by JXP [AODM]
+    RA/DEC from Table 1
+    Threw out Q1436-0051B given NHI < 18.8 [i.e. unknown]
+    ''' 
+    all_lls = []
+    # Table 1
+    tab_fil = xa_path+"/data/LLS/meiring08.tb1.ascii"
+    with open(tab_fil,'r') as f:
+        flines1 = f.readlines()
+    # Grab RA/DEC
+    qso_dict = {}
+    for iline in flines1:
+        if iline[0:2] in ['QS','\h','$\\', 'J2', '  ']:
+            continue
+        # Parse
+        isplit = iline.split('&')
+        #xdb.set_trace()
+        radec = xor.stod1((isplit[3],isplit[4]))
+        # zem
+        zem = float(isplit[5].strip())
+        # Save
+        qso_dict[isplit[0].strip()] = dict(RA=radec[0],Dec=radec[1],zem=zem)
+
+    # Abundances (AODM)
+    # Table 3
+    tab_fil = xa_path+"/data/LLS/meiring08.tb3.ascii"
+    with open(tab_fil,'r') as f:
+        flines3 = f.readlines()
+    #
+    ion_dict = {}
+    for iline in flines3:
+        if iline[0:2] in ['\h','  ']:
+            continue
+        # Parse
+        isplit = iline.split('&')
+        # Ions
+        if iline[0:3] == ' QS':
+            ioncs = []
+            Zions = []
+            for iis in isplit[3:-1]: # Skipping HI
+                # Parse
+                #is2 = iis.split('\\')
+                #ip2 = is2[2].find('}')
+                ionc = iis.strip()
+                # Zion
+                Zion = xai.name_ion(ionc)
+                # Append
+                ioncs.append(ionc)
+                Zions.append(Zion)
+            continue
+        if iline[0:2] == ' Q':
+            # QSO
+            qso = isplit[0].strip()
+            if qso[-1] in ['A','B']:
+                qso = qso[0:-1]
+            # zabs and name
+            zabs = float(isplit[1].strip())
+            qso_dict[qso]['name']=qso+'z_{:.3f}'.format(zabs) 
+            qso_dict[qso]['zabs']=zabs
+            # NHI
+            is2 = isplit[2].strip()
+            if is2[0] == '$':
+                qso_dict[qso]['NHI'] = 99.99 # THROW OUT Q1436-0051B
+                qso_dict[qso]['sigNHI'] = np.array([0.,0.])
+            else:
+                qso_dict[qso]['NHI'] = float(is2[0:5])
+                qso_dict[qso]['sigNHI'] = np.array([float(is2[10:])]*2)
+            #if qso_dict[qso]['NHI'] >= 20.3:
+            #    print('Uh oh.  DLA')
+            # Generate LLS
+            lls = LLSSystem(**qso_dict[qso])
+            continue
+        else:
+            # ADOM Columns
+            ion_dict = {}
+            for kk,iis in enumerate(isplit[3:-1]):
+                is2 = iis.strip()
+                if is2[0:3] == '$>$':
+                    ion_dict[ioncs[kk]] = dict(sig_clm=0.,flg_clm=2,Z=Zions[kk][0],ion=Zions[kk][1])
+                    ion_dict[ioncs[kk]]['clm'] = float(is2[3:])
+                elif is2[0:3] == '$<$':
+                    ion_dict[ioncs[kk]] = dict(sig_clm=0.,flg_clm=3,Z=Zions[kk][0],ion=Zions[kk][1])
+                    ion_dict[ioncs[kk]]['clm'] = float(is2[3:])
+                elif len(is2) == 0:
+                    pass
+                else:
+                    ion_dict[ioncs[kk]] = dict(flg_clm=1,Z=Zions[kk][0],ion=Zions[kk][1])
+                    ion_dict[ioncs[kk]]['clm'] = float(is2[0:5])
+                    ion_dict[ioncs[kk]]['sig_clm'] = float(is2[10:])
+            # Finish
+            lls._ionclms = IonClms(idict=ion_dict)
+            lls.Refs.append('Mei08')
+            all_lls.append(lls)
+
+    # Return SLLS only
+    fin_slls = [ills for ills in all_lls if ills.NHI < 20.3]
+    return fin_slls
+
+def meiring09():
+    '''Meiring et al. 2009, MNRAS, 393, 1513
+    SLLS with Magellan
+    Abundances from Table 3 from astro-ph (LateX) by JXP [AODM]
+    RA/DEC from Table 1
+    ''' 
+    all_lls = []
+    # Table 1
+    tab_fil = xa_path+"/data/LLS/meiring09.tb1.ascii"
+    with open(tab_fil,'r') as f:
+        flines1 = f.readlines()
+    # Grab RA/DEC
+    qso_dict = {}
+    for iline in flines1:
+        if iline[0:3] in [' QS','\hl','$\\c', ' J2', '   ']:
+            continue
+        # Parse
+        isplit = iline.split('&')
+        #xdb.set_trace()
+        if '$' in isplit[3].strip():
+            isplit[3] = '-'+(isplit[3].strip())[3:]
+        radec = xor.stod1((isplit[2],isplit[3]))
+        # zem
+        zem = float(isplit[5].strip())
+        # Save
+        qso_dict[isplit[0].strip()] = dict(RA=radec[0],Dec=radec[1],zem=zem)
+
+    # Abundances (AODM)
+    # Table 3
+    tab_fil = xa_path+"/data/LLS/meiring09.tb3.ascii"
+    with open(tab_fil,'r') as f:
+        flines3 = f.readlines()
+    #
+    ion_dict = {}
+    for iline in flines3:
+        if iline[0:2] in ['\h','  ']:
+            continue
+        # Parse
+        isplit = iline.split('&')
+        # Ions
+        if iline[0:2] == 'QS':
+            ioncs = []
+            Zions = []
+            for iis in isplit[3:-1]: # Skipping HI
+                # Parse
+                #is2 = iis.split('\\')
+                #ip2 = is2[2].find('}')
+                ionc = iis.strip()
+                # Zion
+                Zion = xai.name_ion(ionc)
+                # Append
+                ioncs.append(ionc)
+                Zions.append(Zion)
+            continue
+        if iline[0] == 'Q':
+            # QSO
+            qso = isplit[0].strip()
+            if qso[-1] in ['A','B','C']:
+                qso = qso[0:-1]
+            # zabs and name
+            zabs = float(isplit[1].strip())
+            qso_dict[qso]['name']=qso+'z_{:.3f}'.format(zabs) 
+            qso_dict[qso]['zabs']=zabs
+            # NHI
+            is2 = isplit[2].strip()
+            if is2[0] == '$':
+                qso_dict[qso]['NHI'] = 99.99 # THROW OUT Q1436-0051B
+                qso_dict[qso]['sigNHI'] = np.array([0.,0.])
+            else:
+                qso_dict[qso]['NHI'] = float(is2[0:5])
+                qso_dict[qso]['sigNHI'] = np.array([float(is2[10:])]*2)
+            #if qso_dict[qso]['NHI'] >= 20.3:
+            #    print('Uh oh.  DLA')
+            # Generate LLS
+            lls = LLSSystem(**qso_dict[qso])
+            continue
+        else:
+            # ADOM Columns
+            ion_dict = {}
+            for kk,iis in enumerate(isplit[3:-1]):
+                is2 = iis.strip()
+                if is2[0:3] == '$>$':
+                    ion_dict[ioncs[kk]] = dict(sig_clm=0.,flg_clm=2,Z=Zions[kk][0],ion=Zions[kk][1])
+                    ion_dict[ioncs[kk]]['clm'] = float(is2[3:])
+                elif is2[0:3] == '$<$':
+                    ion_dict[ioncs[kk]] = dict(sig_clm=0.,flg_clm=3,Z=Zions[kk][0],ion=Zions[kk][1])
+                    ion_dict[ioncs[kk]]['clm'] = float(is2[3:])
+                elif len(is2) == 0:
+                    pass
+                else:
+                    ion_dict[ioncs[kk]] = dict(flg_clm=1,Z=Zions[kk][0],ion=Zions[kk][1])
+                    ion_dict[ioncs[kk]]['clm'] = float(is2[0:5])
+                    ion_dict[ioncs[kk]]['sig_clm'] = float(is2[10:])
+            # Finish
+            lls._ionclms = IonClms(idict=ion_dict)
+            lls.Refs.append('Mei09')
+            all_lls.append(lls)
+
+    # Return SLLS only
+    fin_slls = [ills for ills in all_lls if ills.NHI < 20.3]
+    return fin_slls
+
 
 def nestor08():
     '''Nestor, D. et al. 2008, MNRAS, 390, 1670-1682
@@ -517,8 +720,10 @@ if __name__ == '__main__':
 
     # Test ions
     if (flg_test % 2**1) >= 2**0:
+        lls = meiring09()
         #lls = nestor08()
-        lls = meiring07()
+        #lls = meiring08()
+        #lls = meiring07()
         #lls = meiring06()
         #lls = peroux06b()
         #lls = peroux06a()
