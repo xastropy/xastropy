@@ -120,8 +120,41 @@ class AbslineSystem(object):
         # Refs (list of references)
         self.Refs = []
 
+    def grab_line(self,inp):
+        '''Search for line in the AbslineSystem
+        Parameters:
+        -----------
+        inp: tuple or AbsLine
+          tuple -- (z,wrest) or (z,wrest,RA,Dec)
 
+        Returns:
+        -----------
+        First matching AbsLine or None
+        '''
+        # Loop on lines
+        for iline in self.lines:
+            # Match?
+            if iline.ismatch(inp):
+                return iline 
 
+    def remove_line(self,inp):
+        '''Search for line in the AbslineSystem and 'pop' it
+        Parameters:
+        -----------
+        inp: tuple or AbsLine
+          tuple -- (z,wrest) or (z,wrest,RA,Dec)
+
+        Returns:
+        -----------
+        bool -- True if popped 
+        '''
+        iline = self.grab_line(inp) 
+        if iline is not None:
+            self.lines.remove(iline)
+            return True
+        else:
+            return False
+             
     # Read a .dat file
     def parse_dat_file(self,dat_file,verbose=False,flg_out=None):
         ''' Parse an ASCII ".dat" file from JXP format 'database'
@@ -334,6 +367,7 @@ class AbslineSystem(object):
     #
     def __getitem__(self, k):
         '''Passback list of lines with this input
+        See also grab_line method for quries on individual lines
 
         Parameters:
         -----------

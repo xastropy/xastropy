@@ -82,3 +82,26 @@ def perc(x, per=0.68):
 
     # Return
     return xper
+
+def poisson_interval(k, cl=0.95, sigma=None): 
+    """Uses chisquared info to get the poisson interval. Uses scipy.stats
+    (imports in function). 
+    Taken from http://stackoverflow.com/questions/14813530/poisson-confidence-interval-with-numpy
+    Checked against my own x_poisscl.pro code in XIDL
+
+    Parameters:
+    -----------
+    cl: float
+      Confidence limit
+    """
+    from scipy.stats import norm, chi2
+    if sigma is not None:
+        icl = norm.cdf(sigma)
+        cl = 1. - 2*(1.-icl)
+    #
+    alpha = 1. - cl
+    a = alpha
+    low, high = (chi2.ppf(a/2, 2*k) / 2, chi2.ppf(1-a/2, 2*k + 2) / 2)
+    if k == 0: 
+        low = 0.0
+    return low, high

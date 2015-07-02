@@ -140,12 +140,15 @@ class IonClms(object):
             else:
                 idx = np.where((newIC.Z==Zion[0]) & (newIC.ion==Zion[1]))[0][0]
                 # Clm
-                newIC._data['clm'][idx] = np.log10(
-                    np.sum(10.**np.array([sdict['clm'],row['clm']])))
+                logN, siglogN = sum_logN(sdict,row)
+                newIC._data['clm'][idx] = logN
                 # Error
-                newIC._data['sig_clm'][idx] = np.sqrt(
+                newIC._data['sig_clm'][idx] = siglogN
+                '''
+                np.sqrt(
                     np.sum([(sdict['sig_clm']*(10.**sdict['clm']))**2,
                     (row['sig_clm']*(10.**row['clm']))**2]))/(10.**newIC._data['clm'][idx])
+                '''
                 # Flag
                 flags = [sdict['flg_clm'], row['flg_clm']]
                 if 2 in flags:   # At least one saturated
@@ -340,6 +343,30 @@ def fits_flag(idx):
             return fits_list[idx]
         except:
             return 'Unknown'
+
+# Converts Flag to Instrument
+def sum_logN(obj1,obj2):
+    '''Add log columns and return value and errors
+    Parameters:
+    -----------
+    obj1: object
+      An object with tags appropriate for the analysis
+      Assumes 'clm' for column and 'sig_clm' for error for now
+    obj2: object
+      Another object with tags appropriate for the analysis
+
+    Returns:
+    --------
+    logN, siglogN
+    '''
+    # Calculate
+    logN = np.log10(np.sum(10.**np.array([obj1['clm'],obj2['clm']])))
+    siglogN = np.sqrt(
+        np.sum([(obj1['sig_clm']*(10.**obj1['clm']))**2,
+        (obj2['sig_clm']*(10.**obj2['clm']))**2]))/(10.**logN)
+    # Return
+    return logN, siglogN
+
 
 
 # Class for Ionic columns -- one ion at at time

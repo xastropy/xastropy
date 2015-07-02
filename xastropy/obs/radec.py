@@ -60,7 +60,7 @@ def stod1(rads):
         if len(ra) == 2:
             ra = np.append(ra, [0.])
         # Sign
-        flg_neg = rads[1][0].strip() == '-'
+        flg_neg = (rads[1].strip())[0] == '-'
 
     #xdb.set_trace()
     # RA

@@ -266,7 +266,7 @@ class XVelPltGui(QtGui.QDialog):
         24-Dec-2014 by JXP
     '''
     def __init__(self, ispec, z=None, parent=None, llist=None, norm=True,
-                 vmnx=[-300., 300.], abs_sys=None, outfil='dum_ID.fits',
+                 vmnx=[-300., 300.]*u.km/u.s, abs_sys=None, outfil='dum_ID.fits',
                  sel_wv=None):
         '''
         spec = Filename or Spectrum1D
@@ -437,7 +437,7 @@ class XAODMGui(QtGui.QDialog):
     ''' GUI to show AODM plots
         28-Dec-2014 by JXP
     '''
-    def __init__(self, spec, z, wrest, vmnx=[-300., 300.], parent=None, norm=True):
+    def __init__(self, spec, z, wrest, vmnx=[-300., 300.]*u.km/u.s, parent=None, norm=True):
         super(XAODMGui, self).__init__(parent)
         '''
         spec = Spectrum1D
@@ -554,10 +554,10 @@ if __name__ == "__main__":
     if len(sys.argv) == 1: # TESTING
 
         flg_fig = 0 
-        flg_fig += 2**0  # XSpec
+        #flg_fig += 2**0  # XSpec
         #flg_fig += 2**1  # XAbsID
         #flg_fig += 2**2  # XVelPlt Gui
-        #flg_fig += 2**3  # XVelPlt Gui without ID list; Also tests select wave
+        flg_fig += 2**3  # XVelPlt Gui without ID list; Also tests select wave
         #flg_fig += 2**4  # XAODM Gui
     
         # Read spectrum
@@ -641,3 +641,4 @@ if __name__ == "__main__":
             run_xspec()
         elif id_gui == 2:
             run_xabsid()
+            
