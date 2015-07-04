@@ -38,7 +38,6 @@ from linetools.spectra import io as lsi
 from linetools.spectralline import AbsLine
 from linetools.lists.linelist import LineList
 
-from xastropy import spec as xspec 
 from xastropy import stats as xstats
 from xastropy.xutils import xdebug as xdb
 from xastropy import xutils 
@@ -271,16 +270,16 @@ class ExamineSpecWidget(QtGui.QWidget):
                         #QtCore.pyqtRemoveInputHook()
                         #xdb.set_trace()
                         #QtCore.pyqtRestoreInputHook()
-                        aline.aodm(conti=conti)
+                        aline.measure_aodm()
                         mssg = 'Using '+ aline.__repr__()
-                        mssg = mssg + ' ::  logN = {:g} +/- {:g}'.format(aline.attrib['logN'],
-                                                                        aline.attrib['sig_logN'])
+                        mssg = mssg + ' ::  logN = {:g} +/- {:g}'.format(
+                            aline.attrib['logN'], aline.attrib['sig_logN'])
                     elif event.key == 'E':  #EW
-                        aline.analy['WVMNX'] = iwv
-                        aline.restew()
+                        aline.analy['wvlim'] = iwv
+                        aline.measure_restew()
                         mssg = 'Using '+ aline.__repr__()
-                        mssg = mssg + ' ::  Rest EW = {:g} +/- {:g}'.format(aline.attrib['EW'].to(mAA),
-                                                                        aline.attrib['sigEW'].to(mAA))
+                        mssg = mssg + ' ::  Rest EW = {:g} +/- {:g}'.format(
+                            aline.attrib['EW'].to(mAA), aline.attrib['sigEW'].to(mAA))
                 # Display values
                 try:
                     self.statusBar().showMessage(mssg)
@@ -616,8 +615,9 @@ class SelectLineWidget(QtGui.QDialog):
 
         #xdb.set_trace()
         # Loop on lines (could put a preferred list first)
-        nlin = len(lines['wrest'])
-        for ii in range(nlin):
+        # Sort
+        srt = np.argsort(lines['wrest'])
+        for ii in srt:
             self.lines_widget.addItem('{:s} :: {:.4f}'.format(lines['name'][ii],
                                                          lines['wrest'][ii]))
         self.lines_widget.currentItemChanged.connect(self.on_list_change)
@@ -1039,14 +1039,6 @@ class VelPlotWidget(QtGui.QWidget):
         ## Line type
         if event.key == 'A': # Add to lines
             self.generate_line((self.z,wrest)) 
-            '''
-            if not kwrest in self.abs_sys.lines.keys():
-                self.abs_sys.lines[kwrest] = xspec.analysis.Spectral_Line(wrest)
-                print('VelPlot: Generating line {:g}'.format(kwrest))
-                self.abs_sys.lines[kwrest].analy['vlim'] = self.vmnx/2. 
-                self.abs_sys.lines[kwrest].analy['do_analysis'] = 2 # Init to ok
-                self.abs_sys.lines[kwrest].analy['datafile'] = self.spec_fil
-            '''
         if event.key == 'x': # Remove line
             if self.abs_sys.remove_line((self.z,wrest)): 
                 print('VelPlot: Removed line {:g}'.format(wrest))
@@ -1284,7 +1276,7 @@ class AODMWidget(QtGui.QWidget):
         19-Dec-2014 by JXP
     '''
     def __init__(self, spec, z, wrest, parent=None, vmnx=[-300., 300.]*u.km/u.s,
-                 norm=True):
+                 norm=True, linelist=None):
         '''
         spec = Spectrum1D
         '''
@@ -1297,8 +1289,10 @@ class AODMWidget(QtGui.QWidget):
         self.vmnx = vmnx
         self.wrest = wrest  # Expecting (requires) units
         self.lines = []
+        if linelist is None:
+            self.linelist = LineList('ISM')
         for iwrest in self.wrest:
-            self.lines.append(xspec.analysis.Spectral_Line(iwrest))
+            self.lines.append(AbsLine(iwrest),linelist=self.linelist)
 
 
         self.psdict = {} # Dict for spectra plotting
@@ -1409,9 +1403,6 @@ class AODMWidget(QtGui.QWidget):
         #xdb.set_trace()
         #QtCore.pyqtRestoreInputHook()
         self.ax.set_ylim(self.psdict['ymnx'])
-
-        # Fonts
-        #xputils.set_fontsize(self.ax,6.)
 
         # Draw
         self.canvas.draw()
