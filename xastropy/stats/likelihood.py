@@ -18,8 +18,8 @@ from scipy.interpolate import interp1d
 
 from xastropy.xutils import xdebug as xdb
 
-# def perc
-# def lin_to_log
+# def cl_image
+# def cl_interval
 
 def cl_image(lnL, sigma=False):
     """ Calculate a confidence level image from a lnL image
@@ -60,3 +60,19 @@ def cl_image(lnL, sigma=False):
 
     # Return
     return cl_img
+
+def cl_interval(lnL, sigma=False):
+    """ Calculate a confidence level interval from a log-likelihood image
+    Simple area under the curve with the image collapsed along each
+    dimension
+
+    Parameters:
+      lnL: np.array
+        log-Likelihood image
+      sigma: bool, optional
+        Use to calculate confindence interval
+
+    Returns:
+      cl_intervals: np.array
+        [best, -, +] for each dimension
+    """
