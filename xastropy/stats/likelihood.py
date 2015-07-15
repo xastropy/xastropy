@@ -13,7 +13,7 @@
 from __future__ import print_function, absolute_import, division, unicode_literals
 
 import numpy as np
-import os
+import os, copy
 from scipy.interpolate import interp1d
 
 from xastropy.xutils import xdebug as xdb
@@ -61,7 +61,7 @@ def cl_image(lnL, sigma=False):
     # Return
     return cl_img
 
-def cl_interval(lnL, sigma=False):
+def cl_interval(lnL, sigma=None, CL=0.68):
     """ Calculate a confidence level interval from a log-likelihood image
     Simple area under the curve with the image collapsed along each
     dimension
@@ -69,10 +69,53 @@ def cl_interval(lnL, sigma=False):
     Parameters:
       lnL: np.array
         log-Likelihood image
-      sigma: bool, optional
+      CL: float, optional
+      sigma: float, optional
         Use to calculate confindence interval
 
     Returns:
-      cl_intervals: np.array
-        [best, -, +] for each dimension
+      best_idx, all_error: Lists
+        [best] [-, +] indices for each dimension
     """
+    # Confidence limits
+    if sigma is None:
+        c0 = (1. - CL)/2.
+        c1 = 1.-c0
+    # Image dimensions
+    shape = lnL.shape
+    ndim = len(shape)
+    slc = [slice(None)]*ndim 
+    # Find max
+    norm_L = np.exp(np.maximum(lnL - np.max(lnL),-15.))
+    imx = np.argmax(lnL)
+    # Find best indices (True JXP Voodoo!)
+    best_idx = []
+    numer = imx
+    for kk in range(ndim):
+        # Build denominator
+        denom = 1
+        for ishpe in shape[kk+1:]:
+            denom = denom * ishpe
+        # Answer
+        idx = numer // denom
+        best_idx.append(idx)
+        # Adjust numerator
+        numer -= idx*denom
+
+    # Error intervals
+    all_error = []
+    for kk in range(ndim):
+        # Collapse on this dimension
+        slc = copy.deepcopy(best_idx)
+        slc[kk] = slice(None)
+        Lslice = norm_L[slc].flatten()
+        # Interpolate and go
+        cumul_area = np.cumsum(Lslice)
+        f_area = interp1d(cumul_area/cumul_area[-1], np.arange(len(Lslice)))
+        # Here we go
+        idx0 = int(np.round(f_area(c0)))
+        idx1 = int(np.round(f_area(c1)))
+        all_error.append([idx0,idx1])
+
+    # Return
+    return best_idx, all_error
