@@ -333,7 +333,7 @@ def peroux06b():
             for kk,iis in enumerate(isplit[3:10]):
                 ion = ions[kk]
                 if iis[0] == '>':
-                    ion_dict[ion]['flg_clm'] == 2
+                    ion_dict[ion]['flg_clm'] = 2
                     ion_dict[ion]['clm'] += float(iis[1:])
                 elif iis[0] == '<':
                     pass
@@ -912,7 +912,7 @@ def battisti12():
         zem = float(isplit[1].strip())
         zabs = float(isplit[2].strip())
         NHI = float(isplit[3].strip()[0:4])
-        sigNHI = np.array([float(isplit[3].strip()[0:4])]*2)
+        sigNHI = np.array([float(isplit[3].strip()[11:])]*2)
         # Save
         lls = LLSSystem(name=name,RA=radec[0],Dec=radec[1],zem=zem,
             zabs=zabs,NHI=NHI,sigNHI=sigNHI)
@@ -979,7 +979,7 @@ if __name__ == '__main__':
 
     # Test ions
     if (flg_test % 2**1) >= 2**0:
-        lls = battisti12()
+        #lls = battisti12()
         #lls = kacprzak12()
         #lls = tumlinson11()
         #lls = dessauges09()
@@ -988,7 +988,7 @@ if __name__ == '__main__':
         #lls = meiring08()
         #lls = meiring07()
         #lls = meiring06()
-        #lls = peroux06b()
+        lls = peroux06b()
         #lls = peroux06a()
         #lls = tripp2005()
         #lls = jenkins2005()
