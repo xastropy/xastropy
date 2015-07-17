@@ -87,20 +87,9 @@ def cl_interval(lnL, sigma=None, CL=0.68):
     slc = [slice(None)]*ndim 
     # Find max
     norm_L = np.exp(np.maximum(lnL - np.max(lnL),-15.))
-    imx = np.argmax(lnL)
-    # Find best indices (True JXP Voodoo!)
-    best_idx = []
-    numer = imx
-    for kk in range(ndim):
-        # Build denominator
-        denom = 1
-        for ishpe in shape[kk+1:]:
-            denom = denom * ishpe
-        # Answer
-        idx = numer // denom
-        best_idx.append(idx)
-        # Adjust numerator
-        numer -= idx*denom
+    # Find best indices 
+    indices = np.where(lnL == np.max(lnL))
+    best_idx = [bi[0] for bi in indices]
 
     # Error intervals
     all_error = []
@@ -119,3 +108,41 @@ def cl_interval(lnL, sigma=None, CL=0.68):
 
     # Return
     return best_idx, all_error
+
+
+def cl_indices(lnL, cl, sigma=False):
+    """ Find the indices of a log-Likelihood grid encompassing a 
+    given confidence interval
+
+    Parameters:
+      lnL: np.array
+        log-Likelihood image
+      sigma: bool, optional
+        Return as sigma values [not implemented]
+
+    Returns:
+      indices: Tuple of np.where output
+    """
+    # Max
+    mxL = np.max(lnL)
+
+    # Noramlize and flatten
+    norm_img = lnL-mxL
+    flat_img = norm_img.flatten()
+
+    # Sort
+    srt = np.argsort(flat_img)
+    norm_lnL = flat_img[srt]
+
+    # Sum
+    cumulsum = np.cumsum(np.exp(np.maximum(norm_lnL,-15.)))
+    cumul = cumulsum/cumulsum[-1]
+
+    # Interpolation (smoothing a bit)
+    fsum = interp1d(norm_lnL, cumul)
+
+    # Finish
+    indices = np.where(fsum(norm_img) > (1-cl))
+
+    # Return
+    return indices

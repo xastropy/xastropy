@@ -24,14 +24,13 @@ It also assumes you will use Python 2.7
 
 4.  Update/install specutils
 
-  At present, you may need my fork. So, scrub any other version you have and do:
+    git clone https://github.com/astropy/specutils.git
+    cd specutils
+    sudo python setup.py develop
 
-     git clone https://github.com/profxj/specutils.git
-     cd specutils
-     sudo python setup.py develop
-     cd specutils
-     git pull origin specwcs_log
-     git checkout specwcs_log
+5.  Update/install linetools
 
-
+    git clone https://github.com/linetools/linetools.git
+    cd linetools
+    sudo python setup.py develop
 
