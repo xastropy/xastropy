@@ -23,7 +23,6 @@ from astropy.table import QTable, Table, Column
 
 from linetools.spectra import io as lsio
 
-from xastropy.igm.abs_sys.ionic_clm import Ions_Clm, Ionic_Clm_File
 from xastropy.xutils import xdebug as xdb
 from xastropy.xutils import arrays as xarray
 #
