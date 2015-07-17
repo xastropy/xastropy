@@ -1,14 +1,15 @@
 Installation instructions for xastropy.
 
 The following assumes you use Anaconda to install Python.
-It also assumes you will use Python 2.7
+It also assumes you will use Python 2.7, although I am trying
+ to use standard hooks toward Python 3
 
-1.  Install Python with Anaaconda
+1.  Install Python with Anaconda
 
 2.  Install xastropy with git from github
-  git clone https://github.com/profxj/xastropy.git
+  git clone https://github.com/xastropy/xastropy.git
   cd xastropy
-  sudo python setup.py develop
+  sudo python setup.py develop #[or install]
   
 3. Update astropy
 
