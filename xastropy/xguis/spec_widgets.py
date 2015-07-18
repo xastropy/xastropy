@@ -40,6 +40,7 @@ from linetools.lists.linelist import LineList
 
 from xastropy import stats as xstats
 from xastropy.xutils import xdebug as xdb
+from xastropy.xguis import utils as xxgu
 from xastropy import xutils 
 from xastropy.plotting import utils as xputils
 from xastropy.igm.abs_sys import abssys_utils as xiaa
@@ -50,6 +51,11 @@ xa_path = imp.find_module('xastropy')[1]
 
 # class ExamineSpecWidget
 # class PlotLinesWidget
+# class SelectLineWidget
+# class SelectedLinesWidget
+# class AbsSysWidget
+# class VelPlotWidget
+# class AODMWidget
 
 class ExamineSpecWidget(QtGui.QWidget):
     ''' Widget to plot a spectrum and interactively
@@ -65,7 +71,7 @@ class ExamineSpecWidget(QtGui.QWidget):
         super(ExamineSpecWidget, self).__init__(parent)
 
         # Spectrum
-        spec, spec_fil = read_spec(ispec, second_file=second_file)
+        spec, spec_fil = xxgu.read_spec(ispec, second_file=second_file)
         self.orig_spec = spec # For smoothing
         self.spec = self.orig_spec 
 
@@ -138,7 +144,7 @@ class ExamineSpecWidget(QtGui.QWidget):
         self.psdict['xmnx'] = np.array([xmin,xmax])
         self.psdict['ymnx'] = [ymin,ymax]
         self.psdict['sv_xy'] = [ [xmin,xmax], [ymin,ymax] ]
-        self.psdict['nav'] = navigate(0,0,init=True)
+        self.psdict['nav'] = xxgu.navigate(0,0,init=True)
         # Analysis dict
         self.adict['flg'] = 0 # Column density flag
         
@@ -150,11 +156,11 @@ class ExamineSpecWidget(QtGui.QWidget):
 
         ## NAVIGATING
         if event.key in self.psdict['nav']: 
-            flg = navigate(self.psdict,event)
+            flg = xxgu.navigate(self.psdict,event)
 
         ## DOUBLETS
         if event.key in ['C','M','X','4','8','B']:  # Set left
-            wave = set_doublet(self, event)
+            wave = xxgu.set_doublet(self, event)
             #print('wave = {:g},{:g}'.format(wave[0], wave[1]))
             self.ax.plot( [wave[0],wave[0]], self.psdict['ymnx'], '--', color='red')
             self.ax.plot( [wave[1],wave[1]], self.psdict['ymnx'], '--', color='red')
@@ -553,7 +559,7 @@ class PlotLinesWidget(QtGui.QWidget):
         #QtCore.pyqtRemoveInputHook()
         #xdb.set_trace()
         #QtCore.pyqtRestoreInputHook()
-        self.llist = set_llist(llist,in_dict=self.llist)
+        self.llist = xxgu.set_llist(llist,in_dict=self.llist)
 
         # Try to draw
         if self.llist['Plot'] is True:
@@ -863,7 +869,7 @@ class VelPlotWidget(QtGui.QWidget):
         super(VelPlotWidget, self).__init__(parent)
 
         # Initialize
-        spec, spec_fil = read_spec(ispec)
+        spec, spec_fil = xxgu.read_spec(ispec)
         
         self.spec = spec
         self.spec_fil = spec_fil
@@ -885,13 +891,13 @@ class VelPlotWidget(QtGui.QWidget):
                 except AttributeError:
                     lwrest = None
                 if not lwrest is None:
-                    llist = set_llist(lwrest) # Not sure this is working..
+                    llist = xxgu.set_llist(lwrest) # Not sure this is working..
 
 
         self.psdict = {} # Dict for spectra plotting
         self.psdict['xmnx'] = self.vmnx.value
         self.psdict['ymnx'] = [-0.1, 1.1]
-        self.psdict['nav'] = navigate(0,0,init=True)
+        self.psdict['nav'] = xxgu.navigate(0,0,init=True)
 
         # Status Bar?
         #if not status is None:
@@ -899,7 +905,7 @@ class VelPlotWidget(QtGui.QWidget):
 
         # Line List
         if llist is None:
-            self.llist = set_llist('Strong')
+            self.llist = xxgu.set_llist('Strong')
         else:
             self.llist = llist
         self.llist['z'] = self.z
@@ -991,7 +997,7 @@ class VelPlotWidget(QtGui.QWidget):
 
         ## NAVIGATING
         if event.key in self.psdict['nav']: 
-            flg = navigate(self.psdict,event)
+            flg = xxgu.navigate(self.psdict,event)
         if event.key == '-':
             self.idx_line = max(0, self.idx_line-self.sub_xy[0]*self.sub_xy[1]) # Min=0
             if self.idx_line == sv_idx:
@@ -1298,7 +1304,7 @@ class AODMWidget(QtGui.QWidget):
         self.psdict = {} # Dict for spectra plotting
         self.psdict['xmnx'] = self.vmnx
         self.psdict['ymnx'] = [-0.1, 1.1]
-        self.psdict['nav'] = navigate(0,0,init=True)
+        self.psdict['nav'] = xxgu.navigate(0,0,init=True)
 
         # Create the mpl Figure and FigCanvas objects. 
         #
@@ -1329,7 +1335,7 @@ class AODMWidget(QtGui.QWidget):
 
         ## NAVIGATING
         if event.key in self.psdict['nav']: 
-            flg = navigate(self.psdict,event)
+            flg = xxgu.navigate(self.psdict,event)
         if event.key in ['b','t','W','Z','Y','l','r']:  
             rescale = False
 
@@ -1408,181 +1414,6 @@ class AODMWidget(QtGui.QWidget):
         self.canvas.draw()
     
 
-
-# ######
-# Plot Doublet
-def set_doublet(iself,event):
-    ''' Set z and plot doublet
-    '''
-    wv_dict = {'C': (1548.195, 1550.770, 'CIV'), 'M': (2796.352, 2803.531, 'MgII'),
-               '4': (1393.755, 1402.770, 'SiIV'),
-               'X': (1031.9261, 1037.6167, 'OVI'), '8': (770.409, 780.324, 'NeVIII'),
-               'B': (1025.4433, 1215.6701, 'Lyba')}
-    wrest = wv_dict[event.key]
-
-    # Set z
-    iself.zabs = event.xdata/wrest[0] - 1.
-    try:
-        iself.statusBar().showMessage('z = {:g} for {:s}'.format(iself.zabs, wrest[2]))
-    except AttributeError:
-        print('z = {:g} for {:s}'.format(iself.zabs, wrest[2]))
-
-    return np.array(wrest[0:2])*(1.+iself.zabs)
-
-# ######
-# Navigate
-def navigate(psdict,event,init=False):
-    ''' Method to Navigate spectrum
-    init:  (False) Initialize
-      Just pass back valid key strokes
-    '''
-    # Initalize
-    if init is True:
-        return ['l','r','b','t','T','i','I', 'o','O', '[',']','W','Z', 'Y', '{', '}']
-
-    #
-    if (not isinstance(event.xdata,float)) or (not isinstance(event.ydata,float)):
-        print('Navigate: You entered the {:s} key out of bounds'.format(event.key))
-        return 0
-
-    if event.key == 'l':  # Set left
-        psdict['xmnx'][0] = event.xdata
-    elif event.key == 'r':  # Set Right
-        psdict['xmnx'][1] = event.xdata
-    elif event.key == 'b':  # Set Bottom
-        psdict['ymnx'][0] = event.ydata
-    elif event.key == 't':  # Set Top
-        psdict['ymnx'][1] = event.ydata
-    elif event.key == 'T':  # Set Top to 1.1
-        psdict['ymnx'][1] = 1.1
-    elif event.key == 'i':  # Zoom in (and center)
-        deltx = (psdict['xmnx'][1]-psdict['xmnx'][0])/4.
-        psdict['xmnx'] = [event.xdata-deltx, event.xdata+deltx]
-    elif event.key == 'I':  # Zoom in (and center)
-        deltx = (psdict['xmnx'][1]-psdict['xmnx'][0])/16.
-        psdict['xmnx'] = [event.xdata-deltx, event.xdata+deltx]
-    elif event.key == 'o':  # Zoom in (and center)
-        deltx = psdict['xmnx'][1]-psdict['xmnx'][0]
-        psdict['xmnx'] = [event.xdata-deltx, event.xdata+deltx]
-    elif event.key == 'O':  # Zoom in (and center)
-        deltx = psdict['xmnx'][1]-psdict['xmnx'][0]
-        psdict['xmnx'] = [event.xdata-2*deltx, event.xdata+2*deltx]
-    elif event.key == 'Y':  # Zoom in (and center)
-        delty = psdict['ymnx'][1]-psdict['ymnx'][0]
-        psdict['ymnx'] = [event.ydata-delty, event.ydata+delty]
-    elif event.key in ['[',']','{','}']:  # Pan 
-        center = (psdict['xmnx'][1]+psdict['xmnx'][0])/2.
-        deltx = (psdict['xmnx'][1]-psdict['xmnx'][0])/2.
-        if event.key == '[':
-            new_center = center - deltx
-        elif event.key == ']':
-            new_center = center + deltx
-        elif event.key == '{':
-            new_center = center - 4*deltx
-        elif event.key == '}':
-            new_center = center + 4*deltx
-        psdict['xmnx'] = [new_center-deltx, new_center+deltx]
-    elif event.key == 'W': # Reset the Window
-        psdict['xmnx'] = psdict['sv_xy'][0]
-        psdict['ymnx'] = psdict['sv_xy'][1]
-    elif event.key == 'Z': # Zero
-        psdict['ymnx'][0] = 0.
-    else:
-        if not (event.key in ['shift']):
-            rstr = 'Key {:s} not supported.'.format(event.key)
-            print(rstr)
-        return 0
-    return 1
-
-
-# ######
-# 
-def set_llist(llist,in_dict=None):
-    ''' Method to set a line list dict for the Widgets
-    '''
-    from linetools.lists.linelist import LineList
-    if in_dict is None:
-        in_dict = {}
-
-    if type(llist) in [str,unicode]: # Set line list from a file
-        in_dict['List'] = llist
-        if llist == 'None':
-            in_dict['Plot'] = False
-        else:
-            in_dict['Plot'] = True
-            # Load?
-            if not (llist in in_dict):
-                #line_file = xa_path+'/data/spec_lines/'+llist
-                #llist_cls = xspec.abs_line.Abs_Line_List(llist)
-                llist_cls = LineList(llist)
-                in_dict[llist] = llist_cls
-    elif isinstance(llist,list): # Set from a list of wrest
-
-        from astropy.table import Column
-
-        in_dict['List'] = 'input.lst'
-        in_dict['Plot'] = True
-        # Fill
-        llist.sort()
-        tmp_dict = {}
-        # Parse from grb.lst
-        llist_cls = LineList('ISM', gd_lines=llist)
-        in_dict['input.lst'] = llist_cls
-        '''
-        line_file = xa_path+'/data/spec_lines/grb.lst'
-        llist_cls = xspec.abs_line.Abs_Line_List(line_file)
-        adict = llist_cls.data
-        # Fill 
-        names = []
-        fval = []
-        for wrest in llist:
-            mt = np.where(np.abs(wrest-adict['wrest']) < 1e-3)[0]
-            if len(mt) != 1:
-                raise ValueError('Problem!')
-            names.append(adict['name'][mt][0])
-            fval.append(adict['fval'][mt][0])
-        # Set
-        #QtCore.pyqtRemoveInputHook()
-        #xdb.set_trace()
-        #QtCore.pyqtRestoreInputHook()
-        # Generate a Table
-        col0 = Column(np.array(llist), name='wrest', unit=u.AA) # Assumed Angstroms
-        col1 = Column(np.array(names), name='name')
-        col2 = Column(np.array(fval), name='fval')
-        in_dict['input.lst'] = Table( (col0,col1,col2) )
-        '''
-
-    # Return
-    return in_dict
-
-# Read spectrum, pass back it and spec_file name
-def read_spec(ispec, second_file=None):
-    #
-    if isinstance(ispec,str) or isinstance(ispec,unicode):
-        spec_fil = ispec
-        spec = lsi.readspec(spec_fil)
-        # Second file?
-        if not second_file is None:
-            spec2 = lsi.readspec(second_file)
-            if spec2.sig is None:
-                spec2.sig = np.zeros(spec.flux.size)
-            # Scale for convenience of plotting
-            xper1 = xstats.basic.perc(spec.flux, per=0.9)
-            xper2 = xstats.basic.perc(spec2.flux, per=0.9)
-            scl = xper1[1]/xper2[1]
-            # Stitch together
-            wave3 = np.append(spec.dispersion, spec2.dispersion)
-            flux3 = np.append(spec.flux, spec2.flux*scl)
-            sig3 = np.append(spec.sig, spec2.sig*scl)
-            spec3 = Spectrum1D.from_array(wave3, flux3, uncertainty=StdDevUncertainty(sig3))
-            # Overwrite
-            spec = spec3
-            spec.filename = spec_fil
-    else:
-        spec = ispec # Assuming Spectrum1D
-        spec_fil = spec.filename # Grab from Spectrum1D 
-    # Return
-    return spec, spec_fil
 
 # ################
 # TESTING
@@ -1677,7 +1508,7 @@ if __name__ == "__main__":
     # SelectedLines Widget
     if (flg_tst % 2**6) >= 2**5:
         print('Test: SelectedLines Widget')
-        llist = set_llist('ISM')
+        llist = xxgu.set_llist('ISM')
         # Launch
         app = QtGui.QApplication(sys.argv)
         app.setApplicationName('SelectedLines')
