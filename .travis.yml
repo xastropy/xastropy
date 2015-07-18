@@ -74,8 +74,8 @@ before_install:
 install:
 
     # CONDA
-    - conda create --yes -n test -c astropy-ci-extras python=$TRAVIS_PYTHON_VERSION
-    - source activate test
+    #- conda create --yes -n test -c astropy-ci-extras python=$TRAVIS_PYTHON_VERSION
+    #- source activate test
 
     # CORE DEPENDENCIES
     - if [[ $SETUP_CMD != egg_info ]]; then $CONDA_INSTALL numpy=$NUMPY_VERSION pytest pip Cython jinja2; fi
