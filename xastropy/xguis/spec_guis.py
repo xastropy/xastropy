@@ -47,11 +47,21 @@ class XSpecGui(QtGui.QMainWindow):
         12-Dec-2014 by JXP v1.0
         27-Mar-2015 by JXP v2.0 :: EW, column, better zooming + panning
     '''
-    def __init__(self, spec, parent=None, zsys=None, norm=None):
+    def __init__(self, ispec, parent=None, zsys=None, norm=None):
         QtGui.QMainWindow.__init__(self, parent)
         '''
-        spec = Spectrum1D
+        Parameters:
+        --------------
+        spec = Spectrum1D or tuple of arrays
+          Input spectrum
         '''
+        # INIT
+        if isinstance(ispec,Spectrum1D):
+            spec = ispec
+        else: # Expecting tuple
+            if 
+
+        # 
         mpl.rcParams['agg.path.chunksize'] = 20000 # Needed to avoid carsh in large spectral files
         
         # Build a widget combining several others
