@@ -29,12 +29,14 @@ from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as Navigatio
 from matplotlib.figure import Figure
 
 from astropy.units import Quantity
+from astropy.nddata import StdDevUncertainty
 from astropy import units as u
 
 from linetools.lists.linelist import LineList
 
 from xastropy.xutils import xdebug as xdb
 from xastropy.xguis import spec_widgets as xspw
+from xastropy.xguis import utils as xxgu
 
 #class XSpecGui(QtGui.QMainWindow):
 #class XAbsIDGui(QtGui.QMainWindow):
@@ -50,16 +52,17 @@ class XSpecGui(QtGui.QMainWindow):
     def __init__(self, ispec, parent=None, zsys=None, norm=None):
         QtGui.QMainWindow.__init__(self, parent)
         '''
-        Parameters:
+        Parameters
         --------------
         spec = Spectrum1D or tuple of arrays
-          Input spectrum
+          Input spectrum.  If tuple then (wave,fx) or (wave,fx,sig)
         '''
+        from linetools.lists.linelist import LineList
+        #reload(xxgu)
+        #reload(xspw)
         # INIT
-        if isinstance(ispec,Spectrum1D):
-            spec = ispec
-        else: # Expecting tuple
-            if 
+        spec,_ = xxgu.read_spec(ispec)
+        #xdb.set_trace()
 
         # 
         mpl.rcParams['agg.path.chunksize'] = 20000 # Needed to avoid carsh in large spectral files
@@ -495,8 +498,7 @@ def run_xspec(*args, **kwargs):
     if len(args) == 0:
         pargs = parser.parse_args()
     else: # better know what you are doing!
-        #xdb.set_trace()
-        if type(args[0]) in [XSpectrum1D, Spectrum1D]: 
+        if isinstance(args[0],(Spectrum1D,tuple)):
             app = QtGui.QApplication(sys.argv)
             gui = XSpecGui(args[0], **kwargs)
             gui.show()
@@ -564,10 +566,10 @@ if __name__ == "__main__":
     if len(sys.argv) == 1: # TESTING
 
         flg_fig = 0 
-        #flg_fig += 2**0  # XSpec
+        flg_fig += 2**0  # XSpec
         #flg_fig += 2**1  # XAbsID
         #flg_fig += 2**2  # XVelPlt Gui
-        flg_fig += 2**3  # XVelPlt Gui without ID list; Also tests select wave
+        #flg_fig += 2**3  # XVelPlt Gui without ID list; Also tests select wave
         #flg_fig += 2**4  # XAODM Gui
     
         # Read spectrum
