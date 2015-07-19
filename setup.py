@@ -76,7 +76,33 @@ package_info = get_package_info()
 
 # Add the project-global data
 package_info['package_data'].setdefault(PACKAGENAME, [])
-package_info['package_data'][PACKAGENAME].append('data/*')
+#package_info['package_data'][PACKAGENAME].append('data/*')
+
+# Need a recursive glob to find all package data files if there are
+# subdirectories (copied from specutils)
+import fnmatch
+def recursive_glob(basedir, pattern):
+    matches = []
+    for root, dirnames, filenames in os.walk(basedir):
+        for filename in fnmatch.filter(filenames, pattern):
+            matches.append(os.path.join(root, filename))
+    return matches
+
+data_files = recursive_glob(os.path.join(PACKAGENAME, 'data'), '*')
+data_files = [f[len(PACKAGENAME)+1:] for f in data_files]
+package_info['package_data'][PACKAGENAME] += data_files
+
+test_files = [os.path.join(dirpath, f)
+    for dirpath, dirnames, files in os.walk(PACKAGENAME)
+    for f in fnmatch.filter(files, '*.all')] # MAGE file
+test_files = [f[len(PACKAGENAME)+1:] for f in test_files]
+#import pdb
+#pdb.set_trace()
+package_info['package_data'][PACKAGENAME] += test_files
+
+#data_files = recursive_glob(os.path.join(PACKAGENAME, 'files'), '*')
+#data_files = [f[len(PACKAGENAME)+1:] for f in data_files]
+#package_info['package_data'][PACKAGENAME] += data_files
 
 # Define entry points for command-line scripts
 entry_points = {}
@@ -104,7 +130,8 @@ setup(name=PACKAGENAME,
       version=VERSION,
       description=DESCRIPTION,
       scripts=scripts,
-      install_requires=['astropy'],
+      requires=['astropy','specutils','scipy'],
+      install_requires=['astropy','specutils'],
       author=AUTHOR,
       author_email=AUTHOR_EMAIL,
       license=LICENSE,
