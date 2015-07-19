@@ -93,6 +93,7 @@ install:
     - if [[ $SETUP_CMD != egg_info ]]; then $CONDA_INSTALL numpy=$NUMPY_VERSION scipy ; fi
     - if [[ $SETUP_CMD != egg_info ]]; then $CONDA_INSTALL numpy=$NUMPY_VERSION matplotlib ; fi
     - if [[ $SETUP_CMD != egg_info ]]; then $PIP_INSTALL specutils; fi
+    - if [[ $SETUP_CMD != egg_info ]]; then $PIP_INSTALL git+git://github.com/linetools/linetools ;fi
 
     # DOCUMENTATION DEPENDENCIES
     # build_sphinx needs sphinx and matplotlib (for plot_directive). Note that
