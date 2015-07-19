@@ -34,8 +34,6 @@
 from __future__ import print_function, absolute_import, division#, unicode_literals
 
 import requests
-import PIL
-from PIL import Image
 from cStringIO import StringIO
 
 from astroquery.sdss import SDSS
@@ -113,6 +111,8 @@ def getimg(ira, idec, imsize, BW=False, DSS=None):
     ira: (float or Quantity) RA in decimal degrees
     idec: (float or Quantity) DEC in decimal degrees
     '''
+    import PIL
+    from PIL import Image
     # Strip units as need be
     try:
         ra = ira.value
