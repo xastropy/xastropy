@@ -15,7 +15,6 @@ from __future__ import print_function, absolute_import, division, unicode_litera
 
 import os, copy, sys
 import numpy as np
-import yaml
 
 from astropy import units as u
 from astropy.io import ascii 
