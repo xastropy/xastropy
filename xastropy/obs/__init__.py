@@ -1,10 +1,11 @@
 # Dependent modules
+
 try:
-    import astroquery
+    import astroquery, PIL
 except ImportError:
     print('-----------------------------------------------------------')
     print('-----------------------------------------------------------')
-    print('WARNING: Not loading modules in xastropy.obs except radec.  \n Install astroquery if you want them')
+    print('WARNING: Not loading modules in xastropy.obs except radec.  \n Install astroquery and PIL if you want them')
     print('-----------------------------------------------------------')
 else:
     import finder
