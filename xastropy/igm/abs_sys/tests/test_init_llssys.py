@@ -25,6 +25,7 @@ def test_dat_init():
     # JXP .dat files
     if os.getenv('LLSTREE') is None:
         assert True
+        return
     # Read
     datfil = 'Data/UM184.z2929.dat'
     lls = LLSSystem(dat_file=datfil, tree=os.getenv('LLSTREE'))
@@ -35,6 +36,7 @@ def test_parse_ion():
     # JXP .ion file
     if os.getenv('LLSTREE') is None:
         assert True
+        return
     # Read
     datfil = 'Data/UM184.z2929.dat'
     lls = LLSSystem(dat_file=datfil, tree=os.getenv('LLSTREE'))
