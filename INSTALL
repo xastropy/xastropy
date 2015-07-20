@@ -39,6 +39,6 @@ It also assumes you will use Python 2.7, although I am trying
     conda install PIL
     sudo pip install astroquery
     #
-    # pymc and gfort
+    # pymc and gfort (for f(N) analysis)
     https://gcc.gnu.org/wiki/GFortranBinaries#MacOS
     sudo pip install pymc
