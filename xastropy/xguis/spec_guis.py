@@ -486,7 +486,6 @@ def run_xspec(*args, **kwargs):
 
     import argparse
     from specutils import Spectrum1D
-    from xastropy.spec.utils import XSpectrum1D
 
     parser = argparse.ArgumentParser(description='Parse for XSpec')
     parser.add_argument("flag", type=int, help="GUI flag (ignored)")
