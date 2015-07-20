@@ -92,14 +92,6 @@ data_files = recursive_glob(os.path.join(PACKAGENAME, 'data'), '*')
 data_files = [f[len(PACKAGENAME)+1:] for f in data_files]
 package_info['package_data'][PACKAGENAME] += data_files
 
-test_files = [os.path.join(dirpath, f)
-    for dirpath, dirnames, files in os.walk(PACKAGENAME)
-    for f in fnmatch.filter(files, '*.all')] # MAGE file
-test_files = [f[len(PACKAGENAME)+1:] for f in test_files]
-#import pdb
-#pdb.set_trace()
-package_info['package_data'][PACKAGENAME] += test_files
-
 #data_files = recursive_glob(os.path.join(PACKAGENAME, 'files'), '*')
 #data_files = [f[len(PACKAGENAME)+1:] for f in data_files]
 #package_info['package_data'][PACKAGENAME] += data_files
