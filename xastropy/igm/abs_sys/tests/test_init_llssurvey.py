@@ -47,6 +47,7 @@ def test_dat_list():
     # LLS Survey
     if os.getenv('LLSTREE') is None:
         assert True
+        return
     # Load
     lls = LLSSurvey(flist='Lists/lls_metals.lst', tree=os.getenv('LLSTREE'))
     # tests

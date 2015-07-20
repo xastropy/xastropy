@@ -35,3 +35,10 @@ It also assumes you will use Python 2.7, although I am trying
     cd linetools
     sudo python setup.py develop
 
+6.  Other packages that not necessary to run most things but recommended
+    conda install PIL
+    sudo pip install astroquery
+    #
+    # pymc and gfort (for f(N) analysis)
+    https://gcc.gnu.org/wiki/GFortranBinaries#MacOS
+    sudo pip install pymc

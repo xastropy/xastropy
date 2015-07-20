@@ -25,10 +25,7 @@ from astropy.table import Table
 from astropy.io.fits.fitsrec import FITS_rec
 from astropy.io.fits.hdu.table import BinTableHDU
 
-from specutils.io import read_fits as spec_read_fits
-
 from xastropy.xutils import xdebug as xdb
-from xastropy.spec.utils import XSpectrum1D
 
 #### ###############################
 #  Generate Spectrum1D from FITS file
@@ -40,6 +37,8 @@ def readspec(specfil, inflg=None, efil=None, outfil=None, show_plot=0,
     multi_ivar: Bool (False)
       BOSS format of  flux, ivar, log10(wave) in multi-extension FITS
     '''
+    from xastropy.spec.utils import XSpectrum1D
+    from specutils.io import read_fits as spec_read_fits
     from xastropy.files import general as xfg
     #from xastropy.plotting import x_guis as xpxg
     from astropy.table import Table

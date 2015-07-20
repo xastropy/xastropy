@@ -2646,7 +2646,6 @@ def word_wrap(text, linelen=80, indent=0, joinstr="\n"):
         result.append(" ".join(line))
     return joinstr.join(result)
 
-
 if __name__ == "__main__":
     for ele in ELEMENTS:
         print(repr(ele), '\n')

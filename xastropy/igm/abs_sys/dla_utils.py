@@ -15,14 +15,12 @@ from __future__ import print_function, absolute_import, division, unicode_litera
 
 import os, copy, sys
 import numpy as np
-import yaml
 
 from astropy import units as u
 from astropy.io import ascii 
 
 from xastropy.igm.abs_sys.abssys_utils import AbslineSystem, Abs_Sub_System
 from xastropy.igm.abs_sys.abs_survey import AbslineSurvey
-from xastropy.igm.abs_sys.ionic_clm import Ionic_Clm_File
 from xastropy.spec import abs_line, voigt
 from xastropy.atomic import ionization as xatomi
 from xastropy.xutils import xdebug as xdb

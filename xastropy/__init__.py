@@ -1,13 +1,17 @@
-import abund
-import atomic
-import casbah
-import files
-import igm
-import obs
-import phot
-import plotting
-import spec
-import stats
-import xguis
-import xutils
-import PH136
+# Licensed under a 3-clause BSD style license - see LICENSE.rst
+
+"""
+This is (not really) an Astropy affiliated package.
+"""
+
+# Affiliated packages may add whatever they like to this file, but
+# should keep this content at the top.
+# ----------------------------------------------------------------------------
+from ._astropy_init import *
+# ----------------------------------------------------------------------------
+
+# For egg_info test builds to pass, put package imports here.
+if not _ASTROPY_SETUP_:
+	pass
+    #from example_mod import *
+    #import abund

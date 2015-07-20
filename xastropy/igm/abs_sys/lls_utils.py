@@ -15,7 +15,6 @@ from __future__ import print_function, absolute_import, division, unicode_litera
 
 import os, copy, sys, imp, glob
 import numpy as np
-import yaml, time
 
 from astropy import units as u
 from astropy.io import ascii 
@@ -538,6 +537,7 @@ if __name__ == '__main__':
     # Profiling the Read
     if (flg_test % 2**12) >= 2**11:
         # python -m cProfile -o lls_profile.dat lls_utils.py
+        import time
         t0 = time.clock()
         lls = profile_read()
         t1 = time.clock()
