@@ -5,7 +5,7 @@
 #;    Version 1.1
 #;
 #; PURPOSE:
-#;   Basic routines for dealing with SDSS quasar database
+#;   Class for SDSS Quasar dataset
 #;     2015 Written by JXP
 #;-
 #;------------------------------------------------------------------------------
@@ -40,14 +40,17 @@ class SdssQuasars(object):
             self._version = version
         self.verbose = verbose
         # Paths
+        if os.getenv('SDSSPATH') is None:
+            print('SDSS_QUASAR: This code requires an SDSS database. Discuss with JXP')
+            return
         self._path = os.getenv('SDSSPATH')+'/'+self._version+'_QSO/' 
         self._datdir = self._path+'spectro/1d_26/'
 
         # Grab Summary FITS file
-        self._summf = path+version.lower()+'_qso.fits.gz'
+        self._summf = self._path+self._version.lower()+'_qso.fits.gz'
         if self.verbose:
-            print('SDSS_QUASAR: Using summary file {:s}'.format(summf))
-        self._data = QTable.read(summf)
+            print('SDSS_QUASAR: Using summary file {:s}'.format(self._summf))
+        self._data = QTable.read(self._summf)
 
 
     #### ###############################
@@ -82,19 +85,41 @@ class SdssQuasars(object):
         # Parse and return
         if len(mt) == 0:
             if isinstance(inp,tuple):
-                print('Plate={:d}, FIBERID={:d} not found in SDSS-{:s}'.format(
-                    inp[0],inp[1],self._version))
+                if self.verbose:
+                    print('Plate={:d}, FIBERID={:d} not found in SDSS-{:s}'.format(
+                        inp[0],inp[1],self._version))
             elif isinstance(inp,basestring):
-                print('Quasar {:s} not found in SDSS-{:s}'.format(inp,self._version))
+                if self.verbose:
+                    print('Quasar {:s} not found in SDSS-{:s}'.format(inp,self._version))
             return
         elif len(mt) == 1:
+            self.index = mt[0] # Useful for SdssQso class
             return self._data[mt]
         else:
             raise ValueError('Not expecting this')
+
+    #####
+    def __getitem__(self,k):
+        ''' Passback a SdssQso object
+        k: Input to get_qso
+        '''
+        from xastropy.sdss.qso import SdssQso
+        row = self.get_qso(k)
+        if row is None:
+            return None
+
+        # Generate SdssQso
+        qso = SdssQso(z=row['Z'][0],database=self)
+        qso.coord = xor.to_coord((row['RAOBJ'][0]*u.deg,row['DECOBJ'][0]*u.deg))
+
+        # Return
+        return qso
+
 
     def __repr__(self):
         ''' For printing
         '''
         # Generate 
-        return '[SDSS Quasars: Version={:s}]'.format(self._version)
+        return '[{:s}: Version={:s}]'.format(self.__class__.__name__,
+            self._version)
 
