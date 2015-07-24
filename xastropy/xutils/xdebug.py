@@ -16,11 +16,11 @@ from xastropy.plotting.simple import plot_1d_arrays as xplot
 from xastropy.plotting.simple import plot_hist as xhist
 
 try:
-	from xastropy.xutils.ginga import show_fits as xshow_fits
+	from xastropy.xutils.xginga import show_fits as xshow_fits
 except ImportError:
     'Need Ginga for this portions of xdebug.  See https://github.com/ejeschke/ginga.git'
 else:
-	from xastropy.xutils.ginga import show_img as ximshow
+	from xastropy.xutils.xginga import show_img as ximshow
 
 """ Didn't work
 def pyqt_trace():
