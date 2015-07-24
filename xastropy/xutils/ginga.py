@@ -20,7 +20,11 @@ from astropy import units as u
 from astropy.io import ascii, fits
 from astropy.table import QTable, Table, Column
 
-from ginga.util import grc
+try:
+    from ginga.util import grc
+except ImportError:
+    'Need Ginga for this module.  See https://github.com/ejeschke/ginga.git'
+    return
 
 #from xastropy.xutils import xdebug as xdb
 
