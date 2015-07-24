@@ -229,11 +229,11 @@ def read_spec(ispec, second_file=None):
     spec_file: str
     '''
     from specutils import Spectrum1D
-    from linetools.spectra.utils import XSpectrum1D
+    from linetools.spectra.xspectrum1d import XSpectrum1D
     #
     if isinstance(ispec,basestring):
         spec_fil = ispec
-        spec = lsi.readspec(spec_fil)
+        spec = XSpectrum1D.from_file(spec_fil)
         # Second file?
         if not second_file is None:
             spec2 = lsi.readspec(second_file)
@@ -255,21 +255,8 @@ def read_spec(ispec, second_file=None):
         spec = ispec # Assuming Spectrum1D
         spec_fil = spec.filename # Grab from Spectrum1D 
     elif isinstance(ispec,tuple):
-        # Units
-        try:
-            wv_unit = ispec[0].unit
-        except AttributeError:
-            wv_unit = u.AA
-        uwave = u.Quantity(ispec[0], unit=wv_unit)
-        # Generate
-        if len(ispec) == 2: # wave, flux
-            spec = XSpectrum1D.from_array(uwave, u.Quantity(ispec[1])) 
-        else:
-            spec = XSpectrum1D.from_array(uwave, u.Quantity(ispec[1]), 
-                uncertainty=StdDevUncertainty(ispec[2]))
-        #
+        spec = xspectrum1d.from_tuple(tuple)
         spec_fil = 'none'
-        spec.filename = spec_fil
     else:
         raise ValueError('Bad input to read_spec')
 
