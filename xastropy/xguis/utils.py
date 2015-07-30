@@ -255,7 +255,6 @@ def read_spec(ispec, second_file=None):
     elif isinstance(ispec,tuple):
         spec = lsx.XSpectrum1D.from_tuple(tuple)
         spec_fil = 'none'
-        spec.filename = spec_fil
     else:
         raise ValueError('Bad input to read_spec')
 
