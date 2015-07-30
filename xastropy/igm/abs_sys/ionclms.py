@@ -19,6 +19,8 @@ from astropy.io import fits, ascii
 from astropy.units.quantity import Quantity
 from astropy.table import QTable, Table, Column
 
+from linetools.spectralline import AbsLine
+
 from xastropy.atomic import ionization as xai
 import xastropy as xa
 from xastropy.xutils import xdebug as xdb
@@ -324,7 +326,8 @@ class Ionic_Clm_File(object):
             vmax = float(tmp[2].strip())
             key = float(tmp[0].strip()) # Using a float not string!
             # Generate
-            self.clm_lines[key] = xa.spec.analysis.Spectral_Line(key)
+            self.clm_lines[key] = AbsLine(key*u.AA)
+            #self.clm_lines[key] = xa.spec.analysis.Spectral_Line(key)
             self.clm_lines[key].analy['FLAGS'] = ionflg, int(tmp[3].strip())
             # By-hand
             if ionflg >= 8:

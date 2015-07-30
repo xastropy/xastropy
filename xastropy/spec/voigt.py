@@ -82,9 +82,9 @@ def voigt_model(spec, line, Npix=None, flg_ret=1):
     """
     # Imports
     import copy
-    from linetools.spectra.utils import XSpectrum1D
+    from linetools.spectra.xspectrum1d import XSpectrum1D
+    from linetools.spectralline import AbsLine
     from astropy.nddata import StdDevUncertainty
-    from xastropy.spec.lines_utils import AbsLine
 
     # Spectrum input
     if isinstance(spec,np.ndarray):  # Standard wavelength array
@@ -93,18 +93,18 @@ def voigt_model(spec, line, Npix=None, flg_ret=1):
     elif isinstance(spec,Spectrum1D):
         vmodel = copy.deepcopy(spec)
     else:
-        raise ValueError('voigt_model: Unknown input')
+        raise ValueError('voigt_model: Unknown spectrum input')
     #xdb.set_trace()
         
     # Line input
     if isinstance(line,AbsLine):  # Single line as a Abs_Line Class
         par = [0*i for i in range(6)] # Dummy list
-        par[0] = line.attrib['N']
-        par[1] = line.z
-        par[2] = line.attrib['b']
-        par[3] = line.wrest
-        par[4] = line.atomic['fval']
-        par[5] = line.atomic['gamma']
+        par[0] = line.attrib['N'] # logN; Won't have units
+        par[1] = line.attrib['z']
+        par[2] = line.attrib['b'] # Should have units
+        par[3] = line.wrest # Should have units
+        par[4] = line.data['f']
+        par[5] = line.data['gamma'] # Should have units
     elif isinstance(line,list):
         if isinstance(line[0],AbsLine):  # List of Abs_Line
             tau = np.zeros(len(vmodel.flux))
@@ -123,8 +123,8 @@ def voigt_model(spec, line, Npix=None, flg_ret=1):
 
         wv=par[3].to(u.cm) #*1.0e-8
         nujk = (const.c / wv).to(u.Hz)
-        dnu = ((par[2]*u.km/u.s) / wv).to('Hz')
-        avoigt = ((par[5]/u.s)/( 4 * np.pi * dnu)).to(u.dimensionless_unscaled)
+        dnu = (par[2].to(u.km/u.s) / wv).to('Hz')
+        avoigt = (par[5]/( 4 * np.pi * dnu)).to(u.dimensionless_unscaled)
 
         uvoigt = ( ((const.c / (vmodel.dispersion/zp1)) - nujk) / dnu).to(u.dimensionless_unscaled)
         '''

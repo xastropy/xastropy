@@ -966,15 +966,14 @@ class VelPlotWidget(QtGui.QWidget):
             newline = AbsLine(inp[1],linelist=self.llist[self.llist['List']])
             print('VelPlot: Generating line {:g}'.format(inp[1]))
             newline.analy['vlim'] = self.vmnx/2.
-            newline.analy['do_analysis'] = 2 # Init to ok
+            newline.attrib['z'] = self.abs_sys.zabs
+            newline.analy['do_analysis'] = 1 # Init to ok
             # Spec file
             if self.spec_fil is not None:
                 newline.analy['datafile'] = self.spec_fil
             # Append
             self.abs_sys.lines.append(newline)
 
-            
-        
     # Key stroke 
     def on_key(self,event):
 
@@ -1067,9 +1066,9 @@ class VelPlotWidget(QtGui.QWidget):
             try:
                 fanly = absline.analy['do_analysis'] 
             except KeyError:
-                fanly = 2
+                fanly = 1
             if fanly == 0:
-                fanly = 2 # Not using 1 anymore..
+                fanly = 1
             else:
                 fanly = 0
             absline.analy['do_analysis']  = fanly
@@ -1158,14 +1157,15 @@ class VelPlotWidget(QtGui.QWidget):
                 #xdb.set_trace()
                 #QtCore.pyqtRestoreInputHook()
                 # Single window?
-                if not in_wrest is None:
+                if in_wrest is not None:
                     if np.abs(wrest-in_wrest) > (1e-3*u.AA):
                         continue
                 # Generate plot
                 self.ax = self.fig.add_subplot(self.sub_xy[0],self.sub_xy[1], subp_idx[jj])
                 self.ax.clear()        
-
-                #print('Plotting {:g}, {:d}'.format(wrest,subp_idx[jj]))
+                #QtCore.pyqtRemoveInputHook()
+                #xdb.set_trace()
+                #QtCore.pyqtRestoreInputHook()
 
                 # Zero line
                 self.ax.plot( [0., 0.], [-1e9, 1e9], ':', color='gray')
@@ -1181,15 +1181,12 @@ class VelPlotWidget(QtGui.QWidget):
 
                 # Labels
                 #if jj >= (self.sub_xy[0]-1)*(self.sub_xy[1]):
-                if ((jj+1) % self.sub_xy[0]) == 0:
+                if (((jj+1) % self.sub_xy[0]) == 0) or ((jj+1) == len(all_idx)):
                     self.ax.set_xlabel('Relative Velocity (km/s)')
                 else:
                     self.ax.get_xaxis().set_ticks([])
                 #if ((jj+1) // 2 == 0) & (jj < self.sub_xy[0]):
                 #    self.ax.set_ylabel('Relative Flux')
-                #QtCore.pyqtRemoveInputHook()
-                #xdb.set_trace()
-                #QtCore.pyqtRestoreInputHook()
                 lbl = self.llist[self.llist['List']].name[idx]
                 self.ax.text(0.1, 0.05, lbl, color='blue', transform=self.ax.transAxes,
                              size='x-small', ha='left')
@@ -1217,9 +1214,6 @@ class VelPlotWidget(QtGui.QWidget):
                     absline = self.abs_sys.grab_line((self.z,wrest))
                     if absline is None:
                         break
-                    #QtCore.pyqtRemoveInputHook()
-                    #xdb.set_trace()
-                    #QtCore.pyqtRestoreInputHook()
                     try:
                         vlim = absline.analy['vlim'].value
                         #QtCore.pyqtRemoveInputHook()
@@ -1413,6 +1407,53 @@ class AODMWidget(QtGui.QWidget):
         # Draw
         self.canvas.draw()
     
+# ##################################
+# GUI for simple text entering
+class EnterTextGUI(QtGui.QDialog):
+    ''' GUI to grab text from the user
+        29-Julc-2014 by JXP
+    '''
+    def __init__(self, directions='Enter:', parent=None):
+        '''
+        message = str
+          Message to display
+        '''
+        super(EnterTextGUI, self).__init__(parent)
+
+        # Initialize
+        self.text = ''
+
+        #age textbox
+        textW = QtGui.QWidget()
+        textlabel = QtGui.QLabel(directions)
+        self.textbox = QtGui.QLineEdit()
+        self.connect(self.textbox,QtCore.SIGNAL('editingFinished ()'), 
+            self.set_text)
+       # self.ageerror = QtGui.QLabel('')
+
+        textvbox = QtGui.QVBoxLayout()
+        textvbox.addWidget(textlabel)
+        textvbox.addWidget(self.textbox)
+        textW.setLayout(textvbox)
+
+        # Buttons
+        donebtn = QtGui.QPushButton('Done', self)
+        donebtn.clicked.connect(self.touch_done)
+        donebtn.setAutoDefault(False)
+
+        # Main Layout
+        vbox = QtGui.QVBoxLayout()
+        vbox.addWidget(textW)
+        vbox.addWidget(donebtn)
+        #vbox.addWidget(self.cntdwn)
+        self.setLayout(vbox)
+
+    def set_text(self):
+        self.text = str(self.textbox.text())
+            
+    def touch_done(self):
+        self.done(0)
+
 
 
 # ################
@@ -1422,13 +1463,14 @@ if __name__ == "__main__":
 
     if len(sys.argv) == 1: #
         flg_tst = 0
-        flg_tst += 2**0  # ExamineSpecWidget
+        #flg_tst += 2**0  # ExamineSpecWidget
         #flg_tst += 2**1  # PlotLinesWidget
         #flg_tst += 2**2  # SelectLineWidget
         #flg_tst += 2**3  # AbsSysWidget
         #flg_tst += 2**4  # VelPltWidget
         #flg_tst += 2**5  # SelectedLinesWidget
         #flg_tst += 2**6  # AODMWidget
+        flg_tst += 2**7  # Simple Text Widget
     else:
         flg_tst = int(sys.argv[1])
 
@@ -1487,9 +1529,9 @@ if __name__ == "__main__":
             spec = lsi.readspec(spec_fil)
             # Abs_sys
             abs_sys = xiaa.GenericAbsSystem()
-            abs_sys.clm_fil = '/Users/xavier/DLA/Abund/PH957.z2309.clm'
-            abs_sys.get_ions(skip_ions=True, fill_lines=True)
-            abs_sys.zabs = abs_sys.clm_analy.zsys
+            ion_fil = '/Users/xavier/DLA/Abund/Tables/PH957.z2309.ion'
+            abs_sys.zabs = 2.309
+            abs_sys.read_ion_file(ion_fil)
         elif specf == 1: # UM184 LLS
             # Spectrum
             spec_fil = '/Users/xavier/PROGETTI/LLSZ3/data/normalize/UM184_nF.fits'
@@ -1528,3 +1570,12 @@ if __name__ == "__main__":
         main = AODMWidget(spec, z, lines)
         main.show()
         sys.exit(app.exec_())
+
+    # Simple text input widget
+    if (flg_tst % 2**8) >= 2**7:
+        app = QtGui.QApplication(sys.argv)
+        app.setApplicationName('TEXT')
+        main = EnterTextGUI('Enter some text:')
+        main.exec_()
+        print('You entered: {:s}'.format(main.text))
+        sys.exit()

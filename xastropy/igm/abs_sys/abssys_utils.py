@@ -23,6 +23,7 @@ from astropy.units import Quantity
 from astropy.coordinates import SkyCoord
 
 from linetools.spectralline import AbsLine
+from linetools.lists.linelist import LineList
 
 from xastropy.igm.abs_sys.ionclms import IonClms, Ionic_Clm_File
 from xastropy.xutils import xdebug as xdb

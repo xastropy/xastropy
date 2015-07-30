@@ -162,10 +162,12 @@ def set_llist(llist,in_dict=None):
     ''' Method to set a line list dict for the Widgets
     '''
     from linetools.lists.linelist import LineList
+    from astropy.units.quantity import Quantity
+
     if in_dict is None:
         in_dict = {}
 
-    if type(llist) in [str,unicode]: # Set line list from a file
+    if isinstance(llist,basestring): # Set line list from a file
         in_dict['List'] = llist
         if llist == 'None':
             in_dict['Plot'] = False
@@ -173,20 +175,13 @@ def set_llist(llist,in_dict=None):
             in_dict['Plot'] = True
             # Load?
             if not (llist in in_dict):
-                #line_file = xa_path+'/data/spec_lines/'+llist
-                #llist_cls = xspec.abs_line.Abs_Line_List(llist)
                 llist_cls = LineList(llist)
                 in_dict[llist] = llist_cls
-    elif isinstance(llist,list): # Set from a list of wrest
-
-        from astropy.table import Column
-
+    elif isinstance(llist,(Quantity,list)): # Set from a list of wrest
         in_dict['List'] = 'input.lst'
         in_dict['Plot'] = True
         # Fill
         llist.sort()
-        tmp_dict = {}
-        # Parse from grb.lst
         llist_cls = LineList('ISM', gd_lines=llist)
         in_dict['input.lst'] = llist_cls
         '''
@@ -212,6 +207,8 @@ def set_llist(llist,in_dict=None):
         col2 = Column(np.array(fval), name='fval')
         in_dict['input.lst'] = Table( (col0,col1,col2) )
         '''
+    else:
+        raise IOError('Not ready for this type of input')
 
     # Return
     return in_dict
@@ -229,11 +226,12 @@ def read_spec(ispec, second_file=None):
     spec_file: str
     '''
     from specutils import Spectrum1D
-    from linetools.spectra.utils import XSpectrum1D
+    from linetools.spectra import xspectrum1d as lsx 
+    from linetools.spectra import io as lsi 
     #
     if isinstance(ispec,basestring):
         spec_fil = ispec
-        spec = lsi.readspec(spec_fil)
+        spec = lsx.XSpectrum1D.from_file(spec_fil)
         # Second file?
         if not second_file is None:
             spec2 = lsi.readspec(second_file)
@@ -255,21 +253,8 @@ def read_spec(ispec, second_file=None):
         spec = ispec # Assuming Spectrum1D
         spec_fil = spec.filename # Grab from Spectrum1D 
     elif isinstance(ispec,tuple):
-        # Units
-        try:
-            wv_unit = ispec[0].unit
-        except AttributeError:
-            wv_unit = u.AA
-        uwave = u.Quantity(ispec[0], unit=wv_unit)
-        # Generate
-        if len(ispec) == 2: # wave, flux
-            spec = XSpectrum1D.from_array(uwave, u.Quantity(ispec[1])) 
-        else:
-            spec = XSpectrum1D.from_array(uwave, u.Quantity(ispec[1]), 
-                uncertainty=StdDevUncertainty(ispec[2]))
-        #
+        spec = lsx.XSpectrum1D.from_tuple(tuple)
         spec_fil = 'none'
-        spec.filename = spec_fil
     else:
         raise ValueError('Bad input to read_spec')
 
