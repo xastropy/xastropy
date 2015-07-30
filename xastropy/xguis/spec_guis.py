@@ -471,7 +471,7 @@ class XAODMGui(QtGui.QDialog):
 
 
 
-# Script to run XSpec from the command line
+# Script to run XSpec from the command line or ipython
 def run_xspec(*args, **kwargs):
     '''
     Runs the XSpecGui
@@ -554,6 +554,66 @@ def run_xabsid():
     gui = XAbsIDGui(args.file, norm=norm, second_file=second_file)
     gui.show()
     app.exec_()
+
+# Script to run XVelPltGui from the command line or ipython
+def run_xvelp(*args, **kwargs):
+    '''
+    Runs the XVelPltGui
+
+    Command line
+    or from Python
+    Examples:
+      1.  python ~/xastropy/xastropy/xguis/spec_guis.py 3
+      2.  spec_guis.run_xvelp(filename)
+      3.  spec_guis.run_xvelp(spec1d)
+    '''
+
+    import argparse
+    from specutils import Spectrum1D
+
+    xdb.set_trace() # DEPRECATED FOR NOW
+
+    parser = argparse.ArgumentParser(description='Parse for XVelPlt')
+    parser.add_argument("flag", type=int, help="GUI flag (ignored)")
+    parser.add_argument("file", type=str, help="Spectral file")
+    parser.add_argument("-zsys", type=float, help="System Redshift")
+    parser.add_argument("--un_norm", help="Spectrum is NOT normalized",
+                        action="store_true")
+
+    if len(args) == 0:
+        pargs = parser.parse_args()
+    else: # better know what you are doing!
+        if isinstance(args[0],(Spectrum1D,tuple)):
+            if not kwargs['rerun']:
+                app = QtGui.QApplication(sys.argv)
+            xdb.set_trace()
+            gui = XVelPltGui(args[0], **kwargs)
+            gui.exec_()
+            #gui.show()
+            #app.exec_()
+            return gui, app
+        else: # String parsing 
+            largs = ['1'] + [iargs for iargs in args]
+            pargs = parser.parse_args(largs)
+    
+    # Normalized?
+    norm=True
+    if pargs.un_norm:
+        norm=False
+
+    # Second spectral file?
+    try:
+        zsys = pargs.zsys
+    except AttributeError:
+        zsys=None
+
+    xdb.set_trace() # Not setup for command line yet
+    app = QtGui.QApplication(sys.argv)
+    gui = XSpecGui(pargs.file, zsys=zsys, norm=norm)
+    gui.show()
+    app.exec_()
+
+    return gui
 
 
 # ################
@@ -652,4 +712,6 @@ if __name__ == "__main__":
             run_xspec()
         elif id_gui == 2:
             run_xabsid()
+        elif id_gui == 3:
+            run_xvelp()
             

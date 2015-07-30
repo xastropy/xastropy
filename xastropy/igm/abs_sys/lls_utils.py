@@ -24,7 +24,7 @@ from linetools.lists.linelist import LineList
 from xastropy.igm.abs_sys.abs_survey import AbslineSurvey
 from xastropy.igm.abs_sys.abssys_utils import AbslineSystem, Abs_Sub_System
 from xastropy.igm.abs_sys.ionclms import Ionic_Clm_File, IonClms
-from xastropy.spec import abs_line, voigt
+from xastropy.spec import voigt as xsv
 from xastropy.atomic import ionization as xatomi
 from xastropy.xutils import xdebug as xdb
 
@@ -189,7 +189,7 @@ class LLSSystem(AbslineSystem):
                 
 
     # #############
-    def fill_lls_lines(self, bval=20.):
+    def fill_lls_lines(self, bval=20.*u.km/u.s):
         """
         Generate an HI line list for an LLS.
         Goes into self.lls_lines 
@@ -198,24 +198,23 @@ class LLSSystem(AbslineSystem):
         ----------
         bval : float (20.)  Doppler parameter in km/s
         """
-        from barak import absorb as ba
+        from linetools.lists import linelist as lll
+        from linetools.spectralline import AbsLine
 
-        atom = ba.readatom()
+        # May be replaced by component class (as NT desires)
+        HIlines = lll.LineList('HI')
+
         self.lls_lines = []
-        for line in atom['HI']:
-            tmp = abs_line.Abs_Line(line['wa']*u.AA,fill=False)
-            # Atomic data
-            tmp.atomic = {'fval': line['osc'], 'gamma': line['gam'],
-                          'name': 'HI %s' % line['wa'], 'wrest': line['wa']}
-            tmp.name = tmp.atomic['name']
+        for lline in HIlines._data:
+            aline = AbsLine(lline['wrest'],linelist=HIlines)
             # Attributes
-            tmp.attrib['N'] = self.NHI
-            tmp.attrib['b'] = bval
-            tmp.z = self.zabs
-
-            self.lls_lines.append(tmp)
-            #xdb.set_trace()
-        
+            aline.attrib['N'] = self.NHI
+            aline.attrib['b'] = bval
+            aline.attrib['z'] = self.zabs
+            # Could set RA and DEC too
+            aline.attrib['RA'] = self.coord.ra
+            aline.attrib['DEC'] = self.coord.dec
+            self.lls_lines.append(aline)
 
     # Absorption model of the LLS (HI only)
     def flux_model(self,spec,smooth=0):
@@ -223,12 +222,13 @@ class LLSSystem(AbslineSystem):
         Generate a LLS model given an input spectrum
 
         Parameters:
-          spec:  Barak Spectrum (will migrate to specutils.Spectrum1D)
+          spec:  Spectrum1D
           smooth : (0) Number of pixels to smooth by
 
         Returns:
           Output model is passed back as a Spectrum 
         """
+        reload(xsv)
         
         # ########
         # LLS first
@@ -248,7 +248,7 @@ class LLSSystem(AbslineSystem):
             self.fill_lls_lines()
 
         #xdb.set_trace()
-        tau_Lyman = voigt.voigt_model(spec.dispersion, self.lls_lines, flg_ret=2)
+        tau_Lyman = xsv.voigt_model(spec.dispersion, self.lls_lines, flg_ret=2)
 
         # Combine
         tau_model = tau_LL + tau_Lyman
