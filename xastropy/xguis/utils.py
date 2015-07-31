@@ -176,6 +176,9 @@ def set_llist(llist,in_dict=None):
             # Load?
             if not (llist in in_dict):
                 llist_cls = LineList(llist)
+                # Sort
+                llist_cls._data.sort('wrest')
+                # Load
                 in_dict[llist] = llist_cls
     elif isinstance(llist,(Quantity,list)): # Set from a list of wrest
         in_dict['List'] = 'input.lst'

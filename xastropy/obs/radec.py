@@ -150,7 +150,7 @@ def stod(in_rads, radec=None):
 #  Main conversion
 def to_coord(irad):
     """
-    Input RA/DEC as a tuple or SkyCoord and return a SkyCoord
+    Input RA/DEC as a tuple, str or SkyCoord and return a SkyCoord
     """
     # SkyCoord
     if type(irad) is SkyCoord:

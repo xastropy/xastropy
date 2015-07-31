@@ -251,6 +251,8 @@ class AbslineSystem(object):
     def parse_absid_file(self, abs_fil):
 
         from xastropy import spec as xxspec 
+        if self.linelist is None:
+            self.linelist = LineList('ISM')
         # FITS binary table
         hdu = fits.open(abs_fil)
         table = hdu[1].data
@@ -262,6 +264,27 @@ class AbslineSystem(object):
 
         # Load up lines
         for row in table:
+            aline = AbsLine(row['WREST']*u.AA, linelist=self.linelist,
+                closest=True)
+            # Velocity limits and flags
+            try:
+                aline.analy['vlim'] = row['VLIM'] * u.km/u.s
+            except KeyError:
+                aline.analy['vlim'] = row['DV'] * u.km/u.s
+            try:
+                aline.analy['do_analysis'] = row['do_analysis']
+            except KeyError:
+                aline.analy['do_analysis'] = row['FLG_ANLY']
+            aline.analy['flg_eye'] = row['FLG_EYE']
+            aline.analy['flg_limit'] = row['FLG_LIMIT']
+            try:
+                aline.analy['datafile'] = row['datafile']
+            except KeyError:
+                aline.analy['datafile'] = row['DATFIL']
+            aline.analy['spec'] = None # Spectrum
+            # Append
+            self.lines.append(aline)
+            ''' OLD FORMAT
             self.lines[row['WREST']] = xxspec.analysis.Spectral_Line(row['WREST'])
             # Velocity limits and flags
             try:
@@ -273,6 +296,7 @@ class AbslineSystem(object):
             self.lines[row['WREST']].analy['FLG_LIMIT'] = row['FLG_LIMIT']
             self.lines[row['WREST']].analy['DATFIL'] = row['DATFIL']
             self.lines[row['WREST']].analy['IONNM'] = row['IONNM']
+            '''
 
     # Read a .ion file (transitions)
     def read_ion_file(self,ion_fil,zabs=0.,RA=0.*u.deg, Dec=0.*u.deg):
@@ -309,24 +333,31 @@ class AbslineSystem(object):
     # ##
     # Write AbsID file
     def write_absid_file(self, outfil=None):
-
+        '''TO BE DEPRECATED (probably)
+        Writes portions of the LLS lines to a FITS table.
+        '''
         from astropy.table import Column
         from astropy.table.table import Table
-
-        wrest = self.lines.keys()
-        wrest.sort()
-
+        #
+        #wrest = self.lines.keys()
+        #wrest.sort()
+        wrest = [line.wrest.value for line in self.lines]
         if outfil is None:
             outfil = self.absid_file
-
         # Columns
         cols = [Column(np.array(wrest), name='WREST')] 
-        clm_nms = self.lines[wrest[0]].analy.keys()
+        clm_nms = self.lines[0].analy.keys()
         for clm_nm in clm_nms:
-            clist = [self.lines[iwrest].analy[clm_nm] for iwrest in wrest]
+            if clm_nm == 'spec':
+                continue
+            clist = [line.analy[clm_nm] for line in self.lines]
             cols.append( Column(np.array(clist), name=clm_nm) )
         cols.append( Column(np.ones(len(cols[0]))*self.zabs, name='ZABS') ) 
         
+        #from PyQt4 import QtCore
+        #QtCore.pyqtRemoveInputHook()
+        #xdb.set_trace()
+        #QtCore.pyqtRestoreInputHook()
         table = Table(cols)
 
         prihdr = fits.Header()

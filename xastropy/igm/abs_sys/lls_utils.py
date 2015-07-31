@@ -42,8 +42,10 @@ class LLSSystem(AbslineSystem):
     """
     # Create instance with a AbsID file
     @classmethod
-    def from_absid_fil(cls, abs_fil):
+    def from_absid_fil(cls, abs_fil, linelist=None):
         lls = cls() # Empty
+        # Linelist (speeds things up)
+        lls.linelist=linelist
         # Parse abs_fil
         lls.parse_absid_file(abs_fil)
         # Return
@@ -464,15 +466,15 @@ if __name__ == '__main__':
     #flg_test += 2 # LLS plot
     #flg_test += 2**2 # zpeak
     #flg_test += 2**3 # output .dat file
-    #flg_test += 2**4 # read/write AbsID
+    flg_test += 2**4 # read/write AbsID
     #
     #flg_test += 2**9 # LLS Survey NHI
     #flg_test += 2**10 # LLS Survey ions
-    flg_test += 2**11 # Profiling the main read commands
+    #flg_test += 2**11 # Profiling the main read commands
 
     # Test Absorption System
     print('-------------------------')
-    tmp1 = LLS_System(dat_file='Data/HE0940-1050.z2916.dat',
+    tmp1 = LLSSystem(dat_file='Data/HE0940-1050.z2916.dat',
                       tree=os.environ.get('LLSTREE'))
     print(tmp1)
 
@@ -513,7 +515,6 @@ if __name__ == '__main__':
         abs_fil = '/Users/xavier/paper/LLS/Optical/Data/Analysis/MAGE/SDSSJ1004+0018_z2.746_id.fits'
         lls = LLSSystem.from_absid_fil(abs_fil)
         tmpfil= '/Users/xavier/Desktop/tmp.fits'
-        xdb.set_trace()
         lls.write_absid_file(tmpfil)
         lls = LLSSystem.from_absid_fil(tmpfil)
         xdb.set_trace()

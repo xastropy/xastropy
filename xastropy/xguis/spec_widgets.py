@@ -75,6 +75,10 @@ class ExamineSpecWidget(QtGui.QWidget):
         self.orig_spec = spec # For smoothing
         self.spec = self.orig_spec 
 
+        # Other bits (modified by other widgets)
+        self.continuum = None
+        self.model = None
+
         # Abs Systems
         if abs_sys is None:
             self.abs_sys = []
@@ -390,7 +394,6 @@ class ExamineSpecWidget(QtGui.QWidget):
         """ Redraws the spectrum
         """
         #
-
         if replot is True:
             self.ax.clear()        
             self.ax.plot(self.spec.dispersion, self.spec.flux, 'k-',drawstyle='steps-mid')
@@ -400,6 +403,11 @@ class ExamineSpecWidget(QtGui.QWidget):
                 pass
             self.ax.set_xlabel('Wavelength')
             self.ax.set_ylabel('Flux')
+
+            # Continuum?
+            if self.continuum is not None:
+                self.ax.plot(self.continuum.dispersion, self.continuum.flux, 
+                    color='purple')
 
             # Spectral lines?
             if self.llist['Plot'] is True:
@@ -421,23 +429,27 @@ class ExamineSpecWidget(QtGui.QWidget):
             if not self.abs_sys is None:
                 ylbl = self.psdict['ymnx'][0]+0.2*(self.psdict['ymnx'][1]-self.psdict['ymnx'][0])
                 clrs = ['red', 'green', 'cyan', 'orange', 'gray', 'purple']*10
+                ii=-1
                 for abs_sys in self.abs_sys:
-                    ii = self.abs_sys.index(abs_sys)
-                    kwrest = np.array(abs_sys.lines.keys()) 
+                    ii+=1
+                    kwrest = np.array([line.wrest.value for line in abs_sys.lines])
                     wvobs = kwrest * (abs_sys.zabs+1) * u.AA
                     gdwv = np.where( ((wvobs.value+5) > self.psdict['xmnx'][0]) &  # Buffer for region
                                     ((wvobs.value-5) < self.psdict['xmnx'][1]))[0]
-                    for kk in range(len(gdwv)): 
-                        jj = gdwv[kk]
-                        if abs_sys.lines[kwrest[jj]].analy['do_analysis'] == 0:
+                    #QtCore.pyqtRemoveInputHook()
+                    #xdb.set_trace()
+                    #QtCore.pyqtRestoreInputHook()
+                    #for kk in range(len(gdwv)): 
+                    for jj in gdwv:
+                        if abs_sys.lines[jj].analy['do_analysis'] == 0:
                             continue
                         # Paint spectrum red
-                        wvlim = wvobs[jj]*(1 + abs_sys.lines[kwrest[jj]].analy['vlim']/const.c.to('km/s'))
+                        wvlim = wvobs[jj]*(1 + abs_sys.lines[jj].analy['vlim']/const.c.to('km/s'))
                         pix = np.where( (self.spec.dispersion > wvlim[0]) & (self.spec.dispersion < wvlim[1]))[0]
                         self.ax.plot(self.spec.dispersion[pix], self.spec.flux[pix], '-',drawstyle='steps-mid',
                                      color=clrs[ii])
                         # Label
-                        lbl = abs_sys.lines[kwrest[jj]].analy['IONNM']+' z={:g}'.format(abs_sys.zabs)
+                        lbl = abs_sys.lines[jj].analy['name']+' z={:g}'.format(abs_sys.zabs)
                         self.ax.text(wvobs[jj].value, ylbl, lbl, color=clrs[ii], rotation=90., size='x-small')
             # Analysis? EW, Column
             if self.adict['flg'] == 1:
@@ -495,7 +507,6 @@ class PlotLinesWidget(QtGui.QWidget):
             self.statusBar = status
         if init_z is None:
             init_z = 0.
-            
         
         # Create a dialog window for redshift
         z_label = QtGui.QLabel('z=')
@@ -728,12 +739,15 @@ class SelectedLinesWidget(QtGui.QWidget):
         else:
             self.plot_widget.on_draw()
 
-    def on_list_change(self,lines): 
+    def on_list_change(self,llist): 
         # Clear
+        if not isinstance(llist,LineList):
+            raise ValueError('Expecting LineList!!')
         self.item_flg = 1
+        self.lines = llist._data
+        self.llst = llist
         self.lines_widget.clear()
         # Initialize
-        self.lines = lines
         self.init_list()
         #QtCore.pyqtRemoveInputHook()
         #xdb.set_trace()
@@ -755,7 +769,7 @@ class AbsSysWidget(QtGui.QWidget):
 
     16-Dec-2014 by JXP
     '''
-    def __init__(self, abssys_list, parent=None):
+    def __init__(self, abssys_list, parent=None, linelist=None):
         '''
         '''
         super(AbsSysWidget, self).__init__(parent)
@@ -763,7 +777,13 @@ class AbsSysWidget(QtGui.QWidget):
         #if not status is None:
         #    self.statusBar = status
         self.abssys_list = abssys_list
-        
+
+        # Speeds things up
+        if linelist is None:
+            self.linelist = LineList('ISM')
+        else:
+            self.linelist = linelist
+
         # Create the line list 
         list_label = QtGui.QLabel('Abs Systems:')
         self.abslist_widget = QtGui.QListWidget(self) 
@@ -777,7 +797,8 @@ class AbsSysWidget(QtGui.QWidget):
         self.all_items = []
         self.all_abssys = []
         for abssys_fil in self.abssys_list:
-            self.all_abssys.append(LLS_System.from_absid_fil(abssys_fil))
+            self.all_abssys.append(LLSSystem.from_absid_fil(abssys_fil,
+                linelist=self.linelist))
             self.add_item(abssys_fil)
 
         self.abslist_widget.setCurrentRow(0)
@@ -844,7 +865,8 @@ class AbsSysWidget(QtGui.QWidget):
         print('AbsSysWidget: Reloading systems..')
         self.all_abssys = []
         for abssys_fil in self.abssys_list:
-            self.all_abssys.append(LLS_System.from_absid_fil(abssys_fil))
+            self.all_abssys.append(LLSSystem.from_absid_fil(abssys_fil,
+                linelist=self.linelist))
             #self.add_item(abssys_fil)
         self.on_list_change()
 
