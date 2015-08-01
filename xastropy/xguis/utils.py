@@ -185,7 +185,7 @@ def set_llist(llist,in_dict=None):
         in_dict['Plot'] = True
         # Fill
         llist.sort()
-        llist_cls = LineList('ISM', gd_lines=llist)
+        llist_cls = LineList('ISM', gd_lines=llist) # May need to let ISM be a choice
         in_dict['input.lst'] = llist_cls
         '''
         line_file = xa_path+'/data/spec_lines/grb.lst'
