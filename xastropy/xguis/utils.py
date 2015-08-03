@@ -175,11 +175,18 @@ def set_llist(llist,in_dict=None):
             in_dict['Plot'] = True
             # Load?
             if not (llist in in_dict):
-                llist_cls = LineList(llist)
-                # Sort
-                llist_cls._data.sort('wrest')
-                # Load
-                in_dict[llist] = llist_cls
+                # Homebrew
+                if llist == 'OVI':
+                    gdlines = u.AA*[702.332, 787.711, 832.927, 972.5367, 977.0201, 
+                        1025.7222, 1031.9261, 1037.6167, 1206.5, 1215.6700, 1260.4221]
+                    llist_cls = LineList('Strong', gd_lines=gdlines) 
+                    in_dict[llist] = llist_cls
+                else:
+                    llist_cls = LineList(llist)
+                    # Sort
+                    llist_cls._data.sort('wrest')
+                    # Load
+                    in_dict[llist] = llist_cls
     elif isinstance(llist,(Quantity,list)): # Set from a list of wrest
         in_dict['List'] = 'input.lst'
         in_dict['Plot'] = True
@@ -228,10 +235,11 @@ def read_spec(ispec, second_file=None):
     spec: XSpectrum1D 
     spec_file: str
     '''
+    from specutils.spectrum1d import Spectrum1D
     from astropy.nddata import StdDevUncertainty
-    from xastropy.stats import basic as xsb
     from linetools.spectra import xspectrum1d as lsx 
     from linetools.spectra import io as lsi 
+    from xastropy.stats import basic as xsb
     #
     if isinstance(ispec,basestring):
         spec_fil = ispec

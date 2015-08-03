@@ -523,7 +523,7 @@ class PlotLinesWidget(QtGui.QWidget):
         self.connect(self.zbox, QtCore.SIGNAL('editingFinished ()'), self.setz)
 
         # Create the line list 
-        self.lists = ['None', 'ISM', 'Strong', 'H2', 'EUV'] 
+        self.lists = ['None', 'ISM', 'Strong', 'H2', 'EUV', 'OVI'] 
         #'grb.lst', 'dla.lst', 'lls.lst', 'subLLS.lst', 
 #                      'lyman.lst', 'Dlyman.lst', 'gal_vac.lst', 'ne8.lst',
 #                      'lowz_ovi.lst', 'casbah.lst', 'H2.lst']
