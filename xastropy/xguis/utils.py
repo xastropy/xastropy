@@ -177,7 +177,7 @@ def set_llist(llist,in_dict=None):
             if not (llist in in_dict):
                 # Homebrew
                 if llist == 'OVI':
-                    gdlines = u.AA*[702.332, 787.711, 832.927, 972.5367, 977.0201, 
+                    gdlines = u.AA*[629.730, 702.332, 770.409, 780.324, 787.711, 832.927, 972.5367, 977.0201, 
                         1025.7222, 1031.9261, 1037.6167, 1206.5, 1215.6700, 1260.4221]
                     llist_cls = LineList('Strong', gd_lines=gdlines) 
                     in_dict[llist] = llist_cls

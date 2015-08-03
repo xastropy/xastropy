@@ -926,7 +926,7 @@ class VelPlotWidget(QtGui.QWidget):
         #QtCore.pyqtRestoreInputHook()
 
         self.psdict = {} # Dict for spectra plotting
-        self.psdict['xmnx'] = self.vmnx.value
+        self.psdict['xmnx'] = self.vmnx.value # Too much pain to use units with this
         self.psdict['ymnx'] = [-0.1, 1.1]
         self.psdict['nav'] = xxgu.navigate(0,0,init=True)
 
@@ -1051,7 +1051,7 @@ class VelPlotWidget(QtGui.QWidget):
             self.z = newz
             self.abs_sys.zabs = newz
             # Drawing
-            self.psdict['xmnx'] = self.vmnx
+            self.psdict['xmnx'] = self.vmnx.value
 
         # Single line command
         if event.key in ['1','2','B','U','L','N','V','A', 'x', 'X']:
@@ -1205,7 +1205,7 @@ class VelPlotWidget(QtGui.QWidget):
                 self.ax.plot( [0., 0.], [-1e9, 1e9], ':', color='gray')
                 # Velocity
                 wvobs = (1+self.z) * wrest
-                velo = (self.spec.dispersion/wvobs - 1.)*const.c.to('km/s').value
+                velo = (self.spec.dispersion/wvobs - 1.)*const.c.to('km/s')
                 
                 # Plot
                 self.ax.plot(velo, self.spec.flux, 'k-',drawstyle='steps-mid')
@@ -1226,12 +1226,15 @@ class VelPlotWidget(QtGui.QWidget):
                              size='x-small', ha='left')
 
                 # Reset window limits
+                #QtCore.pyqtRemoveInputHook()
+                #xdb.set_trace()
+                #QtCore.pyqtRestoreInputHook()
                 self.ax.set_xlim(self.psdict['xmnx'])
 
                 # Rescale?
                 if (rescale is True) & (self.norm is False):
-                    gdp = np.where( (velo > self.psdict['xmnx'][0]) &
-                                    (velo < self.psdict['xmnx'][1]))[0]
+                    gdp = np.where( (velo.value > self.psdict['xmnx'][0]) &
+                                    (velo.value < self.psdict['xmnx'][1]))[0]
                     if len(gdp) > 5:
                         per = xstats.basic.perc(self.spec.flux[gdp])
                         self.ax.set_ylim((0., 1.1*per[1]))
@@ -1249,10 +1252,7 @@ class VelPlotWidget(QtGui.QWidget):
                 clr='black'
                 if absline is not None:
                     try:
-                        vlim = absline.analy['vlim'].value
-                        #QtCore.pyqtRemoveInputHook()
-                        #xdb.set_trace()
-                        #QtCore.pyqtRestoreInputHook()
+                        vlim = absline.analy['vlim']
                     except KeyError:
                         pass
                     # Color coding
@@ -1329,7 +1329,7 @@ class AODMWidget(QtGui.QWidget):
 
 
         self.psdict = {} # Dict for spectra plotting
-        self.psdict['xmnx'] = self.vmnx
+        self.psdict['xmnx'] = self.vmnx.value # Too painful to use units here
         self.psdict['ymnx'] = [-0.1, 1.1]
         self.psdict['nav'] = xxgu.navigate(0,0,init=True)
 
@@ -1399,8 +1399,8 @@ class AODMWidget(QtGui.QWidget):
             # Velocity
             wvobs = (1+self.z) * iwrest
             velo = (self.spec.dispersion/wvobs - 1.)*const.c.to('km/s')
-            gdp = np.where((velo > self.psdict['xmnx'][0]) &
-                           (velo < self.psdict['xmnx'][1]))[0]
+            gdp = np.where((velo.value > self.psdict['xmnx'][0]) &
+                           (velo.value < self.psdict['xmnx'][1]))[0]
 
             # Normalize?
             if self.norm is False:
@@ -1429,7 +1429,7 @@ class AODMWidget(QtGui.QWidget):
         self.ax.plot( [0., 0.], [-1e29, 1e29], ':', color='gray')
 
         # Reset window limits
-        self.ax.set_xlim(self.psdict['xmnx'].value)
+        self.ax.set_xlim(self.psdict['xmnx'])
         if rescale:
             self.psdict['ymnx'] = [0.05*ymx, ymx*1.1]
         #QtCore.pyqtRemoveInputHook()
