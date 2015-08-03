@@ -30,7 +30,6 @@ from astropy import constants as const
 from astropy import units as u
 from astropy.units import Quantity
 u.def_unit(['mAA', 'milliAngstrom'], 0.001 * u.AA, namespace=globals()) # mA
-from astropy.nddata import StdDevUncertainty
 
 from specutils.spectrum1d import Spectrum1D
 

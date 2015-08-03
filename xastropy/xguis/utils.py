@@ -228,7 +228,8 @@ def read_spec(ispec, second_file=None):
     spec: XSpectrum1D 
     spec_file: str
     '''
-    from specutils import Spectrum1D
+    from astropy.nddata import StdDevUncertainty
+    from xastropy.stats import basic as xsb
     from linetools.spectra import xspectrum1d as lsx 
     from linetools.spectra import io as lsi 
     #
@@ -241,14 +242,18 @@ def read_spec(ispec, second_file=None):
             if spec2.sig is None:
                 spec2.sig = np.zeros(spec.flux.size)
             # Scale for convenience of plotting
-            xper1 = xstats.basic.perc(spec.flux, per=0.9)
-            xper2 = xstats.basic.perc(spec2.flux, per=0.9)
+            xper1 = xsb.perc(spec.flux, per=0.9)
+            xper2 = xsb.perc(spec2.flux, per=0.9)
             scl = xper1[1]/xper2[1]
             # Stitch together
-            wave3 = np.append(spec.dispersion, spec2.dispersion)
+            wave3 = np.append(spec.dispersion.value, spec2.dispersion.value)
             flux3 = np.append(spec.flux, spec2.flux*scl)
             sig3 = np.append(spec.sig, spec2.sig*scl)
-            spec3 = Spectrum1D.from_array(wave3, flux3, uncertainty=StdDevUncertainty(sig3))
+            #QtCore.pyqtRemoveInputHook()
+            #xdb.set_trace()
+            #QtCore.pyqtRestoreInputHook()
+            spec3 = lsx.XSpectrum1D.from_array(wave3*u.AA, flux3, 
+                uncertainty=StdDevUncertainty(sig3))
             # Overwrite
             spec = spec3
             spec.filename = spec_fil
