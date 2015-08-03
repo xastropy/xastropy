@@ -202,6 +202,8 @@ class XAbsIDGui(QtGui.QMainWindow):
             if self.spec_widg.vplt_flg == 1:
                 self.abssys_widg.add_fil(self.spec_widg.outfil)
                 self.abssys_widg.reload()
+            elif self.spec_widg.vplt_flg == -1:
+                return
             # Update line list
             idx = self.pltline_widg.lists.index(self.spec_widg.llist['List'])
             self.pltline_widg.llist_widget.setCurrentRow(idx)

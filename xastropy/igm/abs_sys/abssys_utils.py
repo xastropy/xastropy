@@ -282,6 +282,7 @@ class AbslineSystem(object):
             except KeyError:
                 aline.analy['datafile'] = row['DATFIL']
             aline.analy['spec'] = None # Spectrum
+            aline.attrib['z'] = self.zabs
             # Append
             self.lines.append(aline)
             ''' OLD FORMAT
