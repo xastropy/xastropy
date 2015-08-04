@@ -12,10 +12,13 @@ from xastropy.obs import radec as x_r
 '''
 def test_finder():
     # SDSS
-    xf.main(['TST', '10:31:38.87', '+25:59:02.3'],radec=1, imsize=8.)#,BW=1)
+    xf.main(['TST', '10:31:38.87', '+25:59:02.3'], imsize=8.)
+    xf.main(['TST2', 157.911958, 25.9839722], imsize=8.)
+    xf.main(['TST3', 157.911958*u.deg, 25.9839722*u.deg], imsize=8.)
     # DSS
-    xf.main(['TST2', '10:31:38.87', '-25:59:02.3'],radec=1, DSS=1, imsize=8.,BW=1)
+    xf.main(['TST4', '10:31:38.87', '-25:59:02.3'],radec=1, DSS=1, imsize=8.,BW=1)
 '''
+
 def test_stod():
 	radec = x_r.stod1('J103138.87+255902.3')
 	np.testing.assert_allclose(radec[0].value, 157.91195833333336)

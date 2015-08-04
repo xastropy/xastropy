@@ -51,14 +51,14 @@
 import numpy as np
 
 from astropy.io import fits, ascii
-from astropy import units as u
+from astropy import units as astrou
 from astropy.table import QTable, Column
 
 import matplotlib
 
 from xastropy.obs import x_getsdssimg as xgs
 from xastropy.xutils import xdebug as xdb
-from xastropy.obs import radec as x_radec
+from xastropy.obs import radec as x_r
 
 #### ###############################
 #  Deal with the RA/DEC
@@ -70,6 +70,9 @@ def get_coord(targ_file, radec=None):
       2: List of [Name, RA, DEC] with RA/DEC as decimal degrees
     '''
 
+    if not isinstance(targ_file,basestring):
+        raise IOError('Bad input to finder.get_coord!')
+
     from astropy.io import ascii 
     # Import Tables
     if radec == None:
@@ -77,8 +80,12 @@ def get_coord(targ_file, radec=None):
         ra_tab = ascii.read(targ_file) #, names=('Name','RA','DEC','Epoch'))
         # Rename the columns
         ra_tab.rename_column('col1','Name')
-        ra_tab.rename_column('col2','RA')
-        ra_tab.rename_column('col3','DEC')
+        if isinstance(ra_tab['col2'][0],basestring):
+            ra_tab.rename_column('col2','RAS')
+            ra_tab.rename_column('col3','DECS')
+        else:
+            ra_tab.rename_column('col2','RA')
+            ra_tab.rename_column('col3','DEC')
     elif radec == 1: 
         # Error check
         if len(targ_file) != 3:
@@ -113,19 +120,21 @@ def get_coord(targ_file, radec=None):
 #  Main driver
 #  finder.main(['TST', '10:31:38.87', '+25:59:02.3'], radec=1)
 #  imsize is in arcmin
-def main(targ_file, survey='2r', radec=None, deci=None, fpath=None,
+def main(inp, survey='2r', radec=None, deci=None, fpath=None,
          EPOCH=0., DSS=None, BW=False, imsize=5., show_spec=False):
     '''
     Parameters:
     ---------
-    targ_file: string or List of string
-       ASCII file for targets (Name, RA, DEC)
-       or a List 
-       Colon separated RA, DEC expected
-    radec: integer (0)
+    inp: Input
+       string or List of strings or List of several items
+       'ra_dec_list.txt' -- ASCII file with columns of Name,RA,DEC and RA,DEC are string or float (deg)
+        ['NAME_OF_TARG', '10:31:38.87', '+25:59:02.3']
+        ['NAME_OF_TARG', 124.24*u.deg, -23.244*u.deg]
+    radec: integer (0) [DEPRECATED!]
        Flag indicating type of input
-       0 = ASCII file
-       1 = List or ['Name', 'RA', 'DEC']  
+       0 = ASCII file with columns of Name,RA,DEC and RA,DEC are string or float (deg)
+       1 = List of string ['Name', 'RA', 'DEC']  
+       2 = ['Name', ra_deg, dec_deg]
     BW: bool (False)
        B&W image?
     show_spec: bool (False)
@@ -133,8 +142,7 @@ def main(targ_file, survey='2r', radec=None, deci=None, fpath=None,
     imsize: float
        Image size in arcmin
     '''
-    import radec as x_r
-    #reload(x_r)
+    reload(x_r)
     reload(xgs)
     import matplotlib.pyplot as plt
     import matplotlib.cm as cm
@@ -145,14 +153,34 @@ def main(targ_file, survey='2r', radec=None, deci=None, fpath=None,
     cradius = imsize / 50. 
 
     # Read in the Target list
-    ra_tab = get_coord(targ_file, radec=radec)
+    if isinstance(inp,basestring):
+        ra_tab = get_coord(targ_file, radec=radec)
+    else:
+        ira_tab = {}
+        ira_tab['Name'] = inp[0]
+        if isinstance(inp[1],basestring):
+            ra, dec = x_r.stod1((inp[1],inp[2]))
+            ira_tab['RA'] = ra
+            ira_tab['DEC'] = dec
+        elif isinstance(inp[1],float):
+            ira_tab['RA'] = inp[1] * astrou.deg
+            ira_tab['DEC'] = inp[2]* astrou.deg
+        else: # Should check it is a Quantity
+            ira_tab['RA'] = inp[1]
+            ira_tab['DEC'] = inp[2]
+        # Strings
+        ras,decs = x_r.dtos1((ira_tab['RA'],ira_tab['DEC']))
+        ira_tab['RAS'] = ras
+        ira_tab['DECS'] = decs
+        # Make a list
+        ra_tab = [ira_tab]
 
     # Grab ra, dec in decimal degrees
-    if deci != None: 
+    if deci is not None: 
         return
-    # Convert to decimal degress 
 
-    x_r.stod(ra_tab) #ra_tab['RA'][q], ra_tab['DEC'][q], TABL)
+    #xdb.set_trace()
+    #x_r.stod(ra_tab) #ra_tab['RA'][q], ra_tab['DEC'][q], TABL)
 
     # Precess (as necessary)
     if EPOCH > 1000.:
@@ -173,21 +201,19 @@ def main(targ_file, survey='2r', radec=None, deci=None, fpath=None,
         ra_tab['RAS'] = str(newfk5.ra.to_string(unit=u.hour,sep=':'))
         ra_tab['DECS'] = str(newfk5.dec.to_string(unit=u.hour,sep=':'))
             
-
     
     ## 
     # Main Loop
-    nobj = len(ra_tab) 
-    for qq in range(nobj):
+    for obj in ra_tab: 
 
         # Outfil
-        nm = "".join(ra_tab['Name'][qq].split()) 
+        nm = "".join(obj['Name'].split()) 
         outfil = fpath+ nm + '.pdf'
         print(outfil)
 
         # Grab the Image
         reload(xgs)
-        img, oBW = xgs.getimg(ra_tab['RA'][qq], ra_tab['DEC'][qq], imsize, BW=BW,DSS=DSS)
+        img, oBW = xgs.getimg(obj['RA'], obj['DEC'], imsize, BW=BW,DSS=DSS)
 
         # Generate the plot
         plt.clf()
@@ -225,9 +251,9 @@ def main(targ_file, survey='2r', radec=None, deci=None, fpath=None,
         # Title
         plt.text(0.5,1.24, str(nm), fontsize=32, 
         horizontalalignment='center',transform=ax.transAxes)
-        plt.text(0.5,1.16, 'RA (J2000) = '+str(ra_tab['RAS'][qq]), fontsize=28, 
+        plt.text(0.5,1.16, 'RA (J2000) = '+str(obj['RAS']), fontsize=28, 
         horizontalalignment='center',transform=ax.transAxes)
-        plt.text(0.5,1.10, 'DEC (J2000) = '+str(ra_tab['DECS'][qq]), fontsize=28, 
+        plt.text(0.5,1.10, 'DEC (J2000) = '+str(obj['DECS']), fontsize=28, 
         horizontalalignment='center',transform=ax.transAxes)
         #import pdb; pdb.set_trace()
 
@@ -237,7 +263,7 @@ def main(targ_file, survey='2r', radec=None, deci=None, fpath=None,
 
         # Spectrum??
         if show_spec:
-            spec_img = xgs.get_spec_img(ra_tab['RA'][qq], ra_tab['DEC'][qq]) 
+            spec_img = xgs.get_spec_img(obj['RA'], obj['DEC']) 
             plt.imshow(spec_img,extent=(-imsize/2.1, imsize*(-0.1), -imsize/2.1, imsize*(-0.2)))
 
         # Write

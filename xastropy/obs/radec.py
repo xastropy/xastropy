@@ -131,7 +131,10 @@ def stod_table(table):
 
     # Loop on rows
     for k,row in enumerate(table):
-        rad, decd = stod1( (row['RAS'], row['DECS']) )
+        try:
+            rad, decd = stod1( (row['RAS'], row['DECS']) )
+        except KeyError:
+            rad, decd = stod1( (row['RA'], row['DEC']) )
         table['RA'][k] = rad
         table['DEC'][k] = decd
 

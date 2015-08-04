@@ -29,7 +29,7 @@ from xastropy.obs import radec as x_rad
 #### ###############################
 def wiki(targs, keys, fndr_pth=None, dbx_pth=None, outfil=None, skip_finder=False):
     """
-    Generate a Wiki table for Keck observing.
+    Generate a Wiki table for Lick observing.
     Should work for any of the Wiki pages
 
     Parameters:
@@ -68,24 +68,17 @@ def wiki(targs, keys, fndr_pth=None, dbx_pth=None, outfil=None, skip_finder=Fals
         # Get name tag
         name_tag = get_name_tag(targs.dtype.names)
         # Type
-        if type(targs['RA'][0]) is str:
-            radec = 1 # : separated strings
-        else:
-            radec = 2 # decimal degrees
+        #if isinstance(targs['RA'][0], basestring):
+        #    radec = 1 # : separated strings
+        #else:
+        #    radec = 2 # decimal degrees
         # Finders
         fndr_files = []
         for targ in targs:
-            # Parse
-            try:
-                ra = targ['RA'].value
-            except KeyError:
-                ra = targ['RA']
-                dec = targ['DEC']
-            else:
-                dec = targ['DEC'].value
             # Finder
+            #xdb.set_trace()
             if not skip_finder:
-                x_finder.main([targ[name_tag], ra, dec], radec=radec, fpath=fndr_pth)
+                x_finder.main([targ[name_tag], targ['RA'], targ['DEC']], fpath=fndr_pth)
             # Copy? + Save
             fil1 = fndr_pth+targ[name_tag]+'.pdf'
             fil2 = dbx_folder
