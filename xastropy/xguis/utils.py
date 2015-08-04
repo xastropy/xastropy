@@ -224,11 +224,12 @@ def set_llist(llist,in_dict=None):
     return in_dict
 
 # Read spectrum, pass back it and spec_file name
-def read_spec(ispec, second_file=None):
+def read_spec(ispec):
     '''Parse spectrum out of the input
     Parameters:
     -----------
-    ispec: Spectrum1D, str, or tuple
+    ispec: Spectrum1D, str, list of files (ordered blue to red), 
+       or tuple of arrays
 
     Returns:
     -----------
@@ -244,33 +245,28 @@ def read_spec(ispec, second_file=None):
     if isinstance(ispec,basestring):
         spec_fil = ispec
         spec = lsx.XSpectrum1D.from_file(spec_fil)
-        # Second file?
-        if not second_file is None:
-            spec2 = lsi.readspec(second_file)
-            if spec2.sig is None:
-                spec2.sig = np.zeros(spec.flux.size)
-            # Scale for convenience of plotting
-            xper1 = xsb.perc(spec.flux, per=0.9)
-            xper2 = xsb.perc(spec2.flux, per=0.9)
-            scl = xper1[1]/xper2[1]
-            # Stitch together
-            wave3 = np.append(spec.dispersion.value, spec2.dispersion.value)
-            flux3 = np.append(spec.flux, spec2.flux*scl)
-            sig3 = np.append(spec.sig, spec2.sig*scl)
-            #QtCore.pyqtRemoveInputHook()
-            #xdb.set_trace()
-            #QtCore.pyqtRestoreInputHook()
-            spec3 = lsx.XSpectrum1D.from_array(wave3*u.AA, flux3, 
-                uncertainty=StdDevUncertainty(sig3))
-            # Overwrite
-            spec = spec3
-            spec.filename = spec_fil
     elif isinstance(ispec,Spectrum1D):
-        spec = ispec # Assuming Spectrum1D
+        spec = ispec 
         spec_fil = spec.filename # Grab from Spectrum1D 
     elif isinstance(ispec,tuple):
-        spec = lsx.XSpectrum1D.from_tuple(tuple)
+        spec = lsx.XSpectrum1D.from_tuple(ispec)
         spec_fil = 'none'
+    elif isinstance(ispec,list): # Multiple file names
+        # Loop on the files
+        for kk,ispecf in enumerate(ispec):
+            jspec = lsx.XSpectrum1D.from_file(ispecf)
+            if kk == 0:
+                spec = jspec
+                xper1 = xsb.perc(spec.flux, per=0.9)
+            else: 
+                # Scale flux for convenience of plotting (sig is not scaled)
+                xper2 = xsb.perc(jspec.flux, per=0.9)
+                scl = xper1[1]/xper2[1]
+                # Splice
+                spec = spec.splice(jspec,scale=scl)
+            # Filename
+            spec_fil = ispec[0]
+            spec.filename=spec_fil
     else:
         raise ValueError('Bad input to read_spec')
 

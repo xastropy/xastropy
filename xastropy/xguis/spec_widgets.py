@@ -70,7 +70,7 @@ class ExamineSpecWidget(QtGui.QWidget):
         super(ExamineSpecWidget, self).__init__(parent)
 
         # Spectrum
-        spec, spec_fil = xxgu.read_spec(ispec, second_file=second_file)
+        spec, spec_fil = xxgu.read_spec(ispec)
         self.orig_spec = spec # For smoothing
         self.spec = self.orig_spec 
 

@@ -140,8 +140,8 @@ class XAbsIDGui(QtGui.QMainWindow):
 
         16-Dec-2014 by JXP
     '''
-    def __init__(self, spec, parent=None, abssys_dir=None, absid_list=None, norm=True,
-                 srch_id=True, id_dir='ID_LINES/', second_file=None):
+    def __init__(self, inspec, parent=None, abssys_dir=None, absid_list=None, norm=True,
+                 srch_id=True, id_dir='ID_LINES/'):
         QtGui.QMainWindow.__init__(self, parent)
         '''
         spec = Spectrum1D
@@ -164,9 +164,8 @@ class XAbsIDGui(QtGui.QMainWindow):
         # Grab the pieces and tie together
         self.abssys_widg = xspw.AbsSysWidget(absid_list)
         self.pltline_widg = xspw.PlotLinesWidget(status=self.statusBar)
-        self.spec_widg = xspw.ExamineSpecWidget(spec,status=self.statusBar,
+        self.spec_widg = xspw.ExamineSpecWidget(inspec,status=self.statusBar,
                                                 llist=self.pltline_widg.llist, norm=norm,
-                                                second_file=second_file, 
                                                 abs_sys=self.abssys_widg.abs_sys)
         self.pltline_widg.spec_widg = self.spec_widg
 
@@ -573,6 +572,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
         self.continuum.flux = self.base_continuum * self.conti_dict['Norm']
 
     def on_key(self,event):
+        pass_event = 0 
         if event.key == 'C': # Set continuum level
             self.conti_dict['Norm'] = event.ydata
             self.update_conti()
@@ -583,6 +583,8 @@ class XFitLLSGUI(QtGui.QMainWindow):
             if self.spec_widg.vplt_flg == 1:
                 self.abssys_widg.add_fil(self.spec_widg.outfil)
                 self.abssys_widg.reload()
+        else:
+            pass_event = 1 # Pass the Event fully to the ExamineSpec Widget
 
             # Update line list
             #idx = self.pltline_widg.lists.index(self.spec_widg.llist['List'])
@@ -716,6 +718,7 @@ def run_xabsid():
     parser.add_argument("-id_dir", type=str,
                         help="Directory for ID files (ID_LINES is default)")
     parser.add_argument("-secondfile", type=str, help="Second spectral file")
+    parser.add_argument("-thirdfile", type=str, help="Third spectral file")
     
     args = parser.parse_args()
 
@@ -724,14 +727,16 @@ def run_xabsid():
     if args.un_norm:
         norm=False
 
+    infile = args.file
     # Second spectral file?
-    second_file=None
     if args.secondfile:
-        second_file=args.secondfile
+        infile = [infile, args.secondfile]
+    if args.thirdfile:
+        infile.append(args.thirdfile)
 
     # Launch
     app = QtGui.QApplication(sys.argv)
-    gui = XAbsIDGui(args.file, norm=norm, second_file=second_file)
+    gui = XAbsIDGui(infile, norm=norm)
     gui.show()
     app.exec_()
 
