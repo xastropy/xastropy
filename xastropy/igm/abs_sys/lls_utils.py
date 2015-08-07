@@ -239,7 +239,7 @@ class LLSSystem(AbslineSystem):
         wv_rest = spec.dispersion / (self.zabs+1)
         energy = wv_rest.to(u.eV, equivalencies=u.spectral())
 
-        # Get photo_cross and calcualte tau
+        # Get photo_cross and calculate tau
         tau_LL = (10.**self.NHI / u.cm**2) * xatomi.photo_cross(1,1,energy)
 
         # ########
@@ -266,7 +266,7 @@ class LLSSystem(AbslineSystem):
 
         # Smooth?
         if smooth > 0:
-            model.gauss_smooth(npix=smooth)
+            model.gauss_smooth(smooth)
 
         # Return
         return model

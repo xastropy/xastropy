@@ -34,10 +34,14 @@ from astropy import units as u
 
 from linetools.lists.linelist import LineList
 from linetools.spectra.xspectrum1d import XSpectrum1D
+from linetools.spectra import convolve as lsc
 
 from xastropy.xutils import xdebug as xdb
 from xastropy.xguis import spec_widgets as xspw
 from xastropy.xguis import utils as xxgu
+from xastropy.igm.abs_sys.lls_utils import LLSSystem
+from xastropy.atomic import ionization as xatomi
+from xastropy.spec import voigt as xsv
 
 #class XSpecGui(QtGui.QMainWindow):
 #class XAbsIDGui(QtGui.QMainWindow):
@@ -475,11 +479,14 @@ class XFitLLSGUI(QtGui.QMainWindow):
         30-Jul-2015 by JXP
     '''
     def __init__(self, ispec, parent=None, lls_fil=None, 
-        absid_list=None, srch_id=True, outfil=None):
+        absid_list=None, srch_id=True, outfil=None, smooth=3.):
         QtGui.QMainWindow.__init__(self, parent)
         '''
         spec = Spectrum1D
+        smooth: float, optional
+          Number of pixels to smooth on
         '''
+
         # Build a widget combining several others
         self.main_widget = QtGui.QWidget()
 
@@ -491,24 +498,31 @@ class XFitLLSGUI(QtGui.QMainWindow):
             self.outfil = 'LLS_fit.json'
         if lls_fil is not None:
             xdb.set_trace()
-        self.lls_sys = []
+        self.count_lls = 0
+        #
         spec, spec_fil = xxgu.read_spec(ispec)
+        self.lls_model = None
         # Continuum
         self.conti_dict = {'Norm': np.median(spec.flux), 'tilt': 0.}
         self.continuum = XSpectrum1D.from_tuple((
             spec.dispersion,np.ones(len(spec.dispersion))))
         self.base_continuum = self.continuum.flux
         self.update_conti()
+        # Full Model (LLS+continuum)
+        self.full_model = XSpectrum1D.from_tuple((
+            spec.dispersion,np.ones(len(spec.dispersion))))
+        self.smooth = smooth
 
         # LineList
-        llist = xxgu.set_llist('Strong') 
-        llist['z'] = 0.
+        #llist = xxgu.set_llist('Strong') 
+        #llist['z'] = 0.
+        llist = None
 
         # Grab the pieces and tie together
-        self.abssys_widg = xspw.AbsSysWidget(self.lls_sys)
+        self.abssys_widg = xspw.AbsSysWidget([],only_one=True)
         #self.pltline_widg = xspw.PlotLinesWidget(status=self.statusBar)
         self.spec_widg = xspw.ExamineSpecWidget(spec,status=self.statusBar,
-                                                llist=llist, 
+                                                llist=llist, key_events=False,
                                                 abs_sys=self.abssys_widg.abs_sys)
         self.spec_widg.continuum = self.continuum
         #self.pltline_widg.spec_widg = self.spec_widg
@@ -570,25 +584,116 @@ class XFitLLSGUI(QtGui.QMainWindow):
         '''Update continuum
         '''
         self.continuum.flux = self.base_continuum * self.conti_dict['Norm']
+        if self.lls_model is not None:
+            self.full_model.flux = self.lls_model * self.continuum.flux
+
+    def update_model(self):
+        '''Update LLS model
+        '''
+        if len(self.abssys_widg.all_abssys) == 0:
+            self.lls_model = None
+            self.spec_widg.model = None
+            return
+        #
+        all_tau_model = np.zeros(len(self.full_model.flux))
+        # Loop
+        for lls in self.abssys_widg.all_abssys:
+            # LL
+            wv_rest = self.full_model.dispersion / (lls.zabs+1)
+            energy = wv_rest.to(u.eV, equivalencies=u.spectral())
+            # Get photo_cross and calculate tau
+            tau_LL = (10.**lls.NHI / u.cm**2) * xatomi.photo_cross(1,1,energy)
+
+            # Lyman
+            tau_Lyman = xsv.voigt_model(self.full_model.dispersion, 
+                lls.lls_lines, flg_ret=2)
+            tau_model = tau_LL + tau_Lyman
+
+            # Kludge around the limit
+            pix_LL = np.argmin( np.fabs( wv_rest- 911.3*u.AA ) )
+            pix_kludge = np.where( (wv_rest > 911.5*u.AA) & (wv_rest < 912.8*u.AA) )[0]
+            tau_model[pix_kludge] = tau_model[pix_LL]
+            # Add
+            all_tau_model += tau_model
+
+        # Flux and smooth
+        flux = np.exp(-1. * all_tau_model)
+        if self.smooth > 0:
+            self.lls_model = lsc.convolve_psf(flux, self.smooth)
+        else:
+            self.lls_model = flux
+
+        # Finish
+        self.full_model.flux = self.lls_model * self.continuum.flux
+        self.spec_widg.model = self.full_model
+
+    def get_sngl_sel_sys(self):
+        '''Grab selected system
+        '''
+        items = self.abssys_widg.abslist_widget.selectedItems()
+        if len(items) > 1:
+            print('Need to select only 1 system!')
+            return None
+        # 
+        item = items[0]
+        txt = item.text()
+        if txt == 'None':
+            return None
+        else:
+            idx = self.abssys_widg.all_items.index(item.text())
+            return idx
+
+    def select_all(self):
+        ''' Select all LLS
+        '''
+        # Set all
+        nitems = len(self.abssys_widg.all_items)
+        if nitems > 0:
+            self.abssys_widg.abslist_widget.item(0).setSelected(False) # None
+            for ii in range(1,nitems+1):
+                self.abssys_widg.abslist_widget.item(ii).setSelected(True)
 
     def on_key(self,event):
-        pass_event = 0 
         if event.key == 'C': # Set continuum level
             self.conti_dict['Norm'] = event.ydata
             self.update_conti()
-            #QtCore.pyqtRemoveInputHook()
-            #xdb.set_trace()
-            #QtCore.pyqtRestoreInputHook()
-        elif event.key == 'v': # Stack plot
-            if self.spec_widg.vplt_flg == 1:
-                self.abssys_widg.add_fil(self.spec_widg.outfil)
-                self.abssys_widg.reload()
+        elif event.key == 'N': # New LLS
+            new_sys = LLSSystem(NHI=17.3)
+            new_sys.zabs = event.xdata/911.7633 - 1.
+            new_sys.fill_lls_lines()
+            # Name
+            self.count_lls += 1
+            new_sys.label = 'LLS_Sys_{:d}'.format(self.count_lls)
+            # Add
+            self.abssys_widg.add_fil(new_sys.label)
+            self.abssys_widg.all_abssys.append(new_sys)
+            self.abssys_widg.abslist_widget.item(
+                len(self.abssys_widg.all_abssys)).setSelected(True)
+            # 
+            self.update_model()
+        elif event.key in ['L','a','=','-']: # Set redshift or NHI
+            idx = self.get_sngl_sel_sys()
+            if idx is None:
+                return
+            if event.key == 'L': #LLS
+                self.abssys_widg.all_abssys[idx].zabs = event.xdata/911.7633 - 1.
+            elif event.key == 'a': #Lya
+                self.abssys_widg.all_abssys[idx].zabs = event.xdata/1215.6700-1.
+            elif event.key == '=': #Add to NHI
+                self.abssys_widg.all_abssys[idx].NHI += 0.05
+            elif event.key == '-': #Subtract from NHI
+                self.abssys_widg.all_abssys[idx].NHI -= 0.05
+            # Update the lines and model
+            for iline in self.abssys_widg.all_abssys[idx].lls_lines:
+                iline.attrib['z'] = self.abssys_widg.all_abssys[idx].zabs 
+                iline.attrib['N'] = self.abssys_widg.all_abssys[idx].NHI
+            self.update_model()
         else:
-            pass_event = 1 # Pass the Event fully to the ExamineSpec Widget
+            self.spec_widg.on_key(event)
+            return
+        # Draw by default
+        self.spec_widg.on_draw()
 
-            # Update line list
-            #idx = self.pltline_widg.lists.index(self.spec_widg.llist['List'])
-            #self.pltline_widg.llist_widget.setCurrentRow(idx)
 
     '''
     def on_click(self,event):

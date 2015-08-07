@@ -61,9 +61,15 @@ class ExamineSpecWidget(QtGui.QWidget):
         fiddle about.  Akin to XIDL/x_specplot.pro
 
         12-Dec-2014 by JXP
+        Parameters:
+        ------------
+        key_events: bool, optional
+          Use key events? [True]  
+          Useful when coupling to other widgets
     '''
     def __init__(self, ispec, parent=None, status=None, llist=None,
-                 abs_sys=None, norm=True, second_file=None, zsys=None):
+                 abs_sys=None, norm=True, second_file=None, zsys=None,
+                 key_events=True):
         '''
         spec = Spectrum1D
         '''
@@ -77,6 +83,7 @@ class ExamineSpecWidget(QtGui.QWidget):
         # Other bits (modified by other widgets)
         self.continuum = None
         self.model = None
+        self.use_event = 1
 
         # Abs Systems
         if abs_sys is None:
@@ -113,7 +120,8 @@ class ExamineSpecWidget(QtGui.QWidget):
 
         self.canvas.setFocusPolicy( QtCore.Qt.ClickFocus )
         self.canvas.setFocus()
-        self.canvas.mpl_connect('key_press_event', self.on_key)
+        if key_events:
+            self.canvas.mpl_connect('key_press_event', self.on_key)
         self.canvas.mpl_connect('button_press_event', self.on_click)
 
         # Make two plots
@@ -221,9 +229,6 @@ class ExamineSpecWidget(QtGui.QWidget):
                 self.adict['flg'] = 2 # Ready to plot + print
 
                 # Sort em + make arrays
-                #QtCore.pyqtRemoveInputHook()
-                #xdb.set_trace()
-                #QtCore.pyqtRestoreInputHook()
                 iwv = np.array(sorted([self.adict['wv_1'], self.adict['wv_2']])) * self.spec.wcs.unit
                 ic = np.array(sorted([self.adict['C_1'], self.adict['C_2']]))
 
@@ -242,9 +247,6 @@ class ExamineSpecWidget(QtGui.QWidget):
                 else:
                     # Find the spectral line (or request it!)
                     rng_wrest = iwv / (self.llist['z']+1)
-                    #QtCore.pyqtRemoveInputHook()
-                    #xdb.set_trace()
-                    #QtCore.pyqtRestoreInputHook()
                     gdl = np.where( (self.llist[self.llist['List']].wrest-rng_wrest[0]) *
                                     (self.llist[self.llist['List']].wrest-rng_wrest[1]) < 0.)[0]
                     if len(gdl) == 1:
@@ -415,6 +417,11 @@ class ExamineSpecWidget(QtGui.QWidget):
                 self.ax.plot(self.continuum.dispersion, self.continuum.flux, 
                     color='purple')
 
+            # Continuum?
+            if self.model is not None:
+                self.ax.plot(self.model.dispersion, self.model.flux, 
+                    color='cyan')
+
             # Spectral lines?
             if self.llist['Plot'] is True:
                 ylbl = self.psdict['ymnx'][1]-0.2*(self.psdict['ymnx'][1]-self.psdict['ymnx'][0])
@@ -474,8 +481,6 @@ class ExamineSpecWidget(QtGui.QWidget):
         # Reset window limits
         self.ax.set_xlim(self.psdict['xmnx'])
         self.ax.set_ylim(self.psdict['ymnx'])
-
-
 
         # Draw
         self.canvas.draw()
@@ -778,8 +783,11 @@ class AbsSysWidget(QtGui.QWidget):
 
     16-Dec-2014 by JXP
     '''
-    def __init__(self, abssys_list, parent=None, linelist=None):
+    def __init__(self, abssys_list, parent=None, 
+        only_one=False, linelist=None):
         '''
+        only_one: bool, optional
+          Restrict to one selection at a time? [False]
         '''
         super(AbsSysWidget, self).__init__(parent)
 
@@ -796,7 +804,8 @@ class AbsSysWidget(QtGui.QWidget):
         # Create the line list 
         list_label = QtGui.QLabel('Abs Systems:')
         self.abslist_widget = QtGui.QListWidget(self) 
-        self.abslist_widget.setSelectionMode(QtGui.QAbstractItemView.ExtendedSelection)
+        if not only_one:
+            self.abslist_widget.setSelectionMode(QtGui.QAbstractItemView.ExtendedSelection)
         self.abslist_widget.addItem('None')
         #self.abslist_widget.addItem('Test')
 
@@ -867,6 +876,9 @@ class AbsSysWidget(QtGui.QWidget):
     def add_item(self,abssys_fil):
         ipos0 = abssys_fil.rfind('/') + 1
         ipos1 = abssys_fil.rfind('.fits')
+        if ipos1 == -1:
+            ipos1 = len(abssys_fil)
+        #
         self.all_items.append( abssys_fil[ipos0:ipos1] )
         self.abslist_widget.addItem(abssys_fil[ipos0:ipos1] )
 
@@ -902,7 +914,7 @@ class VelPlotWidget(QtGui.QWidget):
         self.spec = spec
         self.spec_fil = spec_fil
         self.z = z
-        self.vmnx = vmnx
+        cyan.vmnx = vmnx
         self.norm = norm
 
         # Abs_System 
