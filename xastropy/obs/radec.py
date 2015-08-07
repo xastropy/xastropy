@@ -131,7 +131,10 @@ def stod_table(table):
 
     # Loop on rows
     for k,row in enumerate(table):
-        rad, decd = stod1( (row['RAS'], row['DECS']) )
+        try:
+            rad, decd = stod1( (row['RAS'], row['DECS']) )
+        except KeyError:
+            rad, decd = stod1( (row['RA'], row['DEC']) )
         table['RA'][k] = rad
         table['DEC'][k] = decd
 
@@ -150,7 +153,7 @@ def stod(in_rads, radec=None):
 #  Main conversion
 def to_coord(irad):
     """
-    Input RA/DEC as a tuple or SkyCoord and return a SkyCoord
+    Input RA/DEC as a tuple, str or SkyCoord and return a SkyCoord
     """
     # SkyCoord
     if type(irad) is SkyCoord:

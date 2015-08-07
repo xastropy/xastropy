@@ -116,7 +116,7 @@ def getimg(ira, idec, imsize, BW=False, DSS=None):
     # Strip units as need be
     try:
         ra = ira.value
-    except KeyError:
+    except AttributeError:
         ra = ira
         dec = idec
     else:

@@ -175,14 +175,24 @@ def set_llist(llist,in_dict=None):
             in_dict['Plot'] = True
             # Load?
             if not (llist in in_dict):
-                llist_cls = LineList(llist)
-                in_dict[llist] = llist_cls
+                # Homebrew
+                if llist == 'OVI':
+                    gdlines = u.AA*[629.730, 702.332, 770.409, 780.324, 787.711, 832.927, 972.5367, 977.0201, 
+                        1025.7222, 1031.9261, 1037.6167, 1206.5, 1215.6700, 1260.4221]
+                    llist_cls = LineList('Strong', gd_lines=gdlines) 
+                    in_dict[llist] = llist_cls
+                else:
+                    llist_cls = LineList(llist)
+                    # Sort
+                    llist_cls._data.sort('wrest')
+                    # Load
+                    in_dict[llist] = llist_cls
     elif isinstance(llist,(Quantity,list)): # Set from a list of wrest
         in_dict['List'] = 'input.lst'
         in_dict['Plot'] = True
         # Fill
         llist.sort()
-        llist_cls = LineList('ISM', gd_lines=llist)
+        llist_cls = LineList('ISM', gd_lines=llist) # May need to let ISM be a choice
         in_dict['input.lst'] = llist_cls
         '''
         line_file = xa_path+'/data/spec_lines/grb.lst'
@@ -214,47 +224,49 @@ def set_llist(llist,in_dict=None):
     return in_dict
 
 # Read spectrum, pass back it and spec_file name
-def read_spec(ispec, second_file=None):
+def read_spec(ispec):
     '''Parse spectrum out of the input
     Parameters:
     -----------
-    ispec: Spectrum1D, str, or tuple
+    ispec: Spectrum1D, str, list of files (ordered blue to red), 
+       or tuple of arrays
 
     Returns:
     -----------
     spec: XSpectrum1D 
     spec_file: str
     '''
-    from specutils import Spectrum1D
+    from specutils.spectrum1d import Spectrum1D
+    from astropy.nddata import StdDevUncertainty
     from linetools.spectra import xspectrum1d as lsx 
     from linetools.spectra import io as lsi 
+    from xastropy.stats import basic as xsb
     #
     if isinstance(ispec,basestring):
         spec_fil = ispec
         spec = lsx.XSpectrum1D.from_file(spec_fil)
-        # Second file?
-        if not second_file is None:
-            spec2 = lsi.readspec(second_file)
-            if spec2.sig is None:
-                spec2.sig = np.zeros(spec.flux.size)
-            # Scale for convenience of plotting
-            xper1 = xstats.basic.perc(spec.flux, per=0.9)
-            xper2 = xstats.basic.perc(spec2.flux, per=0.9)
-            scl = xper1[1]/xper2[1]
-            # Stitch together
-            wave3 = np.append(spec.dispersion, spec2.dispersion)
-            flux3 = np.append(spec.flux, spec2.flux*scl)
-            sig3 = np.append(spec.sig, spec2.sig*scl)
-            spec3 = Spectrum1D.from_array(wave3, flux3, uncertainty=StdDevUncertainty(sig3))
-            # Overwrite
-            spec = spec3
-            spec.filename = spec_fil
     elif isinstance(ispec,Spectrum1D):
-        spec = ispec # Assuming Spectrum1D
+        spec = ispec 
         spec_fil = spec.filename # Grab from Spectrum1D 
     elif isinstance(ispec,tuple):
-        spec = lsx.XSpectrum1D.from_tuple(tuple)
+        spec = lsx.XSpectrum1D.from_tuple(ispec)
         spec_fil = 'none'
+    elif isinstance(ispec,list): # Multiple file names
+        # Loop on the files
+        for kk,ispecf in enumerate(ispec):
+            jspec = lsx.XSpectrum1D.from_file(ispecf)
+            if kk == 0:
+                spec = jspec
+                xper1 = xsb.perc(spec.flux, per=0.9)
+            else: 
+                # Scale flux for convenience of plotting (sig is not scaled)
+                xper2 = xsb.perc(jspec.flux, per=0.9)
+                scl = xper1[1]/xper2[1]
+                # Splice
+                spec = spec.splice(jspec,scale=scl)
+            # Filename
+            spec_fil = ispec[0]
+            spec.filename=spec_fil
     else:
         raise ValueError('Bad input to read_spec')
 

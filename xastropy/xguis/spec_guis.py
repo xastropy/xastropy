@@ -33,10 +33,15 @@ from astropy.nddata import StdDevUncertainty
 from astropy import units as u
 
 from linetools.lists.linelist import LineList
+from linetools.spectra.xspectrum1d import XSpectrum1D
+from linetools.spectra import convolve as lsc
 
 from xastropy.xutils import xdebug as xdb
 from xastropy.xguis import spec_widgets as xspw
 from xastropy.xguis import utils as xxgu
+from xastropy.igm.abs_sys.lls_utils import LLSSystem
+from xastropy.atomic import ionization as xatomi
+from xastropy.spec import voigt as xsv
 
 #class XSpecGui(QtGui.QMainWindow):
 #class XAbsIDGui(QtGui.QMainWindow):
@@ -139,8 +144,8 @@ class XAbsIDGui(QtGui.QMainWindow):
 
         16-Dec-2014 by JXP
     '''
-    def __init__(self, spec, parent=None, abssys_dir=None, absid_list=None, norm=True,
-                 srch_id=True, id_dir='ID_LINES/', second_file=None):
+    def __init__(self, inspec, parent=None, abssys_dir=None, absid_list=None, norm=True,
+                 srch_id=True, id_dir='ID_LINES/'):
         QtGui.QMainWindow.__init__(self, parent)
         '''
         spec = Spectrum1D
@@ -151,7 +156,6 @@ class XAbsIDGui(QtGui.QMainWindow):
 
         # Status bar
         self.create_status_bar()
-
 
         # Initialize
         if absid_list is None:
@@ -164,9 +168,8 @@ class XAbsIDGui(QtGui.QMainWindow):
         # Grab the pieces and tie together
         self.abssys_widg = xspw.AbsSysWidget(absid_list)
         self.pltline_widg = xspw.PlotLinesWidget(status=self.statusBar)
-        self.spec_widg = xspw.ExamineSpecWidget(spec,status=self.statusBar,
+        self.spec_widg = xspw.ExamineSpecWidget(inspec,status=self.statusBar,
                                                 llist=self.pltline_widg.llist, norm=norm,
-                                                second_file=second_file, 
                                                 abs_sys=self.abssys_widg.abs_sys)
         self.pltline_widg.spec_widg = self.spec_widg
 
@@ -202,6 +205,8 @@ class XAbsIDGui(QtGui.QMainWindow):
             if self.spec_widg.vplt_flg == 1:
                 self.abssys_widg.add_fil(self.spec_widg.outfil)
                 self.abssys_widg.reload()
+            elif self.spec_widg.vplt_flg == -1:
+                return
             # Update line list
             idx = self.pltline_widg.lists.index(self.spec_widg.llist['List'])
             self.pltline_widg.llist_widget.setCurrentRow(idx)
@@ -293,7 +298,7 @@ class XVelPltGui(QtGui.QDialog):
 
         # Initialize
         self.abs_sys = abs_sys
-        if not self.abs_sys is None:
+        if self.abs_sys is not None:
             self.z = self.abs_sys.zabs
         else:
             if z is None:
@@ -348,7 +353,7 @@ class XVelPltGui(QtGui.QDialog):
         vbox.addWidget(self.slines)
         vbox.addWidget(wbtn)
         vbox.addWidget(self.out_box)
-        # Quit buttons
+        # Write/Quit buttons
         hbox1 = QtGui.QHBoxLayout()
         hbox1.addWidget(wqbtn)
         hbox1.addWidget(qbtn)
@@ -400,11 +405,10 @@ class XVelPltGui(QtGui.QDialog):
     # Change list of lines to choose from
     def on_llist_change(self):
         llist = self.pltline_widg.llist
-        all_lines = list( llist[llist['List']]['wrest'] )
+        all_lines = list( llist[llist['List']]._data['wrest'] )
         # Set selected
         abs_sys = self.vplt_widg.abs_sys
-        wrest = abs_sys.lines.keys()
-        wrest.sort()
+        wrest = [line.wrest for line in abs_sys.lines]
         select = []
         for iwrest in wrest:
             try:
@@ -469,6 +473,289 @@ class XAODMGui(QtGui.QDialog):
         if event.key == 'q': # Quit
             self.done(1)
 
+# GUI for fitting LLS in a spectrum
+class XFitLLSGUI(QtGui.QMainWindow):
+    ''' GUI to fit LLS in a given spectrum
+        30-Jul-2015 by JXP
+    '''
+    def __init__(self, ispec, parent=None, lls_fil=None, 
+        absid_list=None, srch_id=True, outfil=None, smooth=3.):
+        QtGui.QMainWindow.__init__(self, parent)
+        '''
+        spec = Spectrum1D
+        smooth: float, optional
+          Number of pixels to smooth on
+        '''
+
+        # Build a widget combining several others
+        self.main_widget = QtGui.QWidget()
+
+        # Status bar
+        self.create_status_bar()
+
+        # Initialize
+        if outfil is None:
+            self.outfil = 'LLS_fit.json'
+        if lls_fil is not None:
+            xdb.set_trace()
+        self.count_lls = 0
+        #
+        spec, spec_fil = xxgu.read_spec(ispec)
+        self.lls_model = None
+        # Continuum
+        self.conti_dict = {'Norm': np.median(spec.flux), 'tilt': 0.}
+        self.continuum = XSpectrum1D.from_tuple((
+            spec.dispersion,np.ones(len(spec.dispersion))))
+        self.base_continuum = self.continuum.flux
+        self.update_conti()
+        # Full Model (LLS+continuum)
+        self.full_model = XSpectrum1D.from_tuple((
+            spec.dispersion,np.ones(len(spec.dispersion))))
+        self.smooth = smooth
+
+        # LineList
+        #llist = xxgu.set_llist('Strong') 
+        #llist['z'] = 0.
+        llist = None
+
+        # Grab the pieces and tie together
+        self.abssys_widg = xspw.AbsSysWidget([],only_one=True)
+        #self.pltline_widg = xspw.PlotLinesWidget(status=self.statusBar)
+        self.spec_widg = xspw.ExamineSpecWidget(spec,status=self.statusBar,
+                                                llist=llist, key_events=False,
+                                                abs_sys=self.abssys_widg.abs_sys)
+        self.spec_widg.continuum = self.continuum
+        #self.pltline_widg.spec_widg = self.spec_widg
+
+        # Outfil
+        wbtn = QtGui.QPushButton('Write', self)
+        wbtn.setAutoDefault(False)
+        wbtn.clicked.connect(self.write_out)
+        #self.out_box = QtGui.QLineEdit()
+        #self.out_box.setText(self.outfil)
+        #self.connect(self.out_box, QtCore.SIGNAL('editingFinished ()'), self.set_outfil)
+
+        # Quit
+        buttons = QtGui.QWidget()
+        wqbtn = QtGui.QPushButton('Write+Quit', self)
+        wqbtn.setAutoDefault(False)
+        wqbtn.clicked.connect(self.write_quit)
+        qbtn = QtGui.QPushButton('Quit', self)
+        qbtn.setAutoDefault(False)
+        qbtn.clicked.connect(self.quit)
+
+        # Connections
+        #self.spec_widg.canvas.mpl_connect('button_press_event', self.on_click)
+        self.spec_widg.canvas.mpl_connect('key_press_event', self.on_key)
+        self.abssys_widg.refine_button.clicked.connect(self.refine_abssys) 
+
+        # Layout
+        anly_widg = QtGui.QWidget()
+        anly_widg.setMaximumWidth(400)
+        anly_widg.setMinimumWidth(150)
+        vbox = QtGui.QVBoxLayout()
+
+        # Write/Quit buttons
+        hbox1 = QtGui.QHBoxLayout()
+        hbox1.addWidget(wbtn)
+        hbox1.addWidget(wqbtn)
+        hbox1.addWidget(qbtn)
+        buttons.setLayout(hbox1)
+ 
+        #vbox.addWidget(self.pltline_widg)
+        vbox.addWidget(self.abssys_widg)
+        vbox.addWidget(buttons)
+        anly_widg.setLayout(vbox)
+        
+        hbox = QtGui.QHBoxLayout()
+        hbox.addWidget(self.spec_widg)
+        hbox.addWidget(anly_widg)
+
+        self.main_widget.setLayout(hbox)
+
+        # Point MainWindow
+        self.setCentralWidget(self.main_widget)
+
+    def create_status_bar(self):
+        self.status_text = QtGui.QLabel("XFitLLS")
+        self.statusBar().addWidget(self.status_text, 1)
+
+    def update_conti(self):
+        '''Update continuum
+        '''
+        self.continuum.flux = self.base_continuum * self.conti_dict['Norm']
+        if self.lls_model is not None:
+            self.full_model.flux = self.lls_model * self.continuum.flux
+
+    def update_model(self):
+        '''Update LLS model
+        '''
+        if len(self.abssys_widg.all_abssys) == 0:
+            self.lls_model = None
+            self.spec_widg.model = None
+            return
+        #
+        all_tau_model = np.zeros(len(self.full_model.flux))
+        # Loop
+        for lls in self.abssys_widg.all_abssys:
+            # LL
+            wv_rest = self.full_model.dispersion / (lls.zabs+1)
+            energy = wv_rest.to(u.eV, equivalencies=u.spectral())
+            # Get photo_cross and calculate tau
+            tau_LL = (10.**lls.NHI / u.cm**2) * xatomi.photo_cross(1,1,energy)
+
+            # Lyman
+            tau_Lyman = xsv.voigt_model(self.full_model.dispersion, 
+                lls.lls_lines, flg_ret=2)
+            tau_model = tau_LL + tau_Lyman
+
+            # Kludge around the limit
+            pix_LL = np.argmin( np.fabs( wv_rest- 911.3*u.AA ) )
+            pix_kludge = np.where( (wv_rest > 911.5*u.AA) & (wv_rest < 912.8*u.AA) )[0]
+            tau_model[pix_kludge] = tau_model[pix_LL]
+            # Add
+            all_tau_model += tau_model
+
+        # Flux and smooth
+        flux = np.exp(-1. * all_tau_model)
+        if self.smooth > 0:
+            self.lls_model = lsc.convolve_psf(flux, self.smooth)
+        else:
+            self.lls_model = flux
+
+        # Finish
+        self.full_model.flux = self.lls_model * self.continuum.flux
+        self.spec_widg.model = self.full_model
+
+    def get_sngl_sel_sys(self):
+        '''Grab selected system
+        '''
+        items = self.abssys_widg.abslist_widget.selectedItems()
+        if len(items) > 1:
+            print('Need to select only 1 system!')
+            return None
+        # 
+        item = items[0]
+        txt = item.text()
+        if txt == 'None':
+            return None
+        else:
+            idx = self.abssys_widg.all_items.index(item.text())
+            return idx
+
+    def select_all(self):
+        ''' Select all LLS
+        '''
+        # Set all
+        nitems = len(self.abssys_widg.all_items)
+        if nitems > 0:
+            self.abssys_widg.abslist_widget.item(0).setSelected(False) # None
+            for ii in range(1,nitems+1):
+                self.abssys_widg.abslist_widget.item(ii).setSelected(True)
+
+    def on_key(self,event):
+        if event.key == 'C': # Set continuum level
+            self.conti_dict['Norm'] = event.ydata
+            self.update_conti()
+        elif event.key == 'N': # New LLS
+            new_sys = LLSSystem(NHI=17.3)
+            new_sys.zabs = event.xdata/911.7633 - 1.
+            new_sys.fill_lls_lines()
+            # Name
+            self.count_lls += 1
+            new_sys.label = 'LLS_Sys_{:d}'.format(self.count_lls)
+            # Add
+            self.abssys_widg.add_fil(new_sys.label)
+            self.abssys_widg.all_abssys.append(new_sys)
+            self.abssys_widg.abslist_widget.item(
+                len(self.abssys_widg.all_abssys)).setSelected(True)
+            # 
+            self.update_model()
+        elif event.key in ['L','a','=','-']: # Set redshift or NHI
+            idx = self.get_sngl_sel_sys()
+            if idx is None:
+                return
+            if event.key == 'L': #LLS
+                self.abssys_widg.all_abssys[idx].zabs = event.xdata/911.7633 - 1.
+            elif event.key == 'a': #Lya
+                self.abssys_widg.all_abssys[idx].zabs = event.xdata/1215.6700-1.
+            elif event.key == '=': #Add to NHI
+                self.abssys_widg.all_abssys[idx].NHI += 0.05
+            elif event.key == '-': #Subtract from NHI
+                self.abssys_widg.all_abssys[idx].NHI -= 0.05
+            # Update the lines and model
+            for iline in self.abssys_widg.all_abssys[idx].lls_lines:
+                iline.attrib['z'] = self.abssys_widg.all_abssys[idx].zabs 
+                iline.attrib['N'] = self.abssys_widg.all_abssys[idx].NHI
+            self.update_model()
+        else:
+            self.spec_widg.on_key(event)
+            return
+        # Draw by default
+        self.spec_widg.on_draw()
+
+
+    '''
+    def on_click(self,event):
+        if event.button == 3: # Set redshift
+            # Line list?
+            try:
+                self.pltline_widg.llist['List']
+            except KeyError:
+                print('Set a line list first!!')
+                return
+            # 
+            if self.pltline_widg.llist[self.pltline_widg.llist['List']] == 'None':
+                return
+            self.select_line_widg = xspw.SelectLineWidget(
+                self.pltline_widg.llist[self.pltline_widg.llist['List']]._data)
+            self.select_line_widg.exec_()
+            line = self.select_line_widg.line
+            if line.strip() == 'None':
+                return
+            #
+            quant = line.split('::')[1].lstrip()
+            spltw = quant.split(' ')
+            wrest = Quantity(float(spltw[0]), unit=spltw[1])
+            z = event.xdata/wrest.value - 1.
+            self.pltline_widg.llist['z'] = z
+            self.statusBar().showMessage('z = {:f}'.format(z))
+
+            self.pltline_widg.zbox.setText(self.pltline_widg.zbox.z_frmt.format(
+                self.pltline_widg.llist['z']))
+    
+            # Draw
+            self.spec_widg.on_draw()
+    '''
+
+    def refine_abssys(self):
+        item = self.abssys_widg.abslist_widget.selectedItems()
+        if len(item) != 1:
+            self.statusBar().showMessage('AbsSys: Must select only 1 system!')
+            print('AbsSys: Must select only 1 system!')
+        txt = item[0].text()
+        ii = self.abssys_widg.all_items.index(txt)
+        iabs_sys = self.abssys_widg.all_abssys[ii]
+        #QtCore.pyqtRemoveInputHook()
+        #xdb.set_trace()
+        #QtCore.pyqtRestoreInputHook()
+        # Launch
+        gui = XVelPltGui(self.spec_widg.spec, outfil=iabs_sys.absid_file,
+                               abs_sys=iabs_sys, norm=self.spec_widg.norm)
+        gui.exec_()
+
+    # Write
+    def write_out(self):
+        pass
+
+    # Write + Quit
+    def write_quit(self):
+        self.write_out()
+        self.quit()
+
+    # Quit
+    def quit(self):
+        self.close()
 
 
 # Script to run XSpec from the command line or ipython
@@ -536,6 +823,7 @@ def run_xabsid():
     parser.add_argument("-id_dir", type=str,
                         help="Directory for ID files (ID_LINES is default)")
     parser.add_argument("-secondfile", type=str, help="Second spectral file")
+    parser.add_argument("-thirdfile", type=str, help="Third spectral file")
     
     args = parser.parse_args()
 
@@ -544,14 +832,16 @@ def run_xabsid():
     if args.un_norm:
         norm=False
 
+    infile = args.file
     # Second spectral file?
-    second_file=None
     if args.secondfile:
-        second_file=args.secondfile
+        infile = [infile, args.secondfile]
+    if args.thirdfile:
+        infile.append(args.thirdfile)
 
     # Launch
     app = QtGui.QApplication(sys.argv)
-    gui = XAbsIDGui(args.file, norm=norm, second_file=second_file)
+    gui = XAbsIDGui(infile, norm=norm)
     gui.show()
     app.exec_()
 
@@ -625,11 +915,12 @@ if __name__ == "__main__":
     if len(sys.argv) == 1: # TESTING
 
         flg_fig = 0 
-        flg_fig += 2**0  # XSpec
+        #flg_fig += 2**0  # XSpec
         #flg_fig += 2**1  # XAbsID
         #flg_fig += 2**2  # XVelPlt Gui
         #flg_fig += 2**3  # XVelPlt Gui without ID list; Also tests select wave
         #flg_fig += 2**4  # XAODM Gui
+        flg_fig += 2**5  # Fit LLS GUI
     
         # Read spectrum
         spec_fil = '/u/xavier/Keck/HIRES/RedData/PH957/PH957_f.fits'
@@ -702,6 +993,20 @@ if __name__ == "__main__":
             app = QtGui.QApplication(sys.argv)
             app.setApplicationName('AODM')
             main = XAODMGui(spec, z, lines, norm=norm)
+            main.show()
+            sys.exit(app.exec_())
+
+        # LLS
+        if (flg_fig % 2**6) >= 2**5:
+            #spec_fil = '/Users/xavier/PROGETTI/LLSZ3/data/normalize/UM184_nF.fits'
+            #z=2.96916
+            #lines = [1548.195, 1550.770]
+            spec_fil = '/Users/xavier/VLT/XShooter/LP/idl_reduced_frames/0952-0115_uvb_coadd_vbin_flx.fits'
+            # Launch
+            spec = lsi.readspec(spec_fil)
+            app = QtGui.QApplication(sys.argv)
+            app.setApplicationName('FitLLS')
+            main = XFitLLSGUI(spec) 
             main.show()
             sys.exit(app.exec_())
 
