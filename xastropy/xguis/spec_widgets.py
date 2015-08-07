@@ -914,7 +914,7 @@ class VelPlotWidget(QtGui.QWidget):
         self.spec = spec
         self.spec_fil = spec_fil
         self.z = z
-        cyan.vmnx = vmnx
+        self.vmnx = vmnx
         self.norm = norm
 
         # Abs_System 
