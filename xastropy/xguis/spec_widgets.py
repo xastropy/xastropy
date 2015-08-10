@@ -125,9 +125,7 @@ class ExamineSpecWidget(QtGui.QWidget):
         self.canvas.mpl_connect('button_press_event', self.on_click)
 
         # Make two plots
-
         self.ax = self.fig.add_subplot(1,1,1)
-
         self.fig.subplots_adjust(hspace=0.1, wspace=0.1)
         
         vbox = QtGui.QVBoxLayout()
@@ -398,13 +396,16 @@ class ExamineSpecWidget(QtGui.QWidget):
                 return
 
     # ######
-    def on_draw(self, replot=True):
+    def on_draw(self, replot=True, no_draw=False):
         """ Redraws the spectrum
+        no_draw: bool, optional
+          Draw the screen on the canvas?
         """
         #
         if replot is True:
             self.ax.clear()        
-            self.ax.plot(self.spec.dispersion, self.spec.flux, 'k-',drawstyle='steps-mid')
+            self.ax.plot(self.spec.dispersion, self.spec.flux, 
+                'k-',drawstyle='steps-mid')
             try: 
                 self.ax.plot(self.spec.dispersion, self.spec.sig, 'r:')
             except ValueError:
@@ -417,7 +418,7 @@ class ExamineSpecWidget(QtGui.QWidget):
                 self.ax.plot(self.continuum.dispersion, self.continuum.flux, 
                     color='purple')
 
-            # Continuum?
+            # Model?
             if self.model is not None:
                 self.ax.plot(self.model.dispersion, self.model.flux, 
                     color='cyan')
@@ -473,17 +474,16 @@ class ExamineSpecWidget(QtGui.QWidget):
                 self.adict['flg'] = 0
             # Lya line?
             if self.adict['flg'] == 4:
-                #QtCore.pyqtRemoveInputHook()
-                #xdb.set_trace()
-                #QtCore.pyqtRestoreInputHook()
-                self.ax.plot(self.spec.dispersion, self.lya_line.flux, color='green')
+                self.ax.plot(self.spec.dispersion, 
+                    self.lya_line.flux, color='green')
         
         # Reset window limits
         self.ax.set_xlim(self.psdict['xmnx'])
         self.ax.set_ylim(self.psdict['ymnx'])
 
         # Draw
-        self.canvas.draw()
+        if not no_draw:
+            self.canvas.draw()
 
     # Notes on usage
     def help_notes():
@@ -784,10 +784,12 @@ class AbsSysWidget(QtGui.QWidget):
     16-Dec-2014 by JXP
     '''
     def __init__(self, abssys_list, parent=None, 
-        only_one=False, linelist=None):
+        only_one=False, linelist=None, no_buttons=False):
         '''
         only_one: bool, optional
           Restrict to one selection at a time? [False]
+        no_buttons: bool, optional
+          Eliminate Refine/Reload buttons?
         '''
         super(AbsSysWidget, self).__init__(parent)
 
@@ -827,16 +829,17 @@ class AbsSysWidget(QtGui.QWidget):
         vbox.addWidget(list_label)
 
         # Buttons
-        buttons = QtGui.QWidget()
-        self.refine_button = QtGui.QPushButton('Refine', self)
-        #self.refine_button.clicked.connect(self.refine) # CONNECTS TO A PARENT
-        reload_btn = QtGui.QPushButton('Reload', self)
-        reload_btn.clicked.connect(self.reload)
-        hbox1 = QtGui.QHBoxLayout()
-        hbox1.addWidget(self.refine_button)
-        hbox1.addWidget(reload_btn)
-        buttons.setLayout(hbox1)
-        vbox.addWidget(buttons)
+        if not no_buttons:
+            buttons = QtGui.QWidget()
+            self.refine_button = QtGui.QPushButton('Refine', self)
+            #self.refine_button.clicked.connect(self.refine) # CONNECTS TO A PARENT
+            reload_btn = QtGui.QPushButton('Reload', self)
+            reload_btn.clicked.connect(self.reload)
+            hbox1 = QtGui.QHBoxLayout()
+            hbox1.addWidget(self.refine_button)
+            hbox1.addWidget(reload_btn)
+            buttons.setLayout(hbox1)
+            vbox.addWidget(buttons)
 
         vbox.addWidget(self.abslist_widget)
         self.setLayout(vbox)

@@ -518,8 +518,13 @@ class XFitLLSGUI(QtGui.QMainWindow):
         #llist['z'] = 0.
         llist = None
 
+        # z and N boxes
+        self.zwidget = xxgu.EditBox(-1., 'z_LLS=', '{:0.5f}')
+        self.Nwidget = xxgu.EditBox(-1., 'NHI=', '{:0.2f}')
+
         # Grab the pieces and tie together
-        self.abssys_widg = xspw.AbsSysWidget([],only_one=True)
+        self.abssys_widg = xspw.AbsSysWidget([],only_one=True,
+            no_buttons=True)
         #self.pltline_widg = xspw.PlotLinesWidget(status=self.statusBar)
         self.spec_widg = xspw.ExamineSpecWidget(spec,status=self.statusBar,
                                                 llist=llist, key_events=False,
@@ -537,7 +542,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
 
         # Quit
         buttons = QtGui.QWidget()
-        wqbtn = QtGui.QPushButton('Write+Quit', self)
+        wqbtn = QtGui.QPushButton('Write\n Quit', self)
         wqbtn.setAutoDefault(False)
         wqbtn.clicked.connect(self.write_quit)
         qbtn = QtGui.QPushButton('Quit', self)
@@ -547,13 +552,13 @@ class XFitLLSGUI(QtGui.QMainWindow):
         # Connections
         #self.spec_widg.canvas.mpl_connect('button_press_event', self.on_click)
         self.spec_widg.canvas.mpl_connect('key_press_event', self.on_key)
-        self.abssys_widg.refine_button.clicked.connect(self.refine_abssys) 
+        self.abssys_widg.abslist_widget.itemSelectionChanged.connect(
+            self.on_list_change)
 
         # Layout
         anly_widg = QtGui.QWidget()
         anly_widg.setMaximumWidth(400)
-        anly_widg.setMinimumWidth(150)
-        vbox = QtGui.QVBoxLayout()
+        anly_widg.setMinimumWidth(200)
 
         # Write/Quit buttons
         hbox1 = QtGui.QHBoxLayout()
@@ -562,7 +567,16 @@ class XFitLLSGUI(QtGui.QMainWindow):
         hbox1.addWidget(qbtn)
         buttons.setLayout(hbox1)
  
+        # z,N
+        zNwidg = QtGui.QWidget()
+        hbox2 = QtGui.QHBoxLayout()
+        hbox2.addWidget(self.zwidget)
+        hbox2.addWidget(self.Nwidget)
+        zNwidg.setLayout(hbox2)
         #vbox.addWidget(self.pltline_widg)
+
+        vbox = QtGui.QVBoxLayout()
+        vbox.addWidget(zNwidg)
         vbox.addWidget(self.abssys_widg)
         vbox.addWidget(buttons)
         anly_widg.setLayout(vbox)
@@ -576,9 +590,25 @@ class XFitLLSGUI(QtGui.QMainWindow):
         # Point MainWindow
         self.setCentralWidget(self.main_widget)
 
+    def on_list_change(self):
+        self.update_boxes()
+
     def create_status_bar(self):
         self.status_text = QtGui.QLabel("XFitLLS")
         self.statusBar().addWidget(self.status_text, 1)
+
+    def update_boxes(self):
+        idx = self.get_sngl_sel_sys()
+        if idx is None:
+            return
+        # z
+        self.zwidget.box.setText(
+            self.zwidget.box.frmt.format(
+                self.abssys_widg.all_abssys[idx].zabs)) 
+        # N
+        self.Nwidget.box.setText(
+            self.Nwidget.box.frmt.format(
+                self.abssys_widg.all_abssys[idx].NHI)) 
 
     def update_conti(self):
         '''Update continuum
@@ -657,7 +687,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
         if event.key == 'C': # Set continuum level
             self.conti_dict['Norm'] = event.ydata
             self.update_conti()
-        elif event.key == 'N': # New LLS
+        elif event.key == 'A': # New LLS
             new_sys = LLSSystem(NHI=17.3)
             new_sys.zabs = event.xdata/911.7633 - 1.
             new_sys.fill_lls_lines()
@@ -669,9 +699,9 @@ class XFitLLSGUI(QtGui.QMainWindow):
             self.abssys_widg.all_abssys.append(new_sys)
             self.abssys_widg.abslist_widget.item(
                 len(self.abssys_widg.all_abssys)).setSelected(True)
-            # 
+            # Updates
             self.update_model()
-        elif event.key in ['L','a','=','-']: # Set redshift or NHI
+        elif event.key in ['L','a','N','n']: # Set redshift or NHI
             idx = self.get_sngl_sel_sys()
             if idx is None:
                 return
@@ -679,9 +709,9 @@ class XFitLLSGUI(QtGui.QMainWindow):
                 self.abssys_widg.all_abssys[idx].zabs = event.xdata/911.7633 - 1.
             elif event.key == 'a': #Lya
                 self.abssys_widg.all_abssys[idx].zabs = event.xdata/1215.6700-1.
-            elif event.key == '=': #Add to NHI
+            elif event.key == 'N': #Add to NHI
                 self.abssys_widg.all_abssys[idx].NHI += 0.05
-            elif event.key == '-': #Subtract from NHI
+            elif event.key == 'n': #Subtract from NHI
                 self.abssys_widg.all_abssys[idx].NHI -= 0.05
             # Update the lines and model
             for iline in self.abssys_widg.all_abssys[idx].lls_lines:
@@ -692,41 +722,17 @@ class XFitLLSGUI(QtGui.QMainWindow):
             self.spec_widg.on_key(event)
             return
         # Draw by default
-        self.spec_widg.on_draw()
+        self.update_boxes()
+        self.spec_widg.on_draw(no_draw=True)
+        # Add text?
+        for kk,lls in enumerate(self.abssys_widg.all_abssys):
+            wvLLS = (1+lls.zabs)*911.7
+            idx = np.argmin(np.abs(self.continuum.dispersion-wvLLS*u.AA))
+            self.spec_widg.ax.text(wvLLS, self.continuum.flux[idx],
+                '{:d}'.format(kk+1), ha='center', color='blue', size='small')
+        # Draw
+        self.spec_widg.canvas.draw()
 
-
-    '''
-    def on_click(self,event):
-        if event.button == 3: # Set redshift
-            # Line list?
-            try:
-                self.pltline_widg.llist['List']
-            except KeyError:
-                print('Set a line list first!!')
-                return
-            # 
-            if self.pltline_widg.llist[self.pltline_widg.llist['List']] == 'None':
-                return
-            self.select_line_widg = xspw.SelectLineWidget(
-                self.pltline_widg.llist[self.pltline_widg.llist['List']]._data)
-            self.select_line_widg.exec_()
-            line = self.select_line_widg.line
-            if line.strip() == 'None':
-                return
-            #
-            quant = line.split('::')[1].lstrip()
-            spltw = quant.split(' ')
-            wrest = Quantity(float(spltw[0]), unit=spltw[1])
-            z = event.xdata/wrest.value - 1.
-            self.pltline_widg.llist['z'] = z
-            self.statusBar().showMessage('z = {:f}'.format(z))
-
-            self.pltline_widg.zbox.setText(self.pltline_widg.zbox.z_frmt.format(
-                self.pltline_widg.llist['z']))
-    
-            # Draw
-            self.spec_widg.on_draw()
-    '''
 
     def refine_abssys(self):
         item = self.abssys_widg.abslist_widget.selectedItems()
@@ -746,7 +752,19 @@ class XFitLLSGUI(QtGui.QMainWindow):
 
     # Write
     def write_out(self):
-        pass
+        import json, io
+        # Create dict
+        out_dict = dict(LLS={},conti=self.conti_dict)
+        # Load
+        for kk,lls in enumerate(self.abssys_widg.all_abssys):
+            key = '{:d}'.format(kk+1)
+            out_dict['LLS'][key] = {}
+            out_dict['LLS'][key]['z'] = lls.zabs
+            out_dict['LLS'][key]['NHI'] = lls.NHI
+        # Write
+        with io.open(self.outfil, 'w', encoding='utf-8') as f:
+            f.write(unicode(json.dumps(out_dict, sort_keys=True, indent=4, 
+                separators=(',', ': '))))
 
     # Write + Quit
     def write_quit(self):

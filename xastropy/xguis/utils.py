@@ -30,6 +30,42 @@ from astropy import units as u
 
 from xastropy.xutils import xdebug as xdb
 
+# def EditBox
+# def WarningWidg
+
+class EditBox(QtGui.QWidget):
+    '''
+    initv: Initial value
+    lbl: str
+    format: str
+      Format for value
+    '''
+    def __init__(self, initv, lbl, format, parent=None):
+        '''
+        '''
+        super(EditBox, self).__init__(parent)
+
+        self.value = initv
+        # 
+        label = QtGui.QLabel(lbl) 
+        self.box = QtGui.QLineEdit()
+        # Format
+        self.box.frmt = format
+        self.box.setText(self.box.frmt.format(self.value))
+        self.box.setMinimumWidth(90)
+        # Connect
+        self.connect(self.box, 
+            QtCore.SIGNAL('editingFinished ()'), self.setv)
+        # Layout
+        vbox = QtGui.QVBoxLayout()
+        vbox.addWidget(label)
+        vbox.addWidget(self.box)
+        self.setLayout(vbox)
+
+    def setv(self):
+        self.value = unicode(self.box.text())
+
+
 # ##################################
 # GUI for velocity plot
 class WarningWidg(QtGui.QDialog):

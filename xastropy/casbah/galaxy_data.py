@@ -48,11 +48,15 @@ def galaxy_attrib():
 
 ########################## ##########################
 ########################## ##########################
-def grab_sdss_spectra(radec, radius=0.1*u.deg, outfil='tmp.fits', debug=False, maxsep=None):
+def grab_sdss_spectra(radec, radius=0.1*u.deg, outfil=None,
+    debug=False, maxsep=None, timeout=600.):
     """ Grab SDSS spectra
-
-    radius: float (0.1)
-      Search radius in deg -- Astroquery actually makes a box, not a circle
+    radec: tuple
+      RA, DEC in deg
+    radius: float, optional (0.1*u.deg)
+      Search radius -- Astroquery actually makes a box, not a circle
+    timeout: float, optional
+      Timeout limit for connection with SDSS
     outfil: str ('tmp.fits')
       Name of output file for FITS table
     maxsep: float (None) :: Mpc
@@ -67,16 +71,16 @@ def grab_sdss_spectra(radec, radius=0.1*u.deg, outfil='tmp.fits', debug=False, m
 
 
 
-    cC = coords.SkyCoord(ra=radec[0]*u.degree, dec=radec[1]*u.degree)
+    cC = coords.SkyCoord(ra=radec[0], dec=radec[1])
 
     # Query
     photoobj_fs = ['ra', 'dec', 'objid', 'run', 'rerun', 'camcol', 'field']
     mags = ['petroMag_u', 'petroMag_g', 'petroMag_r', 'petroMag_i', 'petroMag_z'] 
     magsErr = ['petroMagErr_u', 'petroMagErr_g', 'petroMagErr_r', 'petroMagErr_i', 'petroMagErr_z']
 
-    phot_catalog = SDSS.query_region(cC,spectro=True,radius=radius,
+    phot_catalog = SDSS.query_region(cC,spectro=True,radius=radius, timeout=timeout,
                                      photoobj_fields=photoobj_fs+mags+magsErr) # Unique
-    spec_catalog = SDSS.query_region(cC,spectro=True, radius=radius) # Duplicates exist
+    spec_catalog = SDSS.query_region(cC,spectro=True, radius=radius, timeout=timeout) # Duplicates exist
     nobj = len(phot_catalog)
 
     #
@@ -182,16 +186,18 @@ def grab_sdss_spectra(radec, radius=0.1*u.deg, outfil='tmp.fits', debug=False, m
 
     # Write to FITS file
                 
-    prihdr = fits.Header()
-    prihdr['COMMENT'] = 'SDSS Spectra'
-    prihdu = fits.PrimaryHDU(header=prihdr)
+    if outfil is not None:
+        prihdr = fits.Header()
+        prihdr['COMMENT'] = 'SDSS Spectra'
+        prihdu = fits.PrimaryHDU(header=prihdr)
 
-    tbhdu = fits.BinTableHDU(tbl)
+        tbhdu = fits.BinTableHDU(tbl)
 
-    thdulist = fits.HDUList([prihdu, tbhdu])
-    thdulist.writeto(outfil,clobber=True)
+        thdulist = fits.HDUList([prihdu, tbhdu])
+        thdulist.writeto(outfil,clobber=True)
 
     print('Wrote SDSS table to {:s}'.format(outfil))
+    return tbl
 
     
 # ################
@@ -202,5 +208,5 @@ if __name__ == "__main__":
     
     # XSpec
     if (flg_fig % 2**1) >= 2**0:
-        radec = (212.34957,26.30585)
+        radec = (212.34957*u.deg,26.30585*u.deg)
         grab_sdss_spectra(radec, radius=1.*u.degree/12.) 
