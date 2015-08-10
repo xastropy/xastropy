@@ -16,15 +16,17 @@ import numpy as np
 import os, pickle, imp
 from scipy import interpolate as scii
 
+from astropy.io import fits
+from astropy.utils.misc import isiterable
+from astropy import units as u
+from astropy import constants as const
+
+
 from xastropy.xutils import xdebug as xdb
 from xastropy.spec import abs_line, voigt
 from xastropy.stats import mcmc
 from xastropy.igm import igm_utils as igmu
 from xastropy.atomic import ionization as xai
-
-from astropy.io import fits
-from astropy.utils.misc import isiterable
-from astropy import units as u
 
 # Path for xastropy
 xa_path = imp.find_module('xastropy')[1]
@@ -180,6 +182,68 @@ class fN_Model(object):
             return lX, cum_sum, lgNHI
         else:
             return lX
+
+    ##
+    # rho_HI
+    def calc_rhoHI(self, z, NHI_mnx, neval=10000, cumul=False, 
+        H0=70.*u.km/(u.s*u.Mpc)):
+        """ Calculate rho_HI over an N_HI interval
+
+        Parameters:
+        z: float
+          Redshift for evaluation
+        NHI_mnx: tuple of floats
+          minimum/maximum NHI values
+        neval: int (10000)
+          Discretization parameter
+        cumul: boolean (False), optional
+          Return a cumulative array?
+        H0: float, optional
+          Hubble's constant with units [70 km/s/Mpc]
+
+        Returns:
+        rho_HI: float
+          rho_HI in units of Msun per comoving Mpc**3
+
+        JXP 10 Aug 2015
+        """
+        # Initial 
+        NHI_min=NHI_mnx[0]
+        NHI_max=NHI_mnx[1]
+        try:
+            nz = len(z)
+        except:
+            nz=1
+            z = np.array([z])
+
+        # Brute force (should be good to ~0.5%)
+        lgNHI = NHI_min + (NHI_max-NHI_min)*np.arange(neval)/(neval-1.)
+        dlgN = lgNHI[1]-lgNHI[0]
+
+        # Evaluate f(N,X)
+        lgfNX = self.eval(lgNHI, z)
+
+        # Sum
+        rho_HI = np.zeros(nz)
+        for ii in range(nz): 
+            rho_HI[ii] = np.sum(10.**(lgfNX[:,ii]+2*lgNHI)) * dlgN * np.log(10.)
+        if cumul==True: 
+            if nz > 1: #; Have not modified this yet
+                raise ValueError('fN.model: Not ready for this model type %s' % self.fN_mtype)
+            cum_sum = np.cumsum(10.**(lgfNX[:,ii]+2*lgNHI)) * dlgN * np.log(10.)
+
+        # Constants
+        rho_HI = rho_HI * (const.m_p.cgs * H0 / 
+            const.c.cgs / (u.cm**2)).to(u.Msun/u.Mpc**3)
+
+        # Return
+        if nz==1:
+            rho_HI = rho_HI[0]
+        if cumul==True:
+            return rho_HI, cum_sum, lgNHI
+        else:
+            return rho_HI
+
     ##
     # Evaluate
     def eval(self, NHI, z, vel_array=None, cosmo=None):
@@ -515,9 +579,11 @@ if __name__ == '__main__':
     from xastropy.igm.fN import model as xifm
 
     flg_test = 0 
-    flg_test += 2**2 # Standard model
+    #flg_test += 2**1 # Compare models
+    #flg_test += 2**2 # Data
     #flg_test += 2**3 # l(X)
     #flg_test += 64 # Akio
+    flg_test += 2**7 # rho_HI
     #flg_test = 0 + 64
     
     if (flg_test % 2) == 1:
@@ -543,7 +609,7 @@ if __name__ == '__main__':
         plt.scatter(p13_data['LGN'],p13_data['FN'])
         #plt.plot(p13_data['LGN'],p13_data['FN'], '-')
         xplt = np.linspace(12., 22, 10000)
-        yplt = fN_model.eval(2.4,xplt)
+        yplt = fN_model.eval(xplt, 2.4)
         plt.plot(xplt, yplt, '-', color='red')
         #plt.plot(xplt, yplt, '-')
         plt.show()
@@ -602,3 +668,13 @@ if __name__ == '__main__':
         # Plot
         JXP_model = xifm.default_model()
         fN_data.tst_fn_data(fN_model=fN_model, model_two=JXP_model)
+
+    # rho_HI
+    if (flg_test % 2**8) >= 2**7:
+        print('Testing rho_HI')
+
+        fN_model = xifm.default_model()
+        z = 2.44
+        # Evaluate
+        rho_HI = fN_model.calc_rhoHI(z, (20.3, 22.))
+        print('rho_HI = {:g}'.format(rho_HI))
