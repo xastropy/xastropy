@@ -885,6 +885,13 @@ class AbsSysWidget(QtGui.QWidget):
         self.all_items.append( abssys_fil[ipos0:ipos1] )
         self.abslist_widget.addItem(abssys_fil[ipos0:ipos1] )
 
+    def remove_item(self,idx):
+        # Delete
+        del self.all_items[idx]
+        del self.all_abssys[idx]
+        tmp = self.abslist_widget.takeItem(idx+1) # 1 for None
+        self.on_list_change()
+
     def reload(self):
         print('AbsSysWidget: Reloading systems..')
         self.all_abssys = []

@@ -15,7 +15,7 @@ from __future__ import print_function, absolute_import, division, unicode_litera
 
 # Import libraries
 import numpy as np
-import os, sys
+import os, sys, warnings
 import matplotlib.pyplot as plt
 import glob
 
@@ -46,6 +46,7 @@ from xastropy.spec import voigt as xsv
 #class XSpecGui(QtGui.QMainWindow):
 #class XAbsIDGui(QtGui.QMainWindow):
 #class XVelPltGui(QtGui.QDialog):
+# class XFitLLSGUI(QtGui.QMainWindow):
 
 # x_specplot replacement
 class XSpecGui(QtGui.QMainWindow):
@@ -478,11 +479,13 @@ class XFitLLSGUI(QtGui.QMainWindow):
     ''' GUI to fit LLS in a given spectrum
         30-Jul-2015 by JXP
     '''
-    def __init__(self, ispec, parent=None, lls_fil=None, 
-        absid_list=None, srch_id=True, outfil=None, smooth=3.):
+    def __init__(self, ispec, parent=None, lls_fit_file=None, 
+        srch_id=True, outfil=None, smooth=3.):
         QtGui.QMainWindow.__init__(self, parent)
         '''
         spec = Spectrum1D
+        lls_fit_file: str, optional
+          Name of the LLS fit file to input
         smooth: float, optional
           Number of pixels to smooth on
         '''
@@ -496,14 +499,15 @@ class XFitLLSGUI(QtGui.QMainWindow):
         # Initialize
         if outfil is None:
             self.outfil = 'LLS_fit.json'
-        if lls_fil is not None:
-            xdb.set_trace()
+        else:
+            self.outfil = outfil
         self.count_lls = 0
         #
         spec, spec_fil = xxgu.read_spec(ispec)
         self.lls_model = None
         # Continuum
-        self.conti_dict = {'Norm': np.median(spec.flux), 'tilt': 0.}
+        self.conti_dict = {'Norm': np.median(spec.flux), 'tilt': 0.,
+            'piv_wv': np.median(spec.dispersion.value)}
         self.continuum = XSpectrum1D.from_tuple((
             spec.dispersion,np.ones(len(spec.dispersion))))
         self.base_continuum = self.continuum.flux
@@ -531,6 +535,10 @@ class XFitLLSGUI(QtGui.QMainWindow):
                                                 abs_sys=self.abssys_widg.abs_sys)
         self.spec_widg.continuum = self.continuum
         #self.pltline_widg.spec_widg = self.spec_widg
+
+        # Initial file
+        if lls_fit_file is not None:
+            self.init_LLS(lls_fit_file)
 
         # Outfil
         wbtn = QtGui.QPushButton('Write', self)
@@ -613,7 +621,9 @@ class XFitLLSGUI(QtGui.QMainWindow):
     def update_conti(self):
         '''Update continuum
         '''
-        self.continuum.flux = self.base_continuum * self.conti_dict['Norm']
+        self.continuum.flux = (self.base_continuum * self.conti_dict['Norm'] * 
+            (self.continuum.dispersion.value/
+                self.conti_dict['piv_wv'])**self.conti_dict['tilt'])
         if self.lls_model is not None:
             self.full_model.flux = self.lls_model * self.continuum.flux
 
@@ -684,24 +694,21 @@ class XFitLLSGUI(QtGui.QMainWindow):
                 self.abssys_widg.abslist_widget.item(ii).setSelected(True)
 
     def on_key(self,event):
-        if event.key == 'C': # Set continuum level
-            self.conti_dict['Norm'] = event.ydata
+        if event.key in ['C','1','2']: # Set continuum level
+            if event.key == 'C':
+                self.conti_dict['Norm'] = event.ydata
+            elif event.key == '1':
+                self.conti_dict['tilt'] += 0.1
+            elif event.key == '2':
+                self.conti_dict['tilt'] -= 0.1
             self.update_conti()
         elif event.key == 'A': # New LLS
-            new_sys = LLSSystem(NHI=17.3)
-            new_sys.zabs = event.xdata/911.7633 - 1.
-            new_sys.fill_lls_lines()
-            # Name
-            self.count_lls += 1
-            new_sys.label = 'LLS_Sys_{:d}'.format(self.count_lls)
-            # Add
-            self.abssys_widg.add_fil(new_sys.label)
-            self.abssys_widg.all_abssys.append(new_sys)
-            self.abssys_widg.abslist_widget.item(
-                len(self.abssys_widg.all_abssys)).setSelected(True)
-            # Updates
+            # Generate
+            z = event.xdata/911.7633 - 1.
+            self.add_LLS(z)
+            # Update
             self.update_model()
-        elif event.key in ['L','a','N','n']: # Set redshift or NHI
+        elif event.key in ['L','a','N','n','D']: # Set redshift or NHI or Delete
             idx = self.get_sngl_sel_sys()
             if idx is None:
                 return
@@ -713,26 +720,52 @@ class XFitLLSGUI(QtGui.QMainWindow):
                 self.abssys_widg.all_abssys[idx].NHI += 0.05
             elif event.key == 'n': #Subtract from NHI
                 self.abssys_widg.all_abssys[idx].NHI -= 0.05
+            elif event.key == 'D': # Delete system
+                self.abssys_widg.remove_item(idx)
+                idx = None
+            else:
+                raise ValueError('Not ready for this keystroke')
             # Update the lines and model
-            for iline in self.abssys_widg.all_abssys[idx].lls_lines:
-                iline.attrib['z'] = self.abssys_widg.all_abssys[idx].zabs 
-                iline.attrib['N'] = self.abssys_widg.all_abssys[idx].NHI
+            if idx is not None:
+                for iline in self.abssys_widg.all_abssys[idx].lls_lines:
+                    iline.attrib['z'] = self.abssys_widg.all_abssys[idx].zabs 
+                    iline.attrib['N'] = self.abssys_widg.all_abssys[idx].NHI
             self.update_model()
         else:
             self.spec_widg.on_key(event)
-            return
+
         # Draw by default
         self.update_boxes()
+        self.draw()
+
+    def draw(self):
         self.spec_widg.on_draw(no_draw=True)
         # Add text?
         for kk,lls in enumerate(self.abssys_widg.all_abssys):
+            # Label
+            ipos = self.abssys_widg.all_items[kk].rfind('_')
+            lbl = self.abssys_widg.all_items[kk][ipos+1:]
+            # Add text
             wvLLS = (1+lls.zabs)*911.7
             idx = np.argmin(np.abs(self.continuum.dispersion-wvLLS*u.AA))
             self.spec_widg.ax.text(wvLLS, self.continuum.flux[idx],
-                '{:d}'.format(kk+1), ha='center', color='blue', size='small')
+                '{:s}'.format(lbl), ha='center', color='blue', size='small')
         # Draw
         self.spec_widg.canvas.draw()
 
+    def add_LLS(self,z,NHI=17.3):
+        #
+        new_sys = LLSSystem(NHI=NHI)
+        new_sys.zabs = z
+        new_sys.fill_lls_lines()
+        # Name
+        self.count_lls += 1
+        new_sys.label = 'LLS_Sys_{:d}'.format(self.count_lls)
+        # Add
+        self.abssys_widg.add_fil(new_sys.label)
+        self.abssys_widg.all_abssys.append(new_sys)
+        self.abssys_widg.abslist_widget.item(
+            len(self.abssys_widg.all_abssys)).setSelected(True)
 
     def refine_abssys(self):
         item = self.abssys_widg.abslist_widget.selectedItems()
@@ -742,19 +775,39 @@ class XFitLLSGUI(QtGui.QMainWindow):
         txt = item[0].text()
         ii = self.abssys_widg.all_items.index(txt)
         iabs_sys = self.abssys_widg.all_abssys[ii]
-        #QtCore.pyqtRemoveInputHook()
-        #xdb.set_trace()
-        #QtCore.pyqtRestoreInputHook()
         # Launch
         gui = XVelPltGui(self.spec_widg.spec, outfil=iabs_sys.absid_file,
                                abs_sys=iabs_sys, norm=self.spec_widg.norm)
         gui.exec_()
 
+    # Read from a JSON file
+    def init_LLS(self,fit_file):
+        import json
+        # Read the JSON file
+        with open(fit_file) as data_file:    
+            lls_dict = json.load(data_file)
+        # Init
+        self.conti_dict = lls_dict['conti']
+        self.update_conti()
+        # Check spectra names
+        if self.spec_widg.spec.filename != lls_dict['spec_file']:
+            warnings.warn('Spec file names do not match!')
+        # LLS
+        for key in lls_dict['LLS'].keys():
+            #QtCore.pyqtRemoveInputHook()
+            #xdb.set_trace()
+            #QtCore.pyqtRestoreInputHook()
+            self.add_LLS(lls_dict['LLS'][key]['z'],
+                NHI=lls_dict['LLS'][key]['NHI'])
+        self.smooth = lls_dict['smooth']
+        self.update_model()
+
     # Write
     def write_out(self):
         import json, io
         # Create dict
-        out_dict = dict(LLS={},conti=self.conti_dict)
+        out_dict = dict(LLS={},conti=self.conti_dict,
+            spec_file=self.spec_widg.spec.filename,smooth=self.smooth)
         # Load
         for kk,lls in enumerate(self.abssys_widg.all_abssys):
             key = '{:d}'.format(kk+1)
@@ -923,6 +976,64 @@ def run_xvelp(*args, **kwargs):
 
     return gui
 
+# Script to run XSpec from the command line or ipython
+def run_fitlls(*args, **kwargs):
+    '''
+    Runs the XFitLLSGUI
+
+    Command line or from Python
+    Examples:
+      1.  python ~/xastropy/xastropy/xguis/spec_guis.py 1
+      2.  spec_guis.run_fitlls(filename)
+      3.  spec_guis.run_fitlls(spec1d)
+    '''
+
+    import argparse
+    from specutils import Spectrum1D
+
+    parser = argparse.ArgumentParser(description='Parser for XFitLLSGUI')
+    parser.add_argument("flag", type=int, help="GUI flag (ignored)")
+    parser.add_argument("in_file", type=str, help="Spectral file")
+    parser.add_argument("-out_file", type=str, help="Output LLS Fit file")
+    parser.add_argument("-smooth", type=float, help="Smoothing (pixels)")
+    parser.add_argument("-lls_fit_file", type=str, help="Input LLS Fit file")
+
+    if len(args) == 0:
+        pargs = parser.parse_args()
+    else: # better know what you are doing!
+        if isinstance(args[0],(Spectrum1D,tuple)):
+            app = QtGui.QApplication(sys.argv)
+            gui = XFitLLSGUI(args[0], **kwargs)
+            gui.show()
+            app.exec_()
+            return
+        else: # String parsing 
+            largs = ['1'] + [iargs for iargs in args]
+            pargs = parser.parse_args(largs)
+
+    # Output file
+    try:
+        outfil = pargs.out_file
+    except AttributeError:
+        outfil=None
+
+    # Input LLS file
+    try:
+        lls_fit_file = pargs.lls_fit_file
+    except AttributeError:
+        lls_fit_file=None
+
+    # Smoothing parameter
+    try:
+        smooth = pargs.smooth
+    except AttributeError:
+        smooth=3.
+    
+    app = QtGui.QApplication(sys.argv)
+    gui = XFitLLSGUI(pargs.in_file,outfil=outfil,smooth=smooth,
+        lls_fit_file=lls_fit_file)
+    gui.show()
+    app.exec_()
 
 # ################
 if __name__ == "__main__":
@@ -1037,4 +1148,8 @@ if __name__ == "__main__":
             run_xabsid()
         elif id_gui == 3:
             run_xvelp()
+        elif id_gui == 4:
+            run_fitlls()
+        else:
+            raise ValueError('Unsupported flag for spec_guis')
             
