@@ -135,11 +135,13 @@ def navigate(psdict,event,init=False):
     '''
     # Initalize
     if init is True:
-        return ['l','r','b','t','T','i','I', 'o','O', '[',']','W','Z', 'Y', '{', '}']
+        return ['l','r','b','t','T','i','I', 'o','O', 
+        '[',']','W','Z', 'Y', '{', '}', 's']
 
     #
     if (not isinstance(event.xdata,float)) or (not isinstance(event.ydata,float)):
-        print('Navigate: You entered the {:s} key out of bounds'.format(event.key))
+        print('Navigate: You entered the {:s} key out of bounds'.format(
+            event.key))
         return 0
 
     if event.key == 'l':  # Set left
@@ -152,6 +154,16 @@ def navigate(psdict,event,init=False):
         psdict['ymnx'][1] = event.ydata
     elif event.key == 'T':  # Set Top to 1.1
         psdict['ymnx'][1] = 1.1
+    elif event.key == 's':  # Select window (i.e. zoom-in)
+        if psdict['tmp_xy'] is None:
+            psdict['tmp_xy'] = [event.xdata,event.ydata]
+            print('Press another s to set the zoom-in window')
+        else:
+            psdict['xmnx'][0] = np.minimum(event.xdata,psdict['tmp_xy'][0])
+            psdict['xmnx'][1] = np.maximum(event.xdata,psdict['tmp_xy'][0])
+            psdict['ymnx'][0] = np.minimum(event.ydata,psdict['tmp_xy'][1])
+            psdict['ymnx'][1] = np.maximum(event.ydata,psdict['tmp_xy'][1])
+            psdict['tmp_xy'] = None
     elif event.key == 'i':  # Zoom in (and center)
         deltx = (psdict['xmnx'][1]-psdict['xmnx'][0])/4.
         psdict['xmnx'] = [event.xdata-deltx, event.xdata+deltx]

@@ -35,6 +35,7 @@ from astropy import units as u
 from linetools.lists.linelist import LineList
 from linetools.spectra.xspectrum1d import XSpectrum1D
 from linetools.spectra import convolve as lsc
+from linetools.spectralline import AbsLine
 
 from xastropy.xutils import xdebug as xdb
 from xastropy.xguis import spec_widgets as xspw
@@ -502,9 +503,10 @@ class XFitLLSGUI(QtGui.QMainWindow):
         else:
             self.outfil = outfil
         self.count_lls = 0
-        #
-        spec, spec_fil = xxgu.read_spec(ispec)
         self.lls_model = None
+        self.all_forest = []
+        # Spectrum
+        spec, spec_fil = xxgu.read_spec(ispec)
         # Continuum
         self.conti_dict = {'Norm': np.median(spec.flux), 'tilt': 0.,
             'piv_wv': np.median(spec.dispersion.value)}
@@ -518,9 +520,8 @@ class XFitLLSGUI(QtGui.QMainWindow):
         self.smooth = smooth
 
         # LineList
-        #llist = xxgu.set_llist('Strong') 
-        #llist['z'] = 0.
-        llist = None
+        self.llist = xxgu.set_llist('Strong') 
+        self.llist['z'] = 0.
 
         # z and N boxes
         self.zwidget = xxgu.EditBox(-1., 'z_LLS=', '{:0.5f}')
@@ -528,13 +529,11 @@ class XFitLLSGUI(QtGui.QMainWindow):
 
         # Grab the pieces and tie together
         self.abssys_widg = xspw.AbsSysWidget([],only_one=True,
-            no_buttons=True)
-        #self.pltline_widg = xspw.PlotLinesWidget(status=self.statusBar)
+            no_buttons=True, linelist=self.llist[self.llist['List']])
         self.spec_widg = xspw.ExamineSpecWidget(spec,status=self.statusBar,
-                                                llist=llist, key_events=False,
+                                                llist=self.llist, key_events=False,
                                                 abs_sys=self.abssys_widg.abs_sys)
         self.spec_widg.continuum = self.continuum
-        #self.pltline_widg.spec_widg = self.spec_widg
 
         # Initial file
         if lls_fit_file is not None:
@@ -557,11 +556,14 @@ class XFitLLSGUI(QtGui.QMainWindow):
         qbtn.setAutoDefault(False)
         qbtn.clicked.connect(self.quit)
 
-        # Connections
-        #self.spec_widg.canvas.mpl_connect('button_press_event', self.on_click)
+        # Connections (buttons are above)
         self.spec_widg.canvas.mpl_connect('key_press_event', self.on_key)
         self.abssys_widg.abslist_widget.itemSelectionChanged.connect(
             self.on_list_change)
+        self.connect(self.Nwidget.box, 
+            QtCore.SIGNAL('editingFinished ()'), self.setzN)
+        self.connect(self.zwidget.box, 
+            QtCore.SIGNAL('editingFinished ()'), self.setzN)
 
         # Layout
         anly_widg = QtGui.QWidget()
@@ -605,6 +607,19 @@ class XFitLLSGUI(QtGui.QMainWindow):
         self.status_text = QtGui.QLabel("XFitLLS")
         self.statusBar().addWidget(self.status_text, 1)
 
+    def setzN(self):
+        '''Set the column density or redshift from the box
+        '''
+        idx = self.get_sngl_sel_sys()
+        if idx is None:
+            return
+        self.abssys_widg.all_abssys[idx].NHI = (
+            float(self.Nwidget.box.text()))
+        self.abssys_widg.all_abssys[idx].zabs = (
+            float(self.zwidget.box.text()))
+        self.update_model()
+        self.draw()
+
     def update_boxes(self):
         idx = self.get_sngl_sel_sys()
         if idx is None:
@@ -628,7 +643,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
             self.full_model.flux = self.lls_model * self.continuum.flux
 
     def update_model(self):
-        '''Update LLS model
+        '''Update absorption model
         '''
         if len(self.abssys_widg.all_abssys) == 0:
             self.lls_model = None
@@ -636,7 +651,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
             return
         #
         all_tau_model = np.zeros(len(self.full_model.flux))
-        # Loop
+        # Loop on LLS
         for lls in self.abssys_widg.all_abssys:
             # LL
             wv_rest = self.full_model.dispersion / (lls.zabs+1)
@@ -655,6 +670,11 @@ class XFitLLSGUI(QtGui.QMainWindow):
             tau_model[pix_kludge] = tau_model[pix_LL]
             # Add
             all_tau_model += tau_model
+        # Loop on forest lines
+        for forest in self.all_forest:
+            tau_Lyman = xsv.voigt_model(self.full_model.dispersion, 
+                forest.lines, flg_ret=2)
+            all_tau_model += tau_Lyman
 
         # Flux and smooth
         flux = np.exp(-1. * all_tau_model)
@@ -683,15 +703,16 @@ class XFitLLSGUI(QtGui.QMainWindow):
             idx = self.abssys_widg.all_items.index(item.text())
             return idx
 
+    '''
     def select_all(self):
-        ''' Select all LLS
-        '''
+        Select all LLS
         # Set all
         nitems = len(self.abssys_widg.all_items)
         if nitems > 0:
             self.abssys_widg.abslist_widget.item(0).setSelected(False) # None
             for ii in range(1,nitems+1):
                 self.abssys_widg.abslist_widget.item(ii).setSelected(True)
+    '''
 
     def on_key(self,event):
         if event.key in ['C','1','2']: # Set continuum level
@@ -707,8 +728,9 @@ class XFitLLSGUI(QtGui.QMainWindow):
             z = event.xdata/911.7633 - 1.
             self.add_LLS(z)
             # Update
+            self.llist['Plot'] = False # Turn off metal-lines
             self.update_model()
-        elif event.key in ['L','a','N','n','D']: # Set redshift or NHI or Delete
+        elif event.key in ['L','a','N','n','v','V','D','@']: # LLS-centric
             idx = self.get_sngl_sel_sys()
             if idx is None:
                 return
@@ -720,16 +742,34 @@ class XFitLLSGUI(QtGui.QMainWindow):
                 self.abssys_widg.all_abssys[idx].NHI += 0.05
             elif event.key == 'n': #Subtract from NHI
                 self.abssys_widg.all_abssys[idx].NHI -= 0.05
+            elif event.key == 'v': #Subtract from bval
+                bval = self.abssys_widg.all_abssys[idx].lls_lines[0].attrib['b']
+                bval -= 2*u.km/u.s
+            elif event.key == 'V': #Add to bval
+                bval = self.abssys_widg.all_abssys[idx].lls_lines[0].attrib['b']
+                bval += 2*u.km/u.s
             elif event.key == 'D': # Delete system
                 self.abssys_widg.remove_item(idx)
                 idx = None
+            elif event.key == '@': # Toggle metal-lines
+                self.llist['Plot'] = not self.llist['Plot']
+                #QtCore.pyqtRemoveInputHook()
+                #xdb.set_trace()
+                #QtCore.pyqtRestoreInputHook()
             else:
                 raise ValueError('Not ready for this keystroke')
-            # Update the lines and model
+            # Update the lines 
             if idx is not None:
+                self.llist['z'] = self.abssys_widg.all_abssys[idx].zabs
                 for iline in self.abssys_widg.all_abssys[idx].lls_lines:
                     iline.attrib['z'] = self.abssys_widg.all_abssys[idx].zabs 
                     iline.attrib['N'] = self.abssys_widg.all_abssys[idx].NHI
+                    if 'bval' in locals():
+                        iline.attrib['b'] = bval
+            # Update the model
+            self.update_model()
+        elif event.key in ['6','7','8','9']: # Add forest line
+            self.add_forest(event.key,event.xdata/1215.6701 - 1.)
             self.update_model()
         else:
             self.spec_widg.on_key(event)
@@ -753,11 +793,37 @@ class XFitLLSGUI(QtGui.QMainWindow):
         # Draw
         self.spec_widg.canvas.draw()
 
-    def add_LLS(self,z,NHI=17.3):
+    def add_forest(self,inp,z):
+        '''Add a Lya/Lyb forest line
+        '''
+        from xastropy.igm.abs_sys.abssys_utils import GenericAbsSystem
+        forest = GenericAbsSystem(zabs=z)
+        # NHI
+        NHI_dict = {'6':12.,'7':13.,'8':14.,'9':15.}
+        forest.NHI=NHI_dict[inp]
+        # Lines
+        for name in ['HI 1215','HI 1025']:
+            aline = AbsLine(name,
+                linelist=self.llist[self.llist['List']])
+            # Attributes
+            aline.attrib['N'] = forest.NHI
+            aline.attrib['b'] = 20.*u.km/u.s
+            aline.attrib['z'] = forest.zabs
+            # Append
+            forest.lines.append(aline)
+        # Append to forest lines
+        self.all_forest.append(forest)
+
+
+
+
+    def add_LLS(self,z,NHI=17.3,bval=20.*u.km/u.s):
+        '''Generate a new LLS
+        '''
         #
         new_sys = LLSSystem(NHI=NHI)
         new_sys.zabs = z
-        new_sys.fill_lls_lines()
+        new_sys.fill_lls_lines(bval=bval)
         # Name
         self.count_lls += 1
         new_sys.label = 'LLS_Sys_{:d}'.format(self.count_lls)
@@ -798,8 +864,11 @@ class XFitLLSGUI(QtGui.QMainWindow):
             #xdb.set_trace()
             #QtCore.pyqtRestoreInputHook()
             self.add_LLS(lls_dict['LLS'][key]['z'],
-                NHI=lls_dict['LLS'][key]['NHI'])
+                NHI=lls_dict['LLS'][key]['NHI'],
+                bval=lls_dict['LLS'][key]['bval']*u.km/u.s)
         self.smooth = lls_dict['smooth']
+        # Updates
+        self.update_boxes()
         self.update_model()
 
     # Write
@@ -814,6 +883,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
             out_dict['LLS'][key] = {}
             out_dict['LLS'][key]['z'] = lls.zabs
             out_dict['LLS'][key]['NHI'] = lls.NHI
+            out_dict['LLS'][key]['bval'] = lls.lls_lines[0].attrib['b'].value
         # Write
         with io.open(self.outfil, 'w', encoding='utf-8') as f:
             f.write(unicode(json.dumps(out_dict, sort_keys=True, indent=4, 
