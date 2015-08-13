@@ -19,10 +19,9 @@ from astropy import units as u
 from astropy.coordinates import SkyCoord
 #from astropy import constants as const
 
-from xastropy.igm.abs_sys.abssys_utils import Absline_System
+from xastropy.igm.abs_sys.abssys_utils import AbslineSystem
 from xastropy.igm.abs_sys import abs_survey as xaa
-reload(xaa)
-from xastropy.igm.abs_sys.abs_survey import Absline_Survey
+from xastropy.igm.abs_sys.abs_survey import AbslineSurvey
 from xastropy.galaxy.core import Galaxy
 
 from xastropy.atomic.elements import ELEMENTS
@@ -88,7 +87,7 @@ class CGM_Sys(object):
                  self.galaxy.z, self.rho, self.NHI, self.MH))
 
 # Class for DLA Absorption Lines 
-class CGM_Abs(Absline_System):
+class CGM_Abs(AbslineSystem):
     """A CGM absorption system
 
     Attributes:

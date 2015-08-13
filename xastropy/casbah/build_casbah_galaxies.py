@@ -21,6 +21,7 @@ from astropy.table import Table, Column, MaskedColumn
 
 #from astropy import constants as const
 from xastropy.casbah import galaxy_data as xcgd
+from xastropy.casbah import utils as xcasbahu
 from xastropy.xutils import lists as xxul
 from xastropy.obs import radec as xra
 
@@ -42,7 +43,7 @@ def build_sdss(radius=2.0*u.deg):
 		print('CASBAH_SDSS: Building {:s}'.format(outfil))
 		print('CASBAH_SDSS: Be patient..')
 		xcgd.grab_sdss_spectra( (field[1],field[2]), 
-			radius=radius, outfil=outfil, maxsep=20.)
+			radius=radius, outfil=outfil, maxsep=20., zmin=500./3e5)
 	    #outfig = os.environ.get('DROPBOX_DIR')+'/CASBAH/Galaxies/SDSS/PG1407+265_SDSS.pdf'
 
 def build_targets(field,path='./'):
@@ -66,13 +67,15 @@ def build_targets(field,path='./'):
 	all_sex = deimos_sex  # Use vstack when needed
 
 	# Generate Target table
-	targ_file = path+field[0]+'/'+field[0]+'_targets.fits'
-	xdb.set_trace()
-	all_sex.write(targ_file,overwrite=True)
+	targ_file = xcasbahu.get_filename(field,'TARGETS')
+	cut_sex = all_sex[['TARG_RA','TARG_DEC','EPOCH','TARG_ID',
+		'TARG_MAG','TARG_IMG','INSTR','MASK_NAME']]
+	#cut_sex.write(targ_file,overwrite=True)
+	cut_sex.write(targ_file,format='ascii.fixed_width',delimiter='|')
 	print('Wrote file {:s}'.format(targ_file))
 
 	# Generate MULTI_OBJ file
-	multi_file = path+field[0]+'/'+field[0]+'_MULTI_OBJ.ascii'
+	multi_file = xcasbahu.get_filename(field,'MULTI_OBJ')
 	tab_names=('INSTR', 'MASK_NAME', 'MASK_RA', 'MASK_DEC', 'MASK_EPOCH', 
 		'MASK_PA', 'DATE_OBS', 'DISPERSER', 'TEXP', 'CONDITIONS')
 	dtypes=('S12', 'S25', 'S12', 'S13', 'f4',
@@ -221,13 +224,14 @@ def deimos_targets(field,path=None):
 	targetting_file = glob.glob(mask_path+'*targ.yaml')
 	if len(targetting_file) == 1:
 		sex_targ = parse_sex_file(field,targetting_file[0])
+		sex_targ.add_column(Column(['DEIMOS']*len(sex_targ),name='INSTR'))
 		# Setup for mask matching
 		sex_coord = SkyCoord(ra=sex_targ['TARG_RA']*u.deg, 
 			dec=sex_targ['TARG_DEC']*u.deg)
 		sex_msk_clms = {}
-		cnames = ['INSTR', 'MASK_ID']
+		cnames = ['MASK_NAME']
 		smsk = '--'
-		msk_val = [smsk, smsk]
+		msk_val = [smsk]
 		for kk,cname in enumerate(cnames):
 			sex_msk_clms[cname] = [msk_val[kk]]*len(sex_targ)
 	elif len(targetting_file) == 0:
@@ -255,13 +259,11 @@ def deimos_targets(field,path=None):
 				if sep[isep] > 0.5*u.arcsec:
 					raise ValueError('No match in SExtractor?!')
 				else: # Fill
-					if sex_msk_clms['INSTR'][isep] == smsk:
-						sex_msk_clms['INSTR'][isep] = mask_dict['INSTR']
-						sex_msk_clms['MASK_ID'][isep] = targ['ID']
+					if sex_msk_clms['MASK_NAME'][isep] == smsk:
+						sex_msk_clms['MASK_NAME'][isep] = mask_dict['MASK_NAME']
 					else: # Already full 
 						sex_targ.add_row(sex_targ[isep])
-						sex_msk_clms['INSTR'].append(mask_dict['INSTR'])
-						sex_msk_clms['MASK_ID'].append(targ['ID'])
+						sex_msk_clms['MASK_NAME'].append(mask_dict['MASK_NAME'])
 		# Append
 		all_masks.append(mask_dict)
 		all_masktarg.append(targ_tab)

@@ -18,11 +18,8 @@ from astropy.io import fits, ascii
 from astropy import units as u 
 #from astropy import constants as const
 
-from xastropy.igm.abs_sys.abssys_utils import Absline_System
 from xastropy.galaxy.core import Galaxy
 #from xastropy.cgm.core import CGM_Abs, CGM_Abs_Survey
-from xastropy.igm.abs_sys.abs_survey import Absline_Survey
-from xastropy.igm.abs_sys.ionic_clm import Ions_Clm
 from xastropy.cgm.core import CGM_Abs_Survey, CGM_Sys
 from xastropy.xutils import xdebug as xdb
 from xastropy import spec as xspec
