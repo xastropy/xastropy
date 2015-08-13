@@ -152,8 +152,17 @@ def stod(in_rads, radec=None):
 #### ###############################
 #  Main conversion
 def to_coord(irad):
-    """
-    Input RA/DEC as a tuple, str or SkyCoord and return a SkyCoord
+    """Input RA/DEC as a tuple, str or SkyCoord and return a SkyCoord
+    Parameters:
+    --------------
+    irad: tuple, str, or SkyCoord
+      Input RA/DEC
+      tuple: (float,float), (deg,deg), or (str,str)
+        e.g.  (213.221,45.222), (213.221*u.deg,45.222*u.deg), 
+          ('00:23:23.1','-23:11:02.3')
+    Returns:
+    ---------
+    SkyCoord object of that RA/DEC
     """
     # SkyCoord
     if type(irad) is SkyCoord:
@@ -166,7 +175,7 @@ def to_coord(irad):
             raise TypeError('radec.to_coord: Requires length two (RA,DEC)')
 
     # String?
-    if type(irad[0]) in [str,unicode]:
+    if isinstance(irad[0],basestring):
         rad = stod1(irad)
     elif type(irad[0]) is Quantity:
         rad = irad 
