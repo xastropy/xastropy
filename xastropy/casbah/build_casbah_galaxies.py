@@ -259,7 +259,7 @@ def deimos_targets(field,path=None):
 						sex_msk_clms['INSTR'][isep] = mask_dict['INSTR']
 						sex_msk_clms['MASK_ID'][isep] = targ['ID']
 					else: # Already full 
-						sex_targ.add_row(sex_tarb[isep])
+						sex_targ.add_row(sex_targ[isep])
 						sex_msk_clms['INSTR'].append(mask_dict['INSTR'])
 						sex_msk_clms['MASK_ID'].append(targ['ID'])
 		# Append
