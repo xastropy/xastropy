@@ -133,8 +133,6 @@ class ExamineSpecWidget(QtGui.QWidget):
         
         self.setLayout(vbox)
 
-        #
-
         # Draw on init
         self.on_draw()
 
@@ -153,6 +151,7 @@ class ExamineSpecWidget(QtGui.QWidget):
         self.psdict['xmnx'] = np.array([xmin,xmax])
         self.psdict['ymnx'] = [ymin,ymax]
         self.psdict['sv_xy'] = [ [xmin,xmax], [ymin,ymax] ]
+        self.psdict['tmp_xy'] = None
         self.psdict['nav'] = xxgu.navigate(0,0,init=True)
         # Analysis dict
         self.adict['flg'] = 0 # Column density flag
