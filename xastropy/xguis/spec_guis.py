@@ -478,10 +478,11 @@ class XAODMGui(QtGui.QDialog):
 # GUI for fitting LLS in a spectrum
 class XFitLLSGUI(QtGui.QMainWindow):
     ''' GUI to fit LLS in a given spectrum
+        v0.3
         30-Jul-2015 by JXP
     '''
     def __init__(self, ispec, parent=None, lls_fit_file=None, 
-        srch_id=True, outfil=None, smooth=3.):
+        srch_id=True, outfil=None, smooth=3., zqso=None):
         QtGui.QMainWindow.__init__(self, parent)
         '''
         spec = Spectrum1D
@@ -489,6 +490,8 @@ class XFitLLSGUI(QtGui.QMainWindow):
           Name of the LLS fit file to input
         smooth: float, optional
           Number of pixels to smooth on
+        zqso: float, optional
+          Redshift of the quasar.  If input, a Telfer continuum is used
         '''
 
         # Build a widget combining several others
@@ -526,6 +529,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
         # z and N boxes
         self.zwidget = xxgu.EditBox(-1., 'z_LLS=', '{:0.5f}')
         self.Nwidget = xxgu.EditBox(-1., 'NHI=', '{:0.2f}')
+        self.bwidget = xxgu.EditBox(-1., 'b=', '{:0.1f}')
 
         # Grab the pieces and tie together
         self.abssys_widg = xspw.AbsSysWidget([],only_one=True,
@@ -561,14 +565,16 @@ class XFitLLSGUI(QtGui.QMainWindow):
         self.abssys_widg.abslist_widget.itemSelectionChanged.connect(
             self.on_list_change)
         self.connect(self.Nwidget.box, 
-            QtCore.SIGNAL('editingFinished ()'), self.setzN)
+            QtCore.SIGNAL('editingFinished ()'), self.setbzN)
         self.connect(self.zwidget.box, 
-            QtCore.SIGNAL('editingFinished ()'), self.setzN)
+            QtCore.SIGNAL('editingFinished ()'), self.setbzN)
+        self.connect(self.bwidget.box, 
+            QtCore.SIGNAL('editingFinished ()'), self.setbzN)
 
         # Layout
         anly_widg = QtGui.QWidget()
         anly_widg.setMaximumWidth(400)
-        anly_widg.setMinimumWidth(200)
+        anly_widg.setMinimumWidth(250)
 
         # Write/Quit buttons
         hbox1 = QtGui.QHBoxLayout()
@@ -582,6 +588,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
         hbox2 = QtGui.QHBoxLayout()
         hbox2.addWidget(self.zwidget)
         hbox2.addWidget(self.Nwidget)
+        hbox2.addWidget(self.bwidget)
         zNwidg.setLayout(hbox2)
         #vbox.addWidget(self.pltline_widg)
 
@@ -607,7 +614,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
         self.status_text = QtGui.QLabel("XFitLLS")
         self.statusBar().addWidget(self.status_text, 1)
 
-    def setzN(self):
+    def setbzN(self):
         '''Set the column density or redshift from the box
         '''
         idx = self.get_sngl_sel_sys()
@@ -617,10 +624,19 @@ class XFitLLSGUI(QtGui.QMainWindow):
             float(self.Nwidget.box.text()))
         self.abssys_widg.all_abssys[idx].zabs = (
             float(self.zwidget.box.text()))
+        self.abssys_widg.all_abssys[idx].bval = (
+            float(self.bwidget.box.text()))*u.km/u.s
+        # Update the lines
+        for iline in self.abssys_widg.all_abssys[idx].lls_lines:
+            iline.attrib['z'] = self.abssys_widg.all_abssys[idx].zabs 
+            iline.attrib['N'] = self.abssys_widg.all_abssys[idx].NHI
+            iline.attrib['b'] = self.abssys_widg.all_abssys[idx].bval
+        # Update the rest
         self.update_model()
         self.draw()
 
     def update_boxes(self):
+        '''Update Nbz boxes'''
         idx = self.get_sngl_sel_sys()
         if idx is None:
             return
@@ -632,10 +648,13 @@ class XFitLLSGUI(QtGui.QMainWindow):
         self.Nwidget.box.setText(
             self.Nwidget.box.frmt.format(
                 self.abssys_widg.all_abssys[idx].NHI)) 
+        # b
+        self.bwidget.box.setText(
+            self.bwidget.box.frmt.format(
+                self.abssys_widg.all_abssys[idx].bval.value)) 
 
     def update_conti(self):
-        '''Update continuum
-        '''
+        '''Update continuum '''
         self.continuum.flux = (self.base_continuum * self.conti_dict['Norm'] * 
             (self.continuum.dispersion.value/
                 self.conti_dict['piv_wv'])**self.conti_dict['tilt'])
@@ -643,8 +662,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
             self.full_model.flux = self.lls_model * self.continuum.flux
 
     def update_model(self):
-        '''Update absorption model
-        '''
+        '''Update absorption model '''
         if len(self.abssys_widg.all_abssys) == 0:
             self.lls_model = None
             self.spec_widg.model = None
@@ -703,17 +721,6 @@ class XFitLLSGUI(QtGui.QMainWindow):
             idx = self.abssys_widg.all_items.index(item.text())
             return idx
 
-    '''
-    def select_all(self):
-        Select all LLS
-        # Set all
-        nitems = len(self.abssys_widg.all_items)
-        if nitems > 0:
-            self.abssys_widg.abslist_widget.item(0).setSelected(False) # None
-            for ii in range(1,nitems+1):
-                self.abssys_widg.abslist_widget.item(ii).setSelected(True)
-    '''
-
     def on_key(self,event):
         if event.key in ['C','1','2']: # Set continuum level
             if event.key == 'C':
@@ -743,11 +750,9 @@ class XFitLLSGUI(QtGui.QMainWindow):
             elif event.key == 'n': #Subtract from NHI
                 self.abssys_widg.all_abssys[idx].NHI -= 0.05
             elif event.key == 'v': #Subtract from bval
-                bval = self.abssys_widg.all_abssys[idx].lls_lines[0].attrib['b']
-                bval -= 2*u.km/u.s
+                self.abssys_widg.all_abssys[idx].bval -= 2*u.km/u.s
             elif event.key == 'V': #Add to bval
-                bval = self.abssys_widg.all_abssys[idx].lls_lines[0].attrib['b']
-                bval += 2*u.km/u.s
+                self.abssys_widg.all_abssys[idx].bval += 2*u.km/u.s
             elif event.key == 'D': # Delete system
                 self.abssys_widg.remove_item(idx)
                 idx = None
@@ -764,8 +769,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
                 for iline in self.abssys_widg.all_abssys[idx].lls_lines:
                     iline.attrib['z'] = self.abssys_widg.all_abssys[idx].zabs 
                     iline.attrib['N'] = self.abssys_widg.all_abssys[idx].NHI
-                    if 'bval' in locals():
-                        iline.attrib['b'] = bval
+                    iline.attrib['b'] = self.abssys_widg.all_abssys[idx].bval
             # Update the model
             self.update_model()
         elif event.key in ['6','7','8','9']: # Add forest line
@@ -787,8 +791,11 @@ class XFitLLSGUI(QtGui.QMainWindow):
             lbl = self.abssys_widg.all_items[kk][ipos+1:]
             # Add text
             wvLLS = (1+lls.zabs)*911.7
+            wvLya = (1+lls.zabs)*1215.6700
             idx = np.argmin(np.abs(self.continuum.dispersion-wvLLS*u.AA))
             self.spec_widg.ax.text(wvLLS, self.continuum.flux[idx],
+                '{:s}'.format(lbl), ha='center', color='blue', size='small')
+            self.spec_widg.ax.text(wvLya, self.continuum.flux[idx],
                 '{:s}'.format(lbl), ha='center', color='blue', size='small')
         # Draw
         self.spec_widg.canvas.draw()
@@ -802,7 +809,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
         NHI_dict = {'6':12.,'7':13.,'8':14.,'9':15.}
         forest.NHI=NHI_dict[inp]
         # Lines
-        for name in ['HI 1215','HI 1025']:
+        for name in ['HI 1215','HI 1025', 'HI 972']:
             aline = AbsLine(name,
                 linelist=self.llist[self.llist['List']])
             # Attributes
@@ -814,15 +821,13 @@ class XFitLLSGUI(QtGui.QMainWindow):
         # Append to forest lines
         self.all_forest.append(forest)
 
-
-
-
     def add_LLS(self,z,NHI=17.3,bval=20.*u.km/u.s):
         '''Generate a new LLS
         '''
         #
         new_sys = LLSSystem(NHI=NHI)
         new_sys.zabs = z
+        new_sys.bval = bval # This is not standard, but for convenience
         new_sys.fill_lls_lines(bval=bval)
         # Name
         self.count_lls += 1
