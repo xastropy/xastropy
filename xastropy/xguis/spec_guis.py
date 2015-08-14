@@ -15,7 +15,7 @@ from __future__ import print_function, absolute_import, division, unicode_litera
 
 # Import libraries
 import numpy as np
-import os, sys, warnings
+import os, sys, warnings, imp
 import matplotlib.pyplot as plt
 import glob
 
@@ -31,6 +31,7 @@ from matplotlib.figure import Figure
 from astropy.units import Quantity
 from astropy.nddata import StdDevUncertainty
 from astropy import units as u
+from astropy.io import fits, ascii
 
 from linetools.lists.linelist import LineList
 from linetools.spectra.xspectrum1d import XSpectrum1D
@@ -43,6 +44,8 @@ from xastropy.xguis import utils as xxgu
 from xastropy.igm.abs_sys.lls_utils import LLSSystem
 from xastropy.atomic import ionization as xatomi
 from xastropy.spec import voigt as xsv
+
+xa_path = imp.find_module('xastropy')[1]
 
 #class XSpecGui(QtGui.QMainWindow):
 #class XAbsIDGui(QtGui.QMainWindow):
@@ -510,13 +513,25 @@ class XFitLLSGUI(QtGui.QMainWindow):
         self.all_forest = []
         # Spectrum
         spec, spec_fil = xxgu.read_spec(ispec)
+
         # Continuum
         self.conti_dict = {'Norm': np.median(spec.flux), 'tilt': 0.,
             'piv_wv': np.median(spec.dispersion.value)}
-        self.continuum = XSpectrum1D.from_tuple((
-            spec.dispersion,np.ones(len(spec.dispersion))))
+        if zqso is not None:
+            # Read Telfer 
+            telfer = ascii.read(
+                xa_path+'/data/quasar/telfer_hst_comp01_rq.ascii', comment='#')
+            scale = telfer['flux'][(telfer['wrest'] == 1450.)]
+            tspec = XSpectrum1D.from_tuple((telfer['wrest']*(1+zqso),
+                telfer['flux']/scale[0])) # Observer frame
+            # Rebin
+            self.continuum = tspec.rebin(spec.dispersion)
+        else:
+            self.continuum = XSpectrum1D.from_tuple((
+                spec.dispersion,np.ones(len(spec.dispersion))))
         self.base_continuum = self.continuum.flux
         self.update_conti()
+
         # Full Model (LLS+continuum)
         self.full_model = XSpectrum1D.from_tuple((
             spec.dispersion,np.ones(len(spec.dispersion))))
@@ -724,7 +739,9 @@ class XFitLLSGUI(QtGui.QMainWindow):
     def on_key(self,event):
         if event.key in ['C','1','2']: # Set continuum level
             if event.key == 'C':
-                self.conti_dict['Norm'] = event.ydata
+                imin = np.argmin(np.abs(
+                    self.continuum.dispersion.value-event.xdata))
+                self.conti_dict['Norm'] = event.ydata / self.base_continuum[imin]
             elif event.key == '1':
                 self.conti_dict['tilt'] += 0.1
             elif event.key == '2':
@@ -1072,6 +1089,7 @@ def run_fitlls(*args, **kwargs):
     parser.add_argument("-out_file", type=str, help="Output LLS Fit file")
     parser.add_argument("-smooth", type=float, help="Smoothing (pixels)")
     parser.add_argument("-lls_fit_file", type=str, help="Input LLS Fit file")
+    parser.add_argument("-zqso", type=float, help="Use Telfer template with zqso")
 
     if len(args) == 0:
         pargs = parser.parse_args()
@@ -1103,10 +1121,16 @@ def run_fitlls(*args, **kwargs):
         smooth = pargs.smooth
     except AttributeError:
         smooth=3.
+
+    # Smoothing parameter
+    try:
+        zqso = pargs.zqso
+    except AttributeError:
+        zqso=None
     
     app = QtGui.QApplication(sys.argv)
     gui = XFitLLSGUI(pargs.in_file,outfil=outfil,smooth=smooth,
-        lls_fit_file=lls_fit_file)
+        lls_fit_file=lls_fit_file, zqso=zqso)
     gui.show()
     app.exec_()
 
