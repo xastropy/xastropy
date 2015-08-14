@@ -49,7 +49,7 @@ def galaxy_attrib():
 ########################## ##########################
 ########################## ##########################
 def grab_sdss_spectra(radec, radius=0.1*u.deg, outfil=None,
-    debug=False, maxsep=None, timeout=600.):
+    debug=False, maxsep=None, timeout=600., zmin=None):
     """ Grab SDSS spectra
     radec: tuple
       RA, DEC in deg
@@ -61,6 +61,8 @@ def grab_sdss_spectra(radec, radius=0.1*u.deg, outfil=None,
       Name of output file for FITS table
     maxsep: float (None) :: Mpc
       Maximum separation to include 
+    zmin: float (None) 
+      Minimum redshift to include
 
     JXP on 01 Jan 2015
     """
@@ -182,10 +184,12 @@ def grab_sdss_spectra(radec, radius=0.1*u.deg, outfil=None,
         tbl[idx].SDSS_MAG = np.array( [obj[phot] for phot in mags])
         tbl[idx].SDSS_MAGERR = np.array( [obj[phot] for phot in magsErr])
 
-    # Could clip on redshift to excise stars/quasars
+    # Clip on redshift to excise stars/quasars
+    if zmin is not None:
+        gd = np.where(tbl['Z'] > zmin)[0]
+        tbl = tbl[gd]
 
     # Write to FITS file
-                
     if outfil is not None:
         prihdr = fits.Header()
         prihdr['COMMENT'] = 'SDSS Spectra'
