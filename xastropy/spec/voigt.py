@@ -69,12 +69,11 @@ def voigt_model(spec, line, Npix=None, flg_ret=1):
 
     Parameters:
     ------------
-        spec: wave array or Spectrum
-        line: Abs_Line, List of Abs_line, or array of parameters
-        flg_ret : int (1)  Byte-wise Flag for return
-          1: vmodel
-          2: tau
-
+    spec: wave array or Spectrum
+    line: AbsLine, List of Absline, or array of parameters
+    flg_ret : int (1)  Byte-wise Flag for return
+      1: vmodel
+      2: tau
     ToDo:
         1.  May need to more finely sample the wavelength array
 
@@ -82,9 +81,11 @@ def voigt_model(spec, line, Npix=None, flg_ret=1):
     """
     # Imports
     import copy
+    from specutils.spectrum1d import Spectrum1D
     from linetools.spectra.xspectrum1d import XSpectrum1D
     from linetools.spectralline import AbsLine
     from astropy.nddata import StdDevUncertainty
+    import warnings
 
     # Spectrum input
     if isinstance(spec,np.ndarray):  # Standard wavelength array
@@ -117,13 +118,14 @@ def voigt_model(spec, line, Npix=None, flg_ret=1):
 
     # tau
     if 'tau' not in locals():
-        #xdb.set_trace()
         cold = 10.0**par[0] / u.cm / u.cm
         zp1=par[1]+1.0
 
         wv=par[3].to(u.cm) #*1.0e-8
         nujk = (const.c / wv).to(u.Hz)
         dnu = (par[2].to(u.km/u.s) / wv).to('Hz')
+        if par[5].value == 0.:
+        	warnings.warn('Gamma value is probably not set for wrest={:g}!'.format(par[3]))
         avoigt = (par[5]/( 4 * np.pi * dnu)).to(u.dimensionless_unscaled)
 
         uvoigt = ( ((const.c / (vmodel.dispersion/zp1)) - nujk) / dnu).to(u.dimensionless_unscaled)
@@ -140,8 +142,8 @@ def voigt_model(spec, line, Npix=None, flg_ret=1):
         '''
 
         # Voigt
-        cne = 0.01497 * cold * par[4] * u.cm * u.cm * u.Hz
-        tau = cne * voigtking(uvoigt,avoigt) / (np.sqrt(np.pi) * dnu)
+        cne = 0.014971475 * cold * par[4] * u.cm * u.cm * u.Hz
+        tau = cne * voigtking(uvoigt,avoigt) / dnu #(np.sqrt(np.pi) * dnu)
 
     # Flux
     if vmodel.unit is None:
