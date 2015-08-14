@@ -38,6 +38,9 @@ def get_filename(field, ftype):
 	elif ftype == 'TARGETS':
 		path = os.getenv('CASBAH_GALAXIES')
 		filename = path+'/'+field[0]+'/'+field[0]+'_targets.ascii'
+	elif ftype == 'SDSS':
+		path = os.getenv('CASBAH_GALAXIES')
+		filename = path+'/'+field[0]+'/'+field[0]+'_SDSS.fits'
 	else:
 		raise ValueError('Not ready for this ftype: {:s}'.format(ftype))
 	# Return

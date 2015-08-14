@@ -18,7 +18,7 @@ from astropy.io import fits, ascii
 from astropy import units as u 
 from astropy.coordinates import SkyCoord
 from astropy import coordinates as coords
-#from astropy import constants as const
+from astropy import constants as const
 
 #from xastropy.galaxy.core import Galaxy
 
@@ -59,6 +59,63 @@ class IgmGalaxyField(object):
         self.targets = None
         self.galaxies = None
         self.observing = None
+
+    def calc_rhoimpact(self,obj):
+        '''Calculate impact parameter from field RA/DEC for a set of objects
+
+        Parameters:
+        -----------
+        obj: Table (could be anything that takes 'RA','DEC' and 'Z')
+          Sources for calculation
+
+        Returns:
+        -----------
+        rho: Quantity (array usually)
+          Impact parameter(s) in kpc
+        '''
+        # Coord
+        o_coord = SkyCoord(ra=obj['RA']*u.deg, dec=obj['DEC']*u.deg)
+        ang_sep = o_coord.separation(self.coord).to('arcmin')
+        # Cosmology
+        kpc_amin = self.cosmo.kpc_comoving_per_arcmin(obj['Z'] ) # kpc per arcmin
+        rho = ang_sep * kpc_amin / (1+obj['Z']) # Physical
+        # Return
+        return rho
+
+    def get_associated_galaxies(self,z,R=300*u.kpc,dv_tol=500*u.km/u.s):
+        '''Return a Table of associated galaxies for a given redshift 
+        and separation
+
+        Parameters:
+        ---------------
+        z: float
+          Redshift for association (usually IGM/CGM absorber redshift)
+        R: Quantity
+          Radius of impact parameter for association [300kpc]
+        dv_tol: Quantity
+          Velocity window for association [500km/s]
+
+        Returns:
+        ---------------
+        assoc_gal: Table  
+          Table of associated galaxies (if any)
+        rho: Quantity
+          Impact parameters [kpc]
+        '''
+        # Cut on z first
+        dv_gal = const.c.to('km/s') * (self.galaxies['Z']-z)/(1+z) # Approximate
+        gdz = np.where(np.abs(dv_gal)<dv_tol)[0]
+        if len(gdz) == 0:
+            return None
+        #
+        gdz_gal = self.galaxies[gdz]
+        rho = self.calc_rhoimpact(gdz_gal) # Could add this to Table
+        #
+        gd_rho = np.where(rho < R)[0]
+        if len(gd_rho)==0:
+            return None
+        # Return
+        return gdz_gal[gd_rho], rho[gd_rho]
 
     def get_observed(self,theta,subtab=None):
         '''Generate a Table of observed targets within an angular offset

@@ -58,5 +58,12 @@ def load_field(field):
 		format='ascii.fixed_width', 
 		fill_values=[('--','0','DATE_OBS','TEXP')])
 
+	# Load galaxies
+	sdss_file = xcasbahu.get_filename(field,'SDSS')
+	sdss_tab = Table.read(sdss_file)
+	# VSTACK
+
+	lfield.galaxies = sdss_tab
+
 	# Return
 	return lfield

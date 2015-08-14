@@ -39,11 +39,11 @@ def build_sdss(radius=2.0*u.deg):
 		if not os.path.exists(field[0]):
 			os.makedirs(field[0])
 	    # Grab SDSS data + write to folder
-		outfil = field[0]+'/'+field[0]+'_SDSS.fits'
-		print('CASBAH_SDSS: Building {:s}'.format(outfil))
+		sdss_fil = xcasbahu.get_filename(field,'SDSS')
+		print('CASBAH_SDSS: Building {:s}'.format(sdss_fil))
 		print('CASBAH_SDSS: Be patient..')
 		xcgd.grab_sdss_spectra( (field[1],field[2]), 
-			radius=radius, outfil=outfil, maxsep=20., zmin=500./3e5)
+			radius=radius, outfil=sdss_fil, maxsep=20., zmin=500./3e5)
 	    #outfig = os.environ.get('DROPBOX_DIR')+'/CASBAH/Galaxies/SDSS/PG1407+265_SDSS.pdf'
 
 def build_targets(field,path='./'):
