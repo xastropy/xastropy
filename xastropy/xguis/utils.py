@@ -65,6 +65,10 @@ class EditBox(QtGui.QWidget):
     def setv(self):
         self.value = unicode(self.box.text())
 
+    def set_text(self,value):
+        self.value = value
+        self.box.setText(self.box.frmt.format(self.value))
+
 
 # ##################################
 # GUI for velocity plot
@@ -206,8 +210,10 @@ def navigate(psdict,event,init=False):
 
 # ######
 # 
-def set_llist(llist,in_dict=None):
+def set_llist(llist,in_dict=None,sort=True):
     ''' Method to set a line list dict for the Widgets
+    sort: bool, optional
+      Sort lines by rest wavelength [True]
     '''
     from linetools.lists.linelist import LineList
     from astropy.units.quantity import Quantity
@@ -239,7 +245,8 @@ def set_llist(llist,in_dict=None):
         in_dict['List'] = 'input.lst'
         in_dict['Plot'] = True
         # Fill
-        llist.sort()
+        if sort:
+            llist.sort()
         llist_cls = LineList('ISM', gd_lines=llist) # May need to let ISM be a choice
         in_dict['input.lst'] = llist_cls
         '''

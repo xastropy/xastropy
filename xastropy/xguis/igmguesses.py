@@ -1,0 +1,1057 @@
+"""
+#;+ 
+#; NAME:
+#; igmguesses
+#;    Version 1.0
+#;
+#; PURPOSE:
+#;    Module for LineIDs and Initial guesses in IGM spectra with QT
+#;      Likely only useful for lowz-IGM
+#;   14-Aug-2015 by JXP
+#;-
+#;------------------------------------------------------------------------------
+"""
+from __future__ import print_function, absolute_import, division, unicode_literals
+
+# Import libraries
+import numpy as np
+import os, sys, warnings, imp
+import matplotlib.pyplot as plt
+import glob
+
+from PyQt4 import QtGui
+from PyQt4 import QtCore
+
+from matplotlib import mpl
+from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar
+# Matplotlib Figure object
+from matplotlib.figure import Figure
+
+from astropy.units import Quantity
+from astropy import units as u
+from astropy.io import fits, ascii
+from astropy import constants as const
+
+from linetools.lists.linelist import LineList
+from linetools.spectra.xspectrum1d import XSpectrum1D
+from linetools.spectra import convolve as lsc
+from linetools.spectralline import AbsLine
+
+#from xastropy.atomic import ionization as xatomi
+from xastropy.plotting import utils as xputils
+from xastropy.xguis import spec_widgets as xspw
+from xastropy.xguis import utils as xxgu
+from xastropy.spec import voigt as xsv
+
+from xastropy.xutils import xdebug as xdb
+
+xa_path = imp.find_module('xastropy')[1]
+
+#class IGMGuessesGui(QtGui.QMainWindow):
+
+# GUI for fitting LLS in a spectrum
+class IGMGuessesGui(QtGui.QMainWindow):
+    ''' GUI to fit LLS in a given spectrum
+        v0.3
+        30-Jul-2015 by JXP
+    '''
+    def __init__(self, ispec, parent=None, lls_fit_file=None, 
+        srch_id=True, outfil=None, smooth=3., zqso=None):
+        QtGui.QMainWindow.__init__(self, parent)
+        '''
+        spec = Spectrum1D
+        lls_fit_file: str, optional
+          Name of the LLS fit file to input
+        smooth: float, optional
+          Number of pixels to smooth on
+        zqso: float, optional
+          Redshift of the quasar.  If input, a Telfer continuum is used
+        '''
+
+        # Build a widget combining several others
+        self.main_widget = QtGui.QWidget()
+
+        # Status bar
+        self.create_status_bar()
+
+        # Initialize
+        if outfil is None:
+            self.outfil = 'IGM_model.json'
+        else:
+            self.outfil = outfil
+        # Spectrum
+        spec, spec_fil = xxgu.read_spec(ispec)
+
+        # Full Model (LLS+continuum)
+        self.model = XSpectrum1D.from_tuple((
+            spec.dispersion,np.ones(len(spec.dispersion))))
+
+        # LineList
+        self.llist = xxgu.set_llist(['HI 1215', 'HI 1025'],sort=False)
+        #QtCore.pyqtRemoveInputHook()
+        #xdb.set_trace()
+        #QtCore.pyqtRestoreInputHook()
+        #self.llist = xxgu.set_llist('Strong') 
+        z=4.14056
+        self.llist['z'] = z
+
+        # Grab the pieces and tie together
+        self.fiddle_widg = FiddleComponentWidget(parent=self)
+        self.comps_widg = ComponentListWidget([],
+            linelist=self.llist[self.llist['List']])
+        self.velplot_widg = IGGVelPlotWidget(spec, z, 
+            parent=self, llist=self.llist)
+        #self.velplot_widg.clist = self.comps_widg 
+
+        # Outfil
+        wbtn = QtGui.QPushButton('Write', self)
+        wbtn.setAutoDefault(False)
+        wbtn.clicked.connect(self.write_out)
+
+        # Quit
+        buttons = QtGui.QWidget()
+        wqbtn = QtGui.QPushButton('Write\n Quit', self)
+        wqbtn.setAutoDefault(False)
+        wqbtn.clicked.connect(self.write_quit)
+        qbtn = QtGui.QPushButton('Quit', self)
+        qbtn.setAutoDefault(False)
+        qbtn.clicked.connect(self.quit)
+
+        # Connections (buttons are above)
+        #self.spec_widg.canvas.mpl_connect('key_press_event', self.on_key)
+        #self.abssys_widg.abslist_widget.itemSelectionChanged.connect(
+        #    self.on_list_change)
+
+        # Layout
+        anly_widg = QtGui.QWidget()
+        anly_widg.setMaximumWidth(400)
+        anly_widg.setMinimumWidth(250)
+
+        # Write/Quit buttons
+        hbox1 = QtGui.QHBoxLayout()
+        hbox1.addWidget(wbtn)
+        hbox1.addWidget(wqbtn)
+        hbox1.addWidget(qbtn)
+        buttons.setLayout(hbox1)
+ 
+        vbox = QtGui.QVBoxLayout()
+        vbox.addWidget(self.fiddle_widg)
+        vbox.addWidget(self.comps_widg)
+        vbox.addWidget(buttons)
+        anly_widg.setLayout(vbox)
+        
+        hbox = QtGui.QHBoxLayout()
+        hbox.addWidget(self.velplot_widg)
+        hbox.addWidget(anly_widg)
+
+        self.main_widget.setLayout(hbox)
+
+        # Point MainWindow
+        self.setCentralWidget(self.main_widget)
+
+    def on_list_change(self):
+        self.update_boxes()
+
+    def create_status_bar(self):
+        self.status_text = QtGui.QLabel("IGMGuessesGui")
+        self.statusBar().addWidget(self.status_text, 1)
+
+    def updated_component(self):
+        '''Component was updated. Deal with it'''
+        self.velplot_widg.update_model()
+        self.velplot_widg.on_draw()
+
+    def on_key(self,event):
+        if event.key in ['C','1','2']: # Set continuum level
+            if event.key == 'C':
+                imin = np.argmin(np.abs(
+                    self.continuum.dispersion.value-event.xdata))
+                self.conti_dict['Norm'] = event.ydata / self.base_continuum[imin]
+            elif event.key == '1':
+                self.conti_dict['tilt'] += 0.1
+            elif event.key == '2':
+                self.conti_dict['tilt'] -= 0.1
+            self.update_conti()
+        elif event.key == 'A': # New LLS
+            # Generate
+            z = event.xdata/911.7633 - 1.
+            self.add_LLS(z)
+            # Update
+            self.llist['Plot'] = False # Turn off metal-lines
+            self.update_model()
+        elif event.key in ['L','a','N','n','v','V','D','@']: # LLS-centric
+            idx = self.get_sngl_sel_sys()
+            if idx is None:
+                return
+            if event.key == 'L': #LLS
+                self.abssys_widg.all_abssys[idx].zabs = event.xdata/911.7633 - 1.
+            elif event.key == 'a': #Lya
+                self.abssys_widg.all_abssys[idx].zabs = event.xdata/1215.6700-1.
+            elif event.key == 'N': #Add to NHI
+                self.abssys_widg.all_abssys[idx].NHI += 0.05
+            elif event.key == 'n': #Subtract from NHI
+                self.abssys_widg.all_abssys[idx].NHI -= 0.05
+            elif event.key == 'v': #Subtract from bval
+                self.abssys_widg.all_abssys[idx].bval -= 2*u.km/u.s
+            elif event.key == 'V': #Add to bval
+                self.abssys_widg.all_abssys[idx].bval += 2*u.km/u.s
+            elif event.key == 'D': # Delete system
+                self.abssys_widg.remove_item(idx)
+                idx = None
+            elif event.key == '@': # Toggle metal-lines
+                self.llist['Plot'] = not self.llist['Plot']
+                #QtCore.pyqtRemoveInputHook()
+                #xdb.set_trace()
+                #QtCore.pyqtRestoreInputHook()
+            else:
+                raise ValueError('Not ready for this keystroke')
+            # Update the lines 
+            if idx is not None:
+                self.llist['z'] = self.abssys_widg.all_abssys[idx].zabs
+                for iline in self.abssys_widg.all_abssys[idx].lls_lines:
+                    iline.attrib['z'] = self.abssys_widg.all_abssys[idx].zabs 
+                    iline.attrib['N'] = self.abssys_widg.all_abssys[idx].NHI
+                    iline.attrib['b'] = self.abssys_widg.all_abssys[idx].bval
+            # Update the model
+            self.update_model()
+        elif event.key in ['6','7','8','9']: # Add forest line
+            self.add_forest(event.key,event.xdata/1215.6701 - 1.)
+            self.update_model()
+        else:
+            self.spec_widg.on_key(event)
+
+        # Draw by default
+        self.update_boxes()
+        self.draw()
+
+    def draw(self):
+        self.spec_widg.on_draw(no_draw=True)
+        # Add text?
+        for kk,lls in enumerate(self.abssys_widg.all_abssys):
+            # Label
+            ipos = self.abssys_widg.all_items[kk].rfind('_')
+            lbl = self.abssys_widg.all_items[kk][ipos+1:]
+            # Add text
+            wvLLS = (1+lls.zabs)*911.7
+            wvLya = (1+lls.zabs)*1215.6700
+            idx = np.argmin(np.abs(self.continuum.dispersion-wvLLS*u.AA))
+            self.spec_widg.ax.text(wvLLS, self.continuum.flux[idx],
+                '{:s}'.format(lbl), ha='center', color='blue', size='small')
+            self.spec_widg.ax.text(wvLya, self.continuum.flux[idx],
+                '{:s}'.format(lbl), ha='center', color='blue', size='small')
+        # Draw
+        self.spec_widg.canvas.draw()
+
+    def add_forest(self,inp,z):
+        '''Add a Lya/Lyb forest line
+        '''
+        from xastropy.igm.abs_sys.abssys_utils import GenericAbsSystem
+        forest = GenericAbsSystem(zabs=z)
+        # NHI
+        NHI_dict = {'6':12.,'7':13.,'8':14.,'9':15.}
+        forest.NHI=NHI_dict[inp]
+        # Lines
+        for name in ['HI 1215','HI 1025', 'HI 972']:
+            aline = AbsLine(name,
+                linelist=self.llist[self.llist['List']])
+            # Attributes
+            aline.attrib['N'] = forest.NHI
+            aline.attrib['b'] = 20.*u.km/u.s
+            aline.attrib['z'] = forest.zabs
+            # Append
+            forest.lines.append(aline)
+        # Append to forest lines
+        self.all_forest.append(forest)
+
+    def add_LLS(self,z,NHI=17.3,bval=20.*u.km/u.s):
+        '''Generate a new LLS
+        '''
+        #
+        new_sys = LLSSystem(NHI=NHI)
+        new_sys.zabs = z
+        new_sys.bval = bval # This is not standard, but for convenience
+        new_sys.fill_lls_lines(bval=bval)
+        # Name
+        self.count_lls += 1
+        new_sys.label = 'LLS_Sys_{:d}'.format(self.count_lls)
+        # Add
+        self.abssys_widg.add_fil(new_sys.label)
+        self.abssys_widg.all_abssys.append(new_sys)
+        self.abssys_widg.abslist_widget.item(
+            len(self.abssys_widg.all_abssys)).setSelected(True)
+
+    def refine_abssys(self):
+        item = self.abssys_widg.abslist_widget.selectedItems()
+        if len(item) != 1:
+            self.statusBar().showMessage('AbsSys: Must select only 1 system!')
+            print('AbsSys: Must select only 1 system!')
+        txt = item[0].text()
+        ii = self.abssys_widg.all_items.index(txt)
+        iabs_sys = self.abssys_widg.all_abssys[ii]
+        # Launch
+        gui = XVelPltGui(self.spec_widg.spec, outfil=iabs_sys.absid_file,
+                               abs_sys=iabs_sys, norm=self.spec_widg.norm)
+        gui.exec_()
+
+    # Read from a JSON file
+    def init_LLS(self,fit_file):
+        import json
+        # Read the JSON file
+        with open(fit_file) as data_file:    
+            lls_dict = json.load(data_file)
+        # Init
+        self.conti_dict = lls_dict['conti']
+        self.update_conti()
+        # Check spectra names
+        if self.spec_widg.spec.filename != lls_dict['spec_file']:
+            warnings.warn('Spec file names do not match!')
+        # LLS
+        for key in lls_dict['LLS'].keys():
+            #QtCore.pyqtRemoveInputHook()
+            #xdb.set_trace()
+            #QtCore.pyqtRestoreInputHook()
+            self.add_LLS(lls_dict['LLS'][key]['z'],
+                NHI=lls_dict['LLS'][key]['NHI'],
+                bval=lls_dict['LLS'][key]['bval']*u.km/u.s)
+        self.smooth = lls_dict['smooth']
+        # Updates
+        self.update_boxes()
+        self.update_model()
+
+    # Write
+    def write_out(self):
+        import json, io
+        # Create dict
+        out_dict = dict(LLS={},conti=self.conti_dict,
+            spec_file=self.spec_widg.spec.filename,smooth=self.smooth)
+        # Load
+        for kk,lls in enumerate(self.abssys_widg.all_abssys):
+            key = '{:d}'.format(kk+1)
+            out_dict['LLS'][key] = {}
+            out_dict['LLS'][key]['z'] = lls.zabs
+            out_dict['LLS'][key]['NHI'] = lls.NHI
+            out_dict['LLS'][key]['bval'] = lls.lls_lines[0].attrib['b'].value
+        # Write
+        with io.open(self.outfil, 'w', encoding='utf-8') as f:
+            f.write(unicode(json.dumps(out_dict, sort_keys=True, indent=4, 
+                separators=(',', ': '))))
+
+    # Write + Quit
+    def write_quit(self):
+        self.write_out()
+        self.quit()
+
+    # Quit
+    def quit(self):
+        self.close()
+
+ ######################
+class IGGVelPlotWidget(QtGui.QWidget):
+    ''' Widget for a velocity plot with interaction.
+          Adapted from VelPlotWidget in spec_guis
+        14-Aug-2015 by JXP
+    '''
+    def __init__(self, ispec, z, parent=None, llist=None, norm=True,
+                 vmnx=[-300., 300.]*u.km/u.s, fwhm=0.):
+        '''
+        spec = Spectrum1D
+        Norm: Bool (False)
+          Normalized spectrum?
+        abs_sys: AbsSystem
+          Absorption system class
+        '''
+        super(IGGVelPlotWidget, self).__init__(parent)
+
+        # Initialize
+        self.parent = parent
+        spec, spec_fil = xxgu.read_spec(ispec)
+        
+        self.spec = spec
+        self.spec_fil = spec_fil
+        self.fwhm = fwhm
+        self.z = z
+        self.vmnx = vmnx
+        self.norm = norm
+        # Init
+        self.flag_add = False
+        self.wrest = 0.
+        self.avmnx = np.array([0.,0.])*u.km/u.s
+        self.model = XSpectrum1D.from_tuple((
+            spec.dispersion,np.ones(len(spec.dispersion))))
+
+        self.psdict = {} # Dict for spectra plotting
+        self.psdict['xmnx'] = self.vmnx.value # Too much pain to use units with this
+        self.psdict['ymnx'] = [-0.1, 1.1]
+        self.psdict['nav'] = xxgu.navigate(0,0,init=True)
+
+        # Status Bar?
+        #if not status is None:
+        #    self.statusBar = status
+
+        # Line List
+        if llist is None:
+            self.llist = xxgu.set_llist(['HI 1215', 'HI 1025'])
+        else:
+            self.llist = llist
+        self.llist['z'] = self.z
+
+        # Indexing for line plotting
+        self.idx_line = 0
+
+        self.init_lines()
+        
+        # Create the mpl Figure and FigCanvas objects. 
+        #
+        self.dpi = 150
+        self.fig = Figure((8.0, 4.0), dpi=self.dpi)
+        self.canvas = FigureCanvas(self.fig)
+        self.canvas.setParent(self)
+
+        self.canvas.setFocusPolicy( QtCore.Qt.ClickFocus )
+        self.canvas.setFocus()
+        self.canvas.mpl_connect('key_press_event', self.on_key)
+        self.canvas.mpl_connect('button_press_event', self.on_click)
+
+        # Sub_plots
+        self.sub_xy = [3,4]
+
+        self.fig.subplots_adjust(hspace=0.0, wspace=0.1)
+        
+        vbox = QtGui.QVBoxLayout()
+        vbox.addWidget(self.canvas)
+        
+        self.setLayout(vbox)
+
+        # Draw on init
+        self.on_draw()
+
+    # Load them up for display
+    def init_lines(self):
+        wvmin = np.min(self.spec.dispersion)
+        wvmax = np.max(self.spec.dispersion)
+        #
+        #QtCore.pyqtRemoveInputHook()
+        #xdb.set_trace()
+        #QtCore.pyqtRestoreInputHook()
+        wrest = self.llist[self.llist['List']].wrest
+        wvobs = (1+self.z) * wrest
+        gdlin = np.where( (wvobs > wvmin) & (wvobs < wvmax) )[0]
+        self.llist['show_line'] = gdlin
+
+    # Add a component
+    def update_model(self):
+        if self.parent is None:
+            return
+        all_comp = self.parent.comps_widg.selected_components()
+        if len(all_comp) == 0:
+            return
+        # Setup lines
+        wvmin = np.min(self.spec.dispersion)
+        wvmax = np.max(self.spec.dispersion)
+        gdlin = []
+        for comp in all_comp:
+            for line in comp.lines:
+                wvobs = (1+line.attrib['z'])*line.wrest 
+                if (wvobs>wvmin) & (wvobs<wvmax):
+                    gdlin.append(line)
+        # Voigt
+        self.model = xsv.voigt_model(self.spec.dispersion,gdlin,
+            fwhm=self.fwhm)#,debug=True)
+        #QtCore.pyqtRemoveInputHook()
+        #xdb.set_trace()
+        #QtCore.pyqtRestoreInputHook()
+
+    # Add a component
+    def add_component(self,wrest):
+        '''Generate a component and fit with Gaussian'''
+        #
+        from astropy.modeling import fitting
+
+        # Center z and reset vmin/vmax
+        zmin,zmax = self.z + (1+self.z)*(self.avmnx.value/3e5)
+        vlim = self.avmnx - (self.avmnx[1]+self.avmnx[0])/2.
+        #QtCore.pyqtRemoveInputHook()
+        #xdb.set_trace()
+        #QtCore.pyqtRestoreInputHook()
+        new_comp = Component((zmin+zmax)/2.,wrest,vlim=vlim,
+            linelist=self.llist[self.llist['List']]) 
+
+        # Fit line
+        fit_line = AbsLine(wrest,linelist=self.llist[self.llist['List']])
+        fit_line.analy['vlim'] = vlim
+        fit_line.analy['spec'] = self.spec
+        fit_line.attrib['z'] = new_comp.zcomp
+        fit_line.measure_aodm()
+        # Guesses
+        fmin = np.argmin(self.spec.flux[fit_line.analy['pix']])
+        zguess = self.spec.dispersion[fit_line.analy['pix'][fmin]]/wrest - 1.
+        bguess = (self.avmnx[1]-self.avmnx[0])/2.
+        Nguess = fit_line.attrib['logN']
+        # Fit
+        fitvoigt = xsv.single_voigt_model(logN=Nguess,b=bguess.value,
+                                z=zguess, wrest=wrest.value,
+                                gamma=fit_line.data['gamma'].value, 
+                                f=fit_line.data['f'], fwhm=self.fwhm)
+        fitter = fitting.LevMarLSQFitter()
+        parm = fitter(fitvoigt,self.spec.dispersion[fit_line.analy['pix']],
+            self.spec.flux[fit_line.analy['pix']].value)
+        # Save and sync
+        new_comp.attrib['N'] = parm.logN.value
+        new_comp.attrib['z'] = parm.z.value
+        new_comp.attrib['b'] = parm.b.value * u.km/u.s
+        new_comp.sync_lines()
+
+        # Add to component list and Fiddle
+        if self.parent is not None:
+            self.parent.comps_widg.add_component(new_comp)
+            self.parent.fiddle_widg.init_component(new_comp)
+
+        # Update model
+        self.current_comp = new_comp
+        self.update_model()
+
+        # Update model and plot
+        #QtCore.pyqtRemoveInputHook()
+        #xdb.set_trace()
+        #QtCore.pyqtRestoreInputHook()
+            #,weights=1./(np.ones(len(wave))*0.1))
+
+    # Key stroke 
+    def on_key(self,event):
+
+        # Init
+        rescale = True
+        fig_clear = False
+        wrest = None
+        flg = 1
+        sv_idx = self.idx_line
+
+        ## Change rows/columns
+        if event.key == 'k':
+            self.sub_xy[0] = max(0, self.sub_xy[0]-1)
+        if event.key == 'K':
+            self.sub_xy[0] = self.sub_xy[0]+1
+        if event.key == 'c':
+            self.sub_xy[1] = max(0, self.sub_xy[1]-1)
+        if event.key == 'C':
+            self.sub_xy[1] = max(0, self.sub_xy[1]+1)
+
+        ## NAVIGATING
+        if event.key in self.psdict['nav']: 
+            flg = xxgu.navigate(self.psdict,event)
+        if event.key == '-':
+            self.idx_line = max(0, self.idx_line-self.sub_xy[0]*self.sub_xy[1]) # Min=0
+            if self.idx_line == sv_idx:
+                print('Edge of list')
+        if event.key == '=':
+            self.idx_line = min(len(self.llist['show_line'])-self.sub_xy[0]*self.sub_xy[1],
+                                self.idx_line + self.sub_xy[0]*self.sub_xy[1]) 
+            if self.idx_line == sv_idx:
+                print('Edge of list')
+
+        # Find line
+        try:
+            wrest = event.inaxes.get_gid()
+        except AttributeError:
+            return
+        else:
+            pass
+            #absline = self.abs_sys.grab_line((self.z,wrest))
+            #kwrest = wrest.value
+
+        ## Reset z
+        if event.key == 'z': 
+            from astropy.relativity import velocities
+            newz = velocities.z_from_v(self.z, event.xdata)
+            self.z = newz
+            self.abs_sys.zabs = newz
+            # Drawing
+            self.psdict['xmnx'] = self.vmnx.value
+
+        ## Velocity limits
+        unit = u.km/u.s
+        if event.key in ['1','2']:
+            if event.key == '1': 
+                self.vmin = event.xdata*unit
+            if event.key == '2': 
+                #QtCore.pyqtRemoveInputHook()
+                #xdb.set_trace()
+                #QtCore.pyqtRestoreInputHook()
+                absline.analy['vlim'][1] = event.xdata*unit
+            self.update_component()
+
+        ## Add component
+        if event.key == 'A': # Add to lines
+            if self.flag_add is False:
+                self.vtmp = event.xdata
+                self.flag_add = True
+                self.wrest = wrest
+            else:
+                self.avmnx = np.array([np.minimum(self.vtmp,event.xdata), 
+                    np.maximum(self.vtmp,event.xdata)])*unit
+                self.add_component(wrest)
+                # Reset
+                self.flag_add = False
+                self.wrest = 0.
+        if event.key == 'x': # Remove line
+            if self.abs_sys.remove_line((self.z,wrest)): 
+                print('VelPlot: Removed line {:g}'.format(wrest))
+            
+        # AODM plot
+        if event.key == ':':  # 
+            # Grab good lines
+            from xastropy.xguis import spec_guis as xsgui
+            gdl = [iline.wrest for iline in self.abs_sys.lines 
+                if iline.analy['do_analysis'] > 0]
+            # Launch AODM
+            if len(gdl) > 0:
+                gui = xsgui.XAODMGui(self.spec, self.z, gdl, vmnx=self.vmnx, norm=self.norm)
+                gui.exec_()
+            else:
+                print('VelPlot.AODM: No good lines to plot')
+
+            #QtCore.pyqtRemoveInputHook()
+            #xdb.set_trace()
+            #QtCore.pyqtRestoreInputHook()
+
+        #if wrest is not None: # Single window
+        #    flg = 3
+        if event.key in ['c','C','k','K','W','!', '@', '=', '-', 'X', 'z','R']: # Redraw all
+            flg = 1 
+        if event.key in ['Y']:
+            rescale = False
+        if event.key in ['k','c','C','K', 'R']:
+            fig_clear = True
+
+        if flg==1: # Default is to redraw
+            self.on_draw(rescale=rescale, fig_clear=fig_clear)
+        elif flg==2: # Layer (no clear)
+            self.on_draw(replot=False, rescale=rescale) 
+        elif flg==3: # Layer (no clear)
+            self.on_draw(in_wrest=wrest, rescale=rescale)
+
+    # Click of main mouse button
+    def on_click(self,event):
+        try:
+            print('button={:d}, x={:f}, y={:f}, xdata={:f}, ydata={:f}'.format(
+                event.button, event.x, event.y, event.xdata, event.ydata))
+        except ValueError:
+            return
+        if event.button == 1: # Draw line
+            self.ax.plot( [event.xdata,event.xdata], self.psdict['ymnx'], ':', color='green')
+            self.on_draw(replot=False) 
+    
+            # Print values
+            try:
+                self.statusBar().showMessage('x,y = {:f}, {:f}'.format(event.xdata,event.ydata))
+            except AttributeError:
+                return
+
+    def on_draw(self, replot=True, in_wrest=None, rescale=True, fig_clear=False):
+        """ Redraws the figure
+        """
+        #
+        if replot is True:
+            if fig_clear:
+                self.fig.clf()
+            # Loop on windows
+            all_idx = self.llist['show_line']
+            nplt = self.sub_xy[0]*self.sub_xy[1]
+            if len(all_idx) <= nplt:
+                self.idx_line = 0
+            subp = np.arange(nplt) + 1
+            subp_idx = np.hstack(subp.reshape(self.sub_xy[0],self.sub_xy[1]).T)
+            #print('idx_l={:d}, nplt={:d}, lall={:d}'.format(self.idx_line,nplt,len(all_idx)))
+            for jj in range(min(nplt, len(all_idx))):
+                try:
+                    idx = all_idx[jj+self.idx_line]
+                except IndexError:
+                    continue # Likely too few lines
+                #print('jj={:d}, idx={:d}'.format(jj,idx))
+                # Grab line
+                wrest = self.llist[self.llist['List']].wrest[idx] 
+                kwrest = wrest.value # For the Dict
+                # Single window?
+                #if in_wrest is not None:
+                #    if np.abs(wrest-in_wrest) > (1e-3*u.AA):
+                #        continue
+                # Generate plot
+                self.ax = self.fig.add_subplot(self.sub_xy[0],self.sub_xy[1], subp_idx[jj])
+                self.ax.clear()        
+                #QtCore.pyqtRemoveInputHook()
+                #xdb.set_trace()
+                #QtCore.pyqtRestoreInputHook()
+
+                # Zero line
+                self.ax.plot( [0., 0.], [-1e9, 1e9], ':', color='gray')
+                # Velocity
+                wvobs = (1+self.z) * wrest
+                velo = (self.spec.dispersion/wvobs - 1.)*const.c.to('km/s')
+                
+                # Plot
+                self.ax.plot(velo, self.spec.flux, 'k-',drawstyle='steps-mid')
+
+                # Model
+                self.ax.plot(velo, self.model.flux, 'b-')
+                # GID for referencing
+                self.ax.set_gid(wrest)
+                # Labels
+                #if jj >= (self.sub_xy[0]-1)*(self.sub_xy[1]):
+                if (((jj+1) % self.sub_xy[0]) == 0) or ((jj+1) == len(all_idx)):
+                    self.ax.set_xlabel('Relative Velocity (km/s)')
+                else:
+                    self.ax.get_xaxis().set_ticks([])
+                #if ((jj+1) // 2 == 0) & (jj < self.sub_xy[0]):
+                #    self.ax.set_ylabel('Relative Flux')
+                lbl = self.llist[self.llist['List']].name[idx]
+                self.ax.text(0.05, 0.90, lbl, color='blue', transform=self.ax.transAxes,
+                             size='x-small', ha='left')
+
+                # Reset window limits
+                #QtCore.pyqtRemoveInputHook()
+                #xdb.set_trace()
+                #QtCore.pyqtRestoreInputHook()
+                self.ax.set_ylim(self.psdict['ymnx'])
+                self.ax.set_xlim(self.psdict['xmnx'])
+
+                # Add line?
+                if self.wrest == wrest:
+                    self.ax.plot([self.vtmp]*2,self.psdict['ymnx'], '--',
+                        color='red')
+
+                # Rescale?
+                '''
+                if (rescale is True) & (self.norm is False):
+                    gdp = np.where( (velo.value > self.psdict['xmnx'][0]) &
+                                    (velo.value < self.psdict['xmnx'][1]))[0]
+                    if len(gdp) > 5:
+                        per = xstats.basic.perc(self.spec.flux[gdp])
+                        self.ax.set_ylim((0., 1.1*per[1]))
+                    else:
+                        self.ax.set_ylim(self.psdict['ymnx'])
+                else:
+                    self.ax.set_ylim(self.psdict['ymnx'])
+                '''
+
+                # Fonts
+                xputils.set_fontsize(self.ax,6.)
+        # Draw
+        self.canvas.draw()
+
+class FiddleComponentWidget(QtGui.QWidget):
+    ''' Widget to fiddle with a given component
+
+    '''
+    def __init__(self, component=None, parent=None):
+        '''
+        '''
+        super(FiddleComponentWidget, self).__init__(parent)
+
+        #if not status is None:
+        #    self.statusBar = status
+        self.label = QtGui.QLabel('Component:')
+        self.zwidget = xxgu.EditBox(-1., 'zc=', '{:0.5f}')
+        self.Nwidget = xxgu.EditBox(-1., 'Nc=', '{:0.2f}')
+        self.bwidget = xxgu.EditBox(-1., 'bc=', '{:0.1f}')
+
+        # Init further
+        if component is not None:
+            self.init_component(component)
+        else:
+            self.component = component
+
+        # Connect
+        self.connect(self.Nwidget.box, 
+            QtCore.SIGNAL('editingFinished ()'), self.setbzN)
+        self.connect(self.zwidget.box, 
+            QtCore.SIGNAL('editingFinished ()'), self.setbzN)
+        self.connect(self.bwidget.box, 
+            QtCore.SIGNAL('editingFinished ()'), self.setbzN)
+
+        # Layout
+        zNbwidg = QtGui.QWidget()
+        hbox2 = QtGui.QHBoxLayout()
+        hbox2.addWidget(self.zwidget)
+        hbox2.addWidget(self.Nwidget)
+        hbox2.addWidget(self.bwidget)
+        zNbwidg.setLayout(hbox2)
+
+        # Layout
+        vbox = QtGui.QVBoxLayout()
+        vbox.addWidget(self.label)
+        vbox.addWidget(zNbwidg)
+        self.setLayout(vbox)
+
+    def init_component(self,component):
+        '''Setup Widget for the input component'''
+        # Values
+        self.Nwidget.set_text(component.attrib['N'])
+        self.zwidget.set_text(component.attrib['z'])
+        self.bwidget.set_text(component.attrib['b'].value)
+        # Label
+        self.set_label()
+
+    def set_label(self):
+        '''Sets the label for the Widget'''
+        if self.component is not None:
+            self.label.setText('Component: {:s}'.format(self.component.name))            
+
+    def setbzN(self):
+        '''Set the component column density or redshift from the boxes'''
+        if self.component is None:
+            print('Need to generate a component first!')
+        else:
+            # Grab values
+            self.component.attrib['N'] = (float(self.Nwidget.box.text()))
+            self.component.attrib['z'] = (float(self.zwidget.box.text()))
+            self.component.attrib['b'] = (float(self.bwidget.box.text()))*u.km/u.s
+            # Update the lines
+            self.component.sync_lines()
+            # Update beyond
+            if self.parent is not None:
+                self.parent.updated_component()
+
+# #####
+class ComponentListWidget(QtGui.QWidget):
+    ''' Widget to organize components on a sightline
+
+    Parameters:
+    -----------
+    components: List
+      List of components
+
+    16-Dec-2014 by JXP
+    '''
+    def __init__(self, components, parent=None, 
+        only_one=False, linelist=None, no_buttons=False):
+        '''
+        only_one: bool, optional
+          Restrict to one selection at a time? [False]
+        no_buttons: bool, optional
+          Eliminate Refine/Reload buttons?
+        '''
+        super(ComponentListWidget, self).__init__(parent)
+
+        #if not status is None:
+        #    self.statusBar = status
+        self.component = components
+
+        list_label = QtGui.QLabel('Components:')
+        self.complist_widget = QtGui.QListWidget(self) 
+        self.complist_widget.setSelectionMode(QtGui.QAbstractItemView.ExtendedSelection)
+        self.complist_widget.addItem('None')
+        #self.abslist_widget.addItem('Test')
+
+        # Lists
+        self.items = []     # Selected
+        self.all_items = [] # Names
+        self.all_comp = []      # Actual components
+
+        self.complist_widget.setCurrentRow(0)
+        self.complist_widget.itemSelectionChanged.connect(self.on_list_change)
+
+        # Layout
+        vbox = QtGui.QVBoxLayout()
+        vbox.addWidget(list_label)
+        vbox.addWidget(self.complist_widget)
+        self.setLayout(vbox)
+
+    # ##
+    def on_list_change(self):
+        
+        '''
+        items = self.complist_widget.selectedItems()
+        # Empty the list
+        #self.abs_sys = []
+        if len(self.abs_sys) > 0:
+            for ii in range(len(self.abs_sys)-1,-1,-1):
+                self.abs_sys.pop(ii)
+        # Load up abs_sys (as need be)
+        new_items = []
+        for item in items:
+            txt = item.text()
+            # Dummy
+            if txt == 'None':
+                continue
+            print('Including {:s} in the list'.format(txt))
+            # Using LLS for now.  Might change to generic
+            new_items.append(txt)
+            ii = self.all_items.index(txt)
+            self.abs_sys.append(self.all_abssys[ii])
+
+        # Pass back
+        self.items = new_items
+        #QtCore.pyqtRemoveInputHook()
+        #xdb.set_trace()
+        #QtCore.pyqtRestoreInputHook()
+        '''
+    def selected_components(self):
+        items = self.complist_widget.selectedItems()
+        selc = []
+        for item in items:
+            txt = item.text()
+            if txt == 'None':
+                continue
+            ii = self.all_items.index(txt)
+            selc.append(self.all_comp[ii])
+        # Return
+        return selc
+
+    def add_component(self,component):
+        self.all_comp.append( component )
+        self.add_item(component.name)
+
+    def add_item(self,comp_name):
+        #
+        self.all_items.append(comp_name) 
+        self.complist_widget.addItem(comp_name)
+        self.complist_widget.item(len(self.all_items)).setSelected(True)
+
+    def remove_item(self,comp_name):
+        # Delete
+        idx = self.all_items.index(comp_name)
+        del self.all_items[idx]
+        del self.all_abssys[idx]
+        tmp = self.complist_widget.takeItem(idx+1) # 1 for None
+        #self.on_list_change()
+
+
+class Component(object):
+    def __init__(self, z, wrest, vlim=[-300.,300]*u.km/u.s,
+        linelist=None):
+        # Init
+        self.init_wrest = wrest
+        self.zcomp = z
+        self.vlim = vlim
+        self.attrib = {'N': 0., 'Nsig': 0., 'flagN': 0, # Column
+                       'b': 0.*u.km/u.s, 'bsig': 0.*u.km/u.s,  # Doppler
+                       'z': self.zcomp, 'zsig': 0.}
+        #
+        self.linelist = linelist
+        self.lines = []
+        self.init_lines()
+        #
+        self.name = 'z{:.5f}_{:s}'.format(
+            self.zcomp,self.lines[0].data['name'].split(' ')[0])
+        #
+    def init_lines(self):
+        '''Fill up the component lines
+        '''
+        if self.linelist is None:
+            self.linelist = LineList('Strong')
+        # Get the lines
+        #QtCore.pyqtRemoveInputHook()
+        #xdb.set_trace()
+        #QtCore.pyqtRestoreInputHook()
+        all_trans = self.linelist.all_transitions(self.init_wrest)
+        for trans in all_trans:
+            self.lines.append(AbsLine(trans['wrest'],
+                linelist=self.linelist))
+        # Sync
+        self.sync_lines()
+
+    def sync_lines(self):
+        '''Synchronize attributes of the lines
+        '''
+        for line in self.lines:
+            line.attrib['N'] = self.attrib['N']
+            line.attrib['b'] = self.attrib['b']
+            line.attrib['z'] = self.attrib['z']
+
+# Script to run XSpec from the command line or ipython
+def run_gui(*args, **kwargs):
+    '''
+    Runs the IGMGuessesGui
+
+    Command line or from Python
+    Examples:
+      1.  python ~/xastropy/xastropy/xguis/spec_guis.py 1
+      2.  spec_guis.run_fitlls(filename)
+      3.  spec_guis.run_fitlls(spec1d)
+    '''
+
+    import argparse
+    from specutils import Spectrum1D
+
+    parser = argparse.ArgumentParser(description='Parser for XFitLLSGUI')
+    parser.add_argument("flag", type=int, help="GUI flag (ignored)")
+    parser.add_argument("in_file", type=str, help="Spectral file")
+    parser.add_argument("-out_file", type=str, help="Output LLS Fit file")
+    parser.add_argument("-smooth", type=float, help="Smoothing (pixels)")
+    parser.add_argument("-lls_fit_file", type=str, help="Input LLS Fit file")
+    parser.add_argument("-zqso", type=float, help="Use Telfer template with zqso")
+
+    if len(args) == 0:
+        pargs = parser.parse_args()
+    else: # better know what you are doing!
+        if isinstance(args[0],(Spectrum1D,tuple)):
+            app = QtGui.QApplication(sys.argv)
+            gui = XFitLLSGUI(args[0], **kwargs)
+            gui.show()
+            app.exec_()
+            return
+        else: # String parsing 
+            largs = ['1'] + [iargs for iargs in args]
+            pargs = parser.parse_args(largs)
+
+    # Output file
+    try:
+        outfil = pargs.out_file
+    except AttributeError:
+        outfil=None
+
+    # Input LLS file
+    try:
+        lls_fit_file = pargs.lls_fit_file
+    except AttributeError:
+        lls_fit_file=None
+
+    # Smoothing parameter
+    try:
+        smooth = pargs.smooth
+    except AttributeError:
+        smooth=3.
+
+    # Smoothing parameter
+    try:
+        zqso = pargs.zqso
+    except AttributeError:
+        zqso=None
+    
+    app = QtGui.QApplication(sys.argv)
+    gui = XFitLLSGUI(pargs.in_file,outfil=outfil,smooth=smooth,
+        lls_fit_file=lls_fit_file, zqso=zqso)
+    gui.show()
+    app.exec_()
+
+# ################
+if __name__ == "__main__":
+    import sys
+    from linetools.spectra import io as lsi
+    from xastropy.igm import abs_sys as xiabs
+
+    if len(sys.argv) == 1: # TESTING
+
+        flg_fig = 0 
+        flg_fig += 2**0  # Fit LLS GUI
+    
+        # LLS
+        if (flg_fig % 2**1) >= 2**0:
+            spec_fil = '/Users/xavier/Keck/ESI/RedData/PSS0133+0400/PSS0133+0400_f.fits'
+            # Launch
+            spec = lsi.readspec(spec_fil)
+            app = QtGui.QApplication(sys.argv)
+            app.setApplicationName('IGMGuesses')
+            main = IGMGuessesGui(spec) 
+            main.show()
+            sys.exit(app.exec_())
+
+    else: # RUN A GUI
+        id_gui = int(sys.argv[1])  # 1 = XSpec, 2=XAbsId
+
+        if id_gui == 1:
+            run_gui()
+        else:
+            raise ValueError('Unsupported flag for spec_guis')
+            
