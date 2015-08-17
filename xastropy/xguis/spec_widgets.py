@@ -672,6 +672,8 @@ class SelectedLinesWidget(QtGui.QWidget):
     ''' Widget to show and enable lines to be selected
     inp: LineList
       Input LineList
+    init_select: str or list of indices
+      str: 'All'
 
     24-Dec-2014 by JXP
     '''
@@ -679,6 +681,8 @@ class SelectedLinesWidget(QtGui.QWidget):
         '''
         '''
         super(SelectedLinesWidget, self).__init__(parent)
+
+        self.parent=parent
 
         # Line list Table
         if isinstance(inp,LineList):
@@ -703,6 +707,11 @@ class SelectedLinesWidget(QtGui.QWidget):
         # Initial selection
         if init_select is None:
             self.selected = [0]
+        elif init_select == 'All':
+            self.selected = []
+            for ii in range(self.lines_widget.count()):
+                self.lines_widget.item(ii).setSelected(True)
+                self.selected.append(ii)
         else:
             self.selected = init_select
             if len(self.selected) == 0:
@@ -748,6 +757,8 @@ class SelectedLinesWidget(QtGui.QWidget):
         try:
             self.plot_widget.llist['show_line'] = self.selected
         except AttributeError:
+            if self.parent is not None:
+                self.parent.updated_slines(self.selected)
             return
         else:
             self.plot_widget.on_draw()
