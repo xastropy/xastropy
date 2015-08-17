@@ -76,9 +76,9 @@ class IGMGuessesGui(QtGui.QMainWindow):
             # 5. Recenter on 'z'
         # 6. Add COS LSF
         # 7. Refit component key 'F'
-        # 8. Plot only marked components
+            # 8. Plot only selected components
         # 9. Avoid shifting z of component outside its velocity range
-        # 10. Write Component vlim to JSON
+            # 10. Write Component vlim to JSON
         # 11. Key to set line as some other transition (e.g. RMB in XSpec)
         # 12. Mask array with line width
         # 13. Toggle line ID names
@@ -111,7 +111,7 @@ class IGMGuessesGui(QtGui.QMainWindow):
 
         # Grab the pieces and tie together
         self.fiddle_widg = FiddleComponentWidget(parent=self)
-        self.comps_widg = ComponentListWidget([],
+        self.comps_widg = ComponentListWidget([], parent=self,
             linelist=self.llist[self.llist['List']])
         self.velplot_widg = IGGVelPlotWidget(spec, z, 
             parent=self, llist=self.llist, fwhm=self.fwhm)
@@ -175,6 +175,11 @@ class IGMGuessesGui(QtGui.QMainWindow):
         self.velplot_widg.update_model()
         self.velplot_widg.on_draw(fig_clear=True)
 
+    def updated_compslist(self):
+        '''Component list was updated'''
+        self.velplot_widg.update_model()
+        self.velplot_widg.on_draw(fig_clear=True)
+
     def write_out(self):
         import json, io
         # Create dict of the components
@@ -188,6 +193,7 @@ class IGMGuessesGui(QtGui.QMainWindow):
             out_dict['cmps'][key]['z'] = comp.attrib['z']
             out_dict['cmps'][key]['NHI'] = comp.attrib['N']
             out_dict['cmps'][key]['bval'] = comp.attrib['b'].value
+            out_dict['cmps'][key]['vlim'] = list(comp.vlim.value)
         # Write
         print('Wrote: {:s}'.format(self.outfil))
         with io.open(self.outfil, 'w', encoding='utf-8') as f:
@@ -761,6 +767,8 @@ class ComponentListWidget(QtGui.QWidget):
         '''
         super(ComponentListWidget, self).__init__(parent)
 
+        self.parent = parent
+
         #if not status is None:
         #    self.statusBar = status
         self.all_comp = components  # Actual components
@@ -786,7 +794,12 @@ class ComponentListWidget(QtGui.QWidget):
 
     # ##
     def on_list_change(self):
-        
+        '''
+        Changed an item in the list
+        '''
+        if self.parent is not None:
+            self.parent.updated_compslist()
+
         '''
         items = self.complist_widget.selectedItems()
         # Empty the list
