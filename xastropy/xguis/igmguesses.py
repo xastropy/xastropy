@@ -68,6 +68,21 @@ class IGMGuessesGui(QtGui.QMainWindow):
         zqso: float, optional
           Redshift of the quasar.  If input, a Telfer continuum is used
         '''
+        # TODO
+        # 1. Fix convolve window size
+            # 2. Avoid sorting of wavelengths
+            # 3. Remove astropy.relativity 
+            # 4. Display self.z 
+            # 5. Recenter on 'z'
+        # 6. Add COS LSF
+        # 7. Refit component key 'F'
+            # 8. Plot only selected components
+        # 9. Avoid shifting z of component outside its velocity range
+            # 10. Write Component vlim to JSON
+        # 11. Key to set line as some other transition (e.g. RMB in XSpec)
+        # 12. Mask array with line width
+        # 13. Toggle line ID names
+        # 14. Add error + residual arrays [NT]
 
         # Build a widget combining several others
         self.main_widget = QtGui.QWidget()
@@ -91,12 +106,12 @@ class IGMGuessesGui(QtGui.QMainWindow):
 
         # LineList
         self.llist = xxgu.set_llist(['HI 1215', 'HI 1025', 'CIV 1548'],sort=False)
-        z=4.14056
+        z=0.112
         self.llist['z'] = z
 
         # Grab the pieces and tie together
         self.fiddle_widg = FiddleComponentWidget(parent=self)
-        self.comps_widg = ComponentListWidget([],
+        self.comps_widg = ComponentListWidget([], parent=self,
             linelist=self.llist[self.llist['List']])
         self.velplot_widg = IGGVelPlotWidget(spec, z, 
             parent=self, llist=self.llist, fwhm=self.fwhm)
@@ -160,6 +175,11 @@ class IGMGuessesGui(QtGui.QMainWindow):
         self.velplot_widg.update_model()
         self.velplot_widg.on_draw(fig_clear=True)
 
+    def updated_compslist(self):
+        '''Component list was updated'''
+        self.velplot_widg.update_model()
+        self.velplot_widg.on_draw(fig_clear=True)
+
     def write_out(self):
         import json, io
         # Create dict of the components
@@ -173,6 +193,7 @@ class IGMGuessesGui(QtGui.QMainWindow):
             out_dict['cmps'][key]['z'] = comp.attrib['z']
             out_dict['cmps'][key]['NHI'] = comp.attrib['N']
             out_dict['cmps'][key]['bval'] = comp.attrib['b'].value
+            out_dict['cmps'][key]['vlim'] = list(comp.vlim.value)
         # Write
         print('Wrote: {:s}'.format(self.outfil))
         with io.open(self.outfil, 'w', encoding='utf-8') as f:
@@ -293,6 +314,9 @@ class IGGVelPlotWidget(QtGui.QWidget):
         wvmin = np.min(self.spec.dispersion)
         wvmax = np.max(self.spec.dispersion)
         gdlin = []
+        #QtCore.pyqtRemoveInputHook()
+        #xdb.set_trace()
+        #QtCore.pyqtRestoreInputHook()
         for comp in all_comp:
             for line in comp.lines:
                 wvobs = (1+line.attrib['z'])*line.wrest 
@@ -439,10 +463,10 @@ class IGGVelPlotWidget(QtGui.QWidget):
 
         ## Reset z
         if event.key == 'z': 
-            from astropy.relativity import velocities
+            from xastropy.relativity import velocities
             newz = velocities.z_from_v(self.z, event.xdata)
             self.z = newz
-            self.abs_sys.zabs = newz
+            #self.abs_sys.zabs = newz
             # Drawing
             self.psdict['xmnx'] = self.vmnx.value
 
@@ -532,6 +556,8 @@ class IGGVelPlotWidget(QtGui.QWidget):
         if replot is True:
             if fig_clear:
                 self.fig.clf()
+            # Title
+            self.fig.suptitle('z={:g}'.format(self.z),fontsize=7.)
             # Components
             components = self.parent.comps_widg.all_comp
             iwrest = np.array([comp.init_wrest.value for comp in components])*u.AA
@@ -741,6 +767,8 @@ class ComponentListWidget(QtGui.QWidget):
         '''
         super(ComponentListWidget, self).__init__(parent)
 
+        self.parent = parent
+
         #if not status is None:
         #    self.statusBar = status
         self.all_comp = components  # Actual components
@@ -766,7 +794,12 @@ class ComponentListWidget(QtGui.QWidget):
 
     # ##
     def on_list_change(self):
-        
+        '''
+        Changed an item in the list
+        '''
+        if self.parent is not None:
+            self.parent.updated_compslist()
+
         '''
         items = self.complist_widget.selectedItems()
         # Empty the list
@@ -934,7 +967,7 @@ def run_gui(*args, **kwargs):
 
 # ################
 if __name__ == "__main__":
-    import sys
+    import sys, os
     from linetools.spectra import io as lsi
     from xastropy.igm import abs_sys as xiabs
 
@@ -945,9 +978,13 @@ if __name__ == "__main__":
     
         # LLS
         if (flg_fig % 2**1) >= 2**0:
-            spec_fil = '/Users/xavier/Keck/ESI/RedData/PSS0133+0400/PSS0133+0400_f.fits'
-            # Launch
+            #spec_fil = '/Users/xavier/Keck/ESI/RedData/PSS0133+0400/PSS0133+0400_f.fits'
+            spec_fil = os.getenv('DROPBOX_DIR')+'/Tejos_X/COS-Clusters/J1018+0546.txt'
             spec = lsi.readspec(spec_fil)
+            spec.normalize()
+            #spec.plot()
+            #xdb.set_trace()
+            # Launch
             app = QtGui.QApplication(sys.argv)
             app.setApplicationName('IGMGuesses')
             main = IGMGuessesGui(spec) 
