@@ -967,7 +967,7 @@ def run_gui(*args, **kwargs):
 
 # ################
 if __name__ == "__main__":
-    import sys
+    import sys, os
     from linetools.spectra import io as lsi
     from xastropy.igm import abs_sys as xiabs
 
@@ -979,7 +979,7 @@ if __name__ == "__main__":
         # LLS
         if (flg_fig % 2**1) >= 2**0:
             #spec_fil = '/Users/xavier/Keck/ESI/RedData/PSS0133+0400/PSS0133+0400_f.fits'
-            spec_fil = '/Users/xavier/Dropbox/Tejos_X/COS-Clusters/J1018+0546.txt'
+            spec_fil = os.getenv('DROPBOX_DIR')+'/Tejos_X/COS-Clusters/J1018+0546.txt'
             spec = lsi.readspec(spec_fil)
             spec.normalize()
             #spec.plot()
