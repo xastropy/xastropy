@@ -57,7 +57,7 @@ class IGMGuessesGui(QtGui.QMainWindow):
         30-Jul-2015 by JXP
     '''
     def __init__(self, ispec, parent=None, lls_fit_file=None, 
-        srch_id=True, outfil=None, smooth=3., zqso=None):
+        srch_id=True, outfil=None, fwhm=3., zqso=None):
         QtGui.QMainWindow.__init__(self, parent)
         '''
         spec = Spectrum1D
@@ -80,6 +80,8 @@ class IGMGuessesGui(QtGui.QMainWindow):
             self.outfil = 'IGM_model.json'
         else:
             self.outfil = outfil
+        self.fwhm = fwhm
+
         # Spectrum
         spec, spec_fil = xxgu.read_spec(ispec)
 
@@ -88,11 +90,7 @@ class IGMGuessesGui(QtGui.QMainWindow):
             spec.dispersion,np.ones(len(spec.dispersion))))
 
         # LineList
-        self.llist = xxgu.set_llist(['HI 1215', 'HI 1025'],sort=False)
-        #QtCore.pyqtRemoveInputHook()
-        #xdb.set_trace()
-        #QtCore.pyqtRestoreInputHook()
-        #self.llist = xxgu.set_llist('Strong') 
+        self.llist = xxgu.set_llist(['HI 1215', 'HI 1025', 'CIV 1548'],sort=False)
         z=4.14056
         self.llist['z'] = z
 
@@ -101,22 +99,10 @@ class IGMGuessesGui(QtGui.QMainWindow):
         self.comps_widg = ComponentListWidget([],
             linelist=self.llist[self.llist['List']])
         self.velplot_widg = IGGVelPlotWidget(spec, z, 
-            parent=self, llist=self.llist)
-        #self.velplot_widg.clist = self.comps_widg 
-
-        # Outfil
-        wbtn = QtGui.QPushButton('Write', self)
-        wbtn.setAutoDefault(False)
-        wbtn.clicked.connect(self.write_out)
-
-        # Quit
-        buttons = QtGui.QWidget()
-        wqbtn = QtGui.QPushButton('Write\n Quit', self)
-        wqbtn.setAutoDefault(False)
-        wqbtn.clicked.connect(self.write_quit)
-        qbtn = QtGui.QPushButton('Quit', self)
-        qbtn.setAutoDefault(False)
-        qbtn.clicked.connect(self.quit)
+            parent=self, llist=self.llist, fwhm=self.fwhm)
+        self.wq_widg = xxgu.WriteQuitWidget(parent=self)
+        self.slines_widg = xspw.SelectedLinesWidget(
+            self.llist[self.llist['List']], parent=self, init_select='All')
 
         # Connections (buttons are above)
         #self.spec_widg.canvas.mpl_connect('key_press_event', self.on_key)
@@ -128,17 +114,11 @@ class IGMGuessesGui(QtGui.QMainWindow):
         anly_widg.setMaximumWidth(400)
         anly_widg.setMinimumWidth(250)
 
-        # Write/Quit buttons
-        hbox1 = QtGui.QHBoxLayout()
-        hbox1.addWidget(wbtn)
-        hbox1.addWidget(wqbtn)
-        hbox1.addWidget(qbtn)
-        buttons.setLayout(hbox1)
- 
         vbox = QtGui.QVBoxLayout()
         vbox.addWidget(self.fiddle_widg)
         vbox.addWidget(self.comps_widg)
-        vbox.addWidget(buttons)
+        vbox.addWidget(self.slines_widg)
+        vbox.addWidget(self.wq_widg)
         anly_widg.setLayout(vbox)
         
         hbox = QtGui.QHBoxLayout()
@@ -157,182 +137,44 @@ class IGMGuessesGui(QtGui.QMainWindow):
         self.status_text = QtGui.QLabel("IGMGuessesGui")
         self.statusBar().addWidget(self.status_text, 1)
 
-    def updated_component(self):
-        '''Component was updated. Deal with it'''
+    def delete_component(self, component):
+        '''Remove component'''
+        # Component list
+        self.comps_widg.remove_item(component.name)
+        # Fiddle query (need to come back to it)
+        if component is self.fiddle_widg.component:
+            self.fiddle_widg.reset()
+        # Delete
+        del component
+        # Update
         self.velplot_widg.update_model()
-        self.velplot_widg.on_draw()
+        self.velplot_widg.on_draw(fig_clear=True)
 
-    def on_key(self,event):
-        if event.key in ['C','1','2']: # Set continuum level
-            if event.key == 'C':
-                imin = np.argmin(np.abs(
-                    self.continuum.dispersion.value-event.xdata))
-                self.conti_dict['Norm'] = event.ydata / self.base_continuum[imin]
-            elif event.key == '1':
-                self.conti_dict['tilt'] += 0.1
-            elif event.key == '2':
-                self.conti_dict['tilt'] -= 0.1
-            self.update_conti()
-        elif event.key == 'A': # New LLS
-            # Generate
-            z = event.xdata/911.7633 - 1.
-            self.add_LLS(z)
-            # Update
-            self.llist['Plot'] = False # Turn off metal-lines
-            self.update_model()
-        elif event.key in ['L','a','N','n','v','V','D','@']: # LLS-centric
-            idx = self.get_sngl_sel_sys()
-            if idx is None:
-                return
-            if event.key == 'L': #LLS
-                self.abssys_widg.all_abssys[idx].zabs = event.xdata/911.7633 - 1.
-            elif event.key == 'a': #Lya
-                self.abssys_widg.all_abssys[idx].zabs = event.xdata/1215.6700-1.
-            elif event.key == 'N': #Add to NHI
-                self.abssys_widg.all_abssys[idx].NHI += 0.05
-            elif event.key == 'n': #Subtract from NHI
-                self.abssys_widg.all_abssys[idx].NHI -= 0.05
-            elif event.key == 'v': #Subtract from bval
-                self.abssys_widg.all_abssys[idx].bval -= 2*u.km/u.s
-            elif event.key == 'V': #Add to bval
-                self.abssys_widg.all_abssys[idx].bval += 2*u.km/u.s
-            elif event.key == 'D': # Delete system
-                self.abssys_widg.remove_item(idx)
-                idx = None
-            elif event.key == '@': # Toggle metal-lines
-                self.llist['Plot'] = not self.llist['Plot']
-                #QtCore.pyqtRemoveInputHook()
-                #xdb.set_trace()
-                #QtCore.pyqtRestoreInputHook()
-            else:
-                raise ValueError('Not ready for this keystroke')
-            # Update the lines 
-            if idx is not None:
-                self.llist['z'] = self.abssys_widg.all_abssys[idx].zabs
-                for iline in self.abssys_widg.all_abssys[idx].lls_lines:
-                    iline.attrib['z'] = self.abssys_widg.all_abssys[idx].zabs 
-                    iline.attrib['N'] = self.abssys_widg.all_abssys[idx].NHI
-                    iline.attrib['b'] = self.abssys_widg.all_abssys[idx].bval
-            # Update the model
-            self.update_model()
-        elif event.key in ['6','7','8','9']: # Add forest line
-            self.add_forest(event.key,event.xdata/1215.6701 - 1.)
-            self.update_model()
-        else:
-            self.spec_widg.on_key(event)
+    def updated_slines(self, selected):
+        self.llist['show_line'] = selected
+        self.velplot_widg.on_draw(fig_clear=True)
 
-        # Draw by default
-        self.update_boxes()
-        self.draw()
+    def updated_component(self):
+        '''Component attrib was updated. Deal with it'''
+        self.fiddle_widg.component.sync_lines()
+        self.velplot_widg.update_model()
+        self.velplot_widg.on_draw(fig_clear=True)
 
-    def draw(self):
-        self.spec_widg.on_draw(no_draw=True)
-        # Add text?
-        for kk,lls in enumerate(self.abssys_widg.all_abssys):
-            # Label
-            ipos = self.abssys_widg.all_items[kk].rfind('_')
-            lbl = self.abssys_widg.all_items[kk][ipos+1:]
-            # Add text
-            wvLLS = (1+lls.zabs)*911.7
-            wvLya = (1+lls.zabs)*1215.6700
-            idx = np.argmin(np.abs(self.continuum.dispersion-wvLLS*u.AA))
-            self.spec_widg.ax.text(wvLLS, self.continuum.flux[idx],
-                '{:s}'.format(lbl), ha='center', color='blue', size='small')
-            self.spec_widg.ax.text(wvLya, self.continuum.flux[idx],
-                '{:s}'.format(lbl), ha='center', color='blue', size='small')
-        # Draw
-        self.spec_widg.canvas.draw()
-
-    def add_forest(self,inp,z):
-        '''Add a Lya/Lyb forest line
-        '''
-        from xastropy.igm.abs_sys.abssys_utils import GenericAbsSystem
-        forest = GenericAbsSystem(zabs=z)
-        # NHI
-        NHI_dict = {'6':12.,'7':13.,'8':14.,'9':15.}
-        forest.NHI=NHI_dict[inp]
-        # Lines
-        for name in ['HI 1215','HI 1025', 'HI 972']:
-            aline = AbsLine(name,
-                linelist=self.llist[self.llist['List']])
-            # Attributes
-            aline.attrib['N'] = forest.NHI
-            aline.attrib['b'] = 20.*u.km/u.s
-            aline.attrib['z'] = forest.zabs
-            # Append
-            forest.lines.append(aline)
-        # Append to forest lines
-        self.all_forest.append(forest)
-
-    def add_LLS(self,z,NHI=17.3,bval=20.*u.km/u.s):
-        '''Generate a new LLS
-        '''
-        #
-        new_sys = LLSSystem(NHI=NHI)
-        new_sys.zabs = z
-        new_sys.bval = bval # This is not standard, but for convenience
-        new_sys.fill_lls_lines(bval=bval)
-        # Name
-        self.count_lls += 1
-        new_sys.label = 'LLS_Sys_{:d}'.format(self.count_lls)
-        # Add
-        self.abssys_widg.add_fil(new_sys.label)
-        self.abssys_widg.all_abssys.append(new_sys)
-        self.abssys_widg.abslist_widget.item(
-            len(self.abssys_widg.all_abssys)).setSelected(True)
-
-    def refine_abssys(self):
-        item = self.abssys_widg.abslist_widget.selectedItems()
-        if len(item) != 1:
-            self.statusBar().showMessage('AbsSys: Must select only 1 system!')
-            print('AbsSys: Must select only 1 system!')
-        txt = item[0].text()
-        ii = self.abssys_widg.all_items.index(txt)
-        iabs_sys = self.abssys_widg.all_abssys[ii]
-        # Launch
-        gui = XVelPltGui(self.spec_widg.spec, outfil=iabs_sys.absid_file,
-                               abs_sys=iabs_sys, norm=self.spec_widg.norm)
-        gui.exec_()
-
-    # Read from a JSON file
-    def init_LLS(self,fit_file):
-        import json
-        # Read the JSON file
-        with open(fit_file) as data_file:    
-            lls_dict = json.load(data_file)
-        # Init
-        self.conti_dict = lls_dict['conti']
-        self.update_conti()
-        # Check spectra names
-        if self.spec_widg.spec.filename != lls_dict['spec_file']:
-            warnings.warn('Spec file names do not match!')
-        # LLS
-        for key in lls_dict['LLS'].keys():
-            #QtCore.pyqtRemoveInputHook()
-            #xdb.set_trace()
-            #QtCore.pyqtRestoreInputHook()
-            self.add_LLS(lls_dict['LLS'][key]['z'],
-                NHI=lls_dict['LLS'][key]['NHI'],
-                bval=lls_dict['LLS'][key]['bval']*u.km/u.s)
-        self.smooth = lls_dict['smooth']
-        # Updates
-        self.update_boxes()
-        self.update_model()
-
-    # Write
     def write_out(self):
         import json, io
-        # Create dict
-        out_dict = dict(LLS={},conti=self.conti_dict,
-            spec_file=self.spec_widg.spec.filename,smooth=self.smooth)
+        # Create dict of the components
+        out_dict = dict(cmps={},
+            spec_file=self.velplot_widg.spec.filename,
+            fwhm=self.fwhm)
         # Load
-        for kk,lls in enumerate(self.abssys_widg.all_abssys):
-            key = '{:d}'.format(kk+1)
-            out_dict['LLS'][key] = {}
-            out_dict['LLS'][key]['z'] = lls.zabs
-            out_dict['LLS'][key]['NHI'] = lls.NHI
-            out_dict['LLS'][key]['bval'] = lls.lls_lines[0].attrib['b'].value
+        for kk,comp in enumerate(self.comps_widg.all_comp):
+            key = comp.name
+            out_dict['cmps'][key] = {}
+            out_dict['cmps'][key]['z'] = comp.attrib['z']
+            out_dict['cmps'][key]['NHI'] = comp.attrib['N']
+            out_dict['cmps'][key]['bval'] = comp.attrib['b'].value
         # Write
+        print('Wrote: {:s}'.format(self.outfil))
         with io.open(self.outfil, 'w', encoding='utf-8') as f:
             f.write(unicode(json.dumps(out_dict, sort_keys=True, indent=4, 
                 separators=(',', ': '))))
@@ -445,6 +287,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
             return
         all_comp = self.parent.comps_widg.selected_components()
         if len(all_comp) == 0:
+            self.model.flux[:] = 1.
             return
         # Setup lines
         wvmin = np.min(self.spec.dispersion)
@@ -533,9 +376,9 @@ class IGGVelPlotWidget(QtGui.QWidget):
         if event.key == 'K':
             self.sub_xy[0] = self.sub_xy[0]+1
         if event.key == 'c':
-            self.sub_xy[1] = max(0, self.sub_xy[1]-1)
+            self.sub_xy[1] = max(1, self.sub_xy[1]-1)
         if event.key == 'C':
-            self.sub_xy[1] = max(0, self.sub_xy[1]+1)
+            self.sub_xy[1] = max(1, self.sub_xy[1]+1)
 
         ## NAVIGATING
         if event.key in self.psdict['nav']: 
@@ -557,6 +400,40 @@ class IGGVelPlotWidget(QtGui.QWidget):
             return
         else:
             pass
+
+        ## Fiddle with a Component
+        if event.key in ['N','n','v','V']:
+            if self.parent.fiddle_widg.component is None:
+                print('Need to generate a component first!')
+                return
+            if event.key == 'N': 
+                self.parent.fiddle_widg.component.attrib['N'] += 0.05
+            elif event.key == 'n': 
+                self.parent.fiddle_widg.component.attrib['N'] -= 0.05
+            elif event.key == 'v': 
+                self.parent.fiddle_widg.component.attrib['b'] -= 2*u.km/u.s
+            elif event.key == 'V': 
+                self.parent.fiddle_widg.component.attrib['b'] += 2*u.km/u.s
+            # Updates (this captures them all and redraws)
+            self.parent.fiddle_widg.update_component()
+        ## Grab/Delete a component
+        if event.key in ['D','S']:
+            components = self.parent.comps_widg.all_comp
+            iwrest = np.array([comp.init_wrest.value for comp in components])*u.AA
+            mtc = np.where(wrest == iwrest)[0]
+            if len(mtc) == 0:
+                return
+            #QtCore.pyqtRemoveInputHook()
+            #xdb.set_trace()
+            #QtCore.pyqtRestoreInputHook()
+            dvz = np.array([3e5*(self.z- components[mt].zcomp)/(1+self.z) for mt in mtc])
+            # Find minimum
+            mindvz = np.argmin(np.abs(dvz+event.xdata))
+            if event.key == 'S':
+                self.parent.fiddle_widg.init_component(components[mtc[mindvz]])
+            elif event.key == 'D':
+                self.parent.delete_component(components[mtc[mindvz]])
+
             #absline = self.abs_sys.grab_line((self.z,wrest))
             #kwrest = wrest.value
 
@@ -655,8 +532,14 @@ class IGGVelPlotWidget(QtGui.QWidget):
         if replot is True:
             if fig_clear:
                 self.fig.clf()
+            # Components
+            components = self.parent.comps_widg.all_comp
+            iwrest = np.array([comp.init_wrest.value for comp in components])*u.AA
             # Loop on windows
             all_idx = self.llist['show_line']
+            #QtCore.pyqtRemoveInputHook()
+            #xdb.set_trace()
+            #QtCore.pyqtRestoreInputHook()
             nplt = self.sub_xy[0]*self.sub_xy[1]
             if len(all_idx) <= nplt:
                 self.idx_line = 0
@@ -679,9 +562,9 @@ class IGGVelPlotWidget(QtGui.QWidget):
                 # Generate plot
                 self.ax = self.fig.add_subplot(self.sub_xy[0],self.sub_xy[1], subp_idx[jj])
                 self.ax.clear()        
-                #QtCore.pyqtRemoveInputHook()
-                #xdb.set_trace()
-                #QtCore.pyqtRestoreInputHook()
+
+                # GID for referencing
+                self.ax.set_gid(wrest)
 
                 # Zero line
                 self.ax.plot( [0., 0.], [-1e9, 1e9], ':', color='gray')
@@ -694,8 +577,6 @@ class IGGVelPlotWidget(QtGui.QWidget):
 
                 # Model
                 self.ax.plot(velo, self.model.flux, 'b-')
-                # GID for referencing
-                self.ax.set_gid(wrest)
                 # Labels
                 #if jj >= (self.sub_xy[0]-1)*(self.sub_xy[1]):
                 if (((jj+1) % self.sub_xy[0]) == 0) or ((jj+1) == len(all_idx)):
@@ -709,9 +590,6 @@ class IGGVelPlotWidget(QtGui.QWidget):
                              size='x-small', ha='left')
 
                 # Reset window limits
-                #QtCore.pyqtRemoveInputHook()
-                #xdb.set_trace()
-                #QtCore.pyqtRestoreInputHook()
                 self.ax.set_ylim(self.psdict['ymnx'])
                 self.ax.set_xlim(self.psdict['xmnx'])
 
@@ -720,19 +598,29 @@ class IGGVelPlotWidget(QtGui.QWidget):
                     self.ax.plot([self.vtmp]*2,self.psdict['ymnx'], '--',
                         color='red')
 
-                # Rescale?
-                '''
-                if (rescale is True) & (self.norm is False):
-                    gdp = np.where( (velo.value > self.psdict['xmnx'][0]) &
-                                    (velo.value < self.psdict['xmnx'][1]))[0]
-                    if len(gdp) > 5:
-                        per = xstats.basic.perc(self.spec.flux[gdp])
-                        self.ax.set_ylim((0., 1.1*per[1]))
-                    else:
-                        self.ax.set_ylim(self.psdict['ymnx'])
-                else:
-                    self.ax.set_ylim(self.psdict['ymnx'])
-                '''
+                # Components
+                mtc = np.where(wrest == iwrest)[0]
+                if len(mtc) > 0:
+                    #QtCore.pyqtRemoveInputHook()
+                    #xdb.set_trace()
+                    #QtCore.pyqtRestoreInputHook()
+                    for mt in mtc:
+                        comp = components[mt]
+                        #QtCore.pyqtRemoveInputHook()
+                        #xdb.set_trace()
+                        #QtCore.pyqtRestoreInputHook()
+                        dvz = const.c.to('km/s')*(self.z-comp.zcomp)/(1+self.z)
+                        if dvz.value < np.max(np.abs(self.psdict['xmnx'])):
+                            if comp is self.parent.fiddle_widg.component:
+                                lw = 1.5
+                            else:
+                                lw = 1.
+                            # Plot
+                            for vlim in comp.vlim:
+                                self.ax.plot([vlim.value-dvz.value]*2,self.psdict['ymnx'], 
+                                    '--', color='gray',linewidth=lw)
+                            self.ax.plot([-1.*dvz.value]*2,[1.0,1.05],
+                                '-', color='gray',linewidth=lw)
 
                 # Fonts
                 xputils.set_fontsize(self.ax,6.)
@@ -748,6 +636,7 @@ class FiddleComponentWidget(QtGui.QWidget):
         '''
         super(FiddleComponentWidget, self).__init__(parent)
 
+        self.parent = parent
         #if not status is None:
         #    self.statusBar = status
         self.label = QtGui.QLabel('Component:')
@@ -785,17 +674,38 @@ class FiddleComponentWidget(QtGui.QWidget):
 
     def init_component(self,component):
         '''Setup Widget for the input component'''
+        self.component = component
         # Values
-        self.Nwidget.set_text(component.attrib['N'])
-        self.zwidget.set_text(component.attrib['z'])
-        self.bwidget.set_text(component.attrib['b'].value)
+        self.Nwidget.set_text(self.component.attrib['N'])
+        self.zwidget.set_text(self.component.attrib['z'])
+        self.bwidget.set_text(self.component.attrib['b'].value)
         # Label
         self.set_label()
+
+    def reset(self):
+        #
+        self.component = None
+        #  Values
+        self.Nwidget.set_text(-1.)
+        self.zwidget.set_text(-1.)
+        self.bwidget.set_text(-1.)
+        # Label
+        self.set_label()
+
+    def update_component(self):
+        '''Values have changed'''
+        self.Nwidget.set_text(self.component.attrib['N'])
+        self.zwidget.set_text(self.component.attrib['z'])
+        self.bwidget.set_text(self.component.attrib['b'].value)
+        if self.parent is not None:
+            self.parent.updated_component()
 
     def set_label(self):
         '''Sets the label for the Widget'''
         if self.component is not None:
             self.label.setText('Component: {:s}'.format(self.component.name))            
+        else:
+            self.label.setText('Component:')
 
     def setbzN(self):
         '''Set the component column density or redshift from the boxes'''
@@ -806,8 +716,6 @@ class FiddleComponentWidget(QtGui.QWidget):
             self.component.attrib['N'] = (float(self.Nwidget.box.text()))
             self.component.attrib['z'] = (float(self.zwidget.box.text()))
             self.component.attrib['b'] = (float(self.bwidget.box.text()))*u.km/u.s
-            # Update the lines
-            self.component.sync_lines()
             # Update beyond
             if self.parent is not None:
                 self.parent.updated_component()
@@ -835,7 +743,7 @@ class ComponentListWidget(QtGui.QWidget):
 
         #if not status is None:
         #    self.statusBar = status
-        self.component = components
+        self.all_comp = components  # Actual components
 
         list_label = QtGui.QLabel('Components:')
         self.complist_widget = QtGui.QListWidget(self) 
@@ -846,7 +754,6 @@ class ComponentListWidget(QtGui.QWidget):
         # Lists
         self.items = []     # Selected
         self.all_items = [] # Names
-        self.all_comp = []      # Actual components
 
         self.complist_widget.setCurrentRow(0)
         self.complist_widget.itemSelectionChanged.connect(self.on_list_change)
@@ -912,7 +819,7 @@ class ComponentListWidget(QtGui.QWidget):
         # Delete
         idx = self.all_items.index(comp_name)
         del self.all_items[idx]
-        del self.all_abssys[idx]
+        self.all_comp.pop(idx)
         tmp = self.complist_widget.takeItem(idx+1) # 1 for None
         #self.on_list_change()
 

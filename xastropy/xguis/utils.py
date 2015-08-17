@@ -69,9 +69,36 @@ class EditBox(QtGui.QWidget):
         self.value = value
         self.box.setText(self.box.frmt.format(self.value))
 
+# ##################################
+class WriteQuitWidget(QtGui.QWidget):
+    def __init__(self, parent=None):
+        '''
+        '''
+        super(WriteQuitWidget, self).__init__(parent)
+        self.parent = parent
+
+        # Generate Buttons
+        wbtn = QtGui.QPushButton('Write', self)
+        wbtn.setAutoDefault(False)
+        wbtn.clicked.connect(self.parent.write_out)
+
+        wqbtn = QtGui.QPushButton('Write\n Quit', self)
+        wqbtn.setAutoDefault(False)
+        wqbtn.clicked.connect(self.parent.write_quit)
+
+        qbtn = QtGui.QPushButton('Quit', self)
+        qbtn.setAutoDefault(False)
+        qbtn.clicked.connect(self.parent.quit)
+
+        # Layout
+        hbox = QtGui.QHBoxLayout()
+        hbox.addWidget(wbtn)
+        hbox.addWidget(wqbtn)
+        hbox.addWidget(qbtn)
+        self.setLayout(hbox)
+
 
 # ##################################
-# GUI for velocity plot
 class WarningWidg(QtGui.QDialog):
     ''' GUI to warn user about coming action and solicit response
         24-Dec-2014 by JXP
