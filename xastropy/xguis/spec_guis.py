@@ -626,7 +626,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
         self.update_boxes()
 
     def create_status_bar(self):
-        self.status_text = QtGui.QLabel("XFitLLS")
+        self.status_text = QtGui.QLabel("XFitLLS v0.3")
         self.statusBar().addWidget(self.status_text, 1)
 
     def setbzN(self):
