@@ -79,10 +79,11 @@ class IGMGuessesGui(QtGui.QMainWindow):
             # 8. Plot only selected components
             # 9. Avoid shifting z of component outside its velocity range
             # 10. Write Component vlim to JSON
-        # 11. Key to set line as some other transition (e.g. RMB in XSpec)
-        # 12. Mask array with line width
+            # 11. Key to set line as some other transition (e.g. RMB in XSpec)
+            # 12. Mask array with points
             # 13. Toggle line ID names
         # 14. Add error + residual arrays [NT]
+        # 15. Adjust component redshift by keystroke
 
         # Build a widget combining several others
         self.main_widget = QtGui.QWidget()
@@ -393,7 +394,12 @@ class IGGVelPlotWidget(QtGui.QWidget):
                                 gamma=fit_line.data['gamma'].value, 
                                 f=fit_line.data['f'], fwhm=self.fwhm)
         # Restrict z range
-        fitvoigt.z.min = component.zcomp+component.vlim[0].value/3e5/(1+component.zcomp)
+        try:
+            fitvoigt.z.min = component.zcomp+component.vlim[0].value/3e5/(1+component.zcomp)
+        except TypeError:
+            QtCore.pyqtRemoveInputHook()
+            xdb.set_trace()
+            QtCore.pyqtRestoreInputHook()
         fitvoigt.z.max = component.zcomp+component.vlim[1].value/3e5/(1+component.zcomp)
         #QtCore.pyqtRemoveInputHook()
         #xdb.set_trace()
@@ -498,6 +504,23 @@ class IGGVelPlotWidget(QtGui.QWidget):
             #self.abs_sys.zabs = newz
             # Drawing
             self.psdict['xmnx'] = self.vmnx.value
+
+        if event.key == "%":
+            # GUI
+            self.select_line_widg = xspw.SelectLineWidget(
+                self.llist[self.llist['List']]._data)
+            self.select_line_widg.exec_()
+            line = self.select_line_widg.line
+            if line.strip() == 'None':
+                return
+            #
+            quant = line.split('::')[1].lstrip()
+            spltw = quant.split(' ')
+            wrest = Quantity(float(spltw[0]), unit=spltw[1])
+            #
+            self.z = (wvobs/wrest - 1.).value
+            #self.statusBar().showMessage('z = {:f}'.format(z))
+            self.init_lines()
 
         ## Velocity limits
         unit = u.km/u.s
@@ -687,7 +710,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
                     gdp = self.spec.mask==1
                     if len(gdp) > 0:
                         self.ax.scatter(velo[gdp],self.spec.flux[gdp],
-                            marker='+',color='gray')
+                            marker='o',color='gray',s=10.)
 
                 # Reset window limits
                 self.ax.set_ylim(self.psdict['ymnx'])

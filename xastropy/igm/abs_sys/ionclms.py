@@ -220,17 +220,6 @@ class IonClms(object):
     # Printing
     def __repr__(self):
         tmp = '[IonClms]\n'
-        '''
-        tmp += 'Z  ion  logN  sigN flgN flgI\n'
-        tmp += '----------------------------\n'
-        for keys in self._data:
-            tmp += '{:2d} {:2d} {:.3f} {:.3f}  {:d} {:3d}'.format(keys[0], keys[1],
-                                          self._data[keys][self.keys[0]],
-                                          self._data[keys][self.keys[1]],
-                                          self._data[keys][self.keys[2]],
-                                          self._data[keys][self.keys[3]] )
-            tmp += '\n'
-        '''
         tmp += self._data.__repr__()
         return tmp
 
@@ -369,34 +358,3 @@ def sum_logN(obj1,obj2):
         (obj2['sig_clm']*(10.**obj2['clm']))**2]))/(10.**logN)
     # Return
     return logN, siglogN
-
-
-
-# Class for Ionic columns -- one ion at at time
-class Ion_Clm(object):
-    """Ionic column densities for an absorption system
-    DEPRECATED
-
-    Attributes:
-       ion: tuple (Z,ion) 
-       name: string
-         e.g. Si II
-       flg_clm: int
-         Flag describing the measurement
-       clm: float
-         log10 column density
-       sigclm: float
-         error in log10 column density
-    """
-
-    # Initialize with wavelength
-    def __init__(self, ion):
-        self.iZion = ion  
-        self.name = xaa.ion_name(ion)
-        self.lines = [] # List of transitions contributing
-        #self.analy = {} # Analysis inputs (from .clm file)
-        # Data
-        self.flg_clm = 0
-        self.clm = 0.
-        self.sigclm = 0.
-        
