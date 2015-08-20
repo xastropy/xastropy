@@ -483,7 +483,7 @@ class XAODMGui(QtGui.QDialog):
 # GUI for fitting LLS in a spectrum
 class XFitLLSGUI(QtGui.QMainWindow):
     ''' GUI to fit LLS in a given spectrum
-        v0.4.1
+        v0.4.2
         30-Jul-2015 by JXP
     '''
     def __init__(self, ispec, parent=None, lls_fit_file=None, 
@@ -638,7 +638,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
         self.update_boxes()
 
     def create_status_bar(self):
-        self.status_text = QtGui.QLabel("XFitLLS v0.4.1")
+        self.status_text = QtGui.QLabel("XFitLLS v0.4.2")
         self.statusBar().addWidget(self.status_text, 1)
 
     def setbzN(self):
