@@ -481,7 +481,7 @@ class XAODMGui(QtGui.QDialog):
 # GUI for fitting LLS in a spectrum
 class XFitLLSGUI(QtGui.QMainWindow):
     ''' GUI to fit LLS in a given spectrum
-        v0.4
+        v0.4.1
         30-Jul-2015 by JXP
     '''
     def __init__(self, ispec, parent=None, lls_fit_file=None, 
@@ -541,6 +541,8 @@ class XFitLLSGUI(QtGui.QMainWindow):
         # LineList
         self.llist = xxgu.set_llist('Strong') 
         self.llist['z'] = 0.
+        self.plt_wv = zip(np.array([911.7,972.5367,1025.7222,1215.6700])*u.AA,
+            ['LL','Lyg','Lyb','Lya'])
 
         # z and N boxes
         self.zwidget = xxgu.EditBox(-1., 'z_LLS=', '{:0.5f}')
@@ -635,7 +637,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
         self.update_boxes()
 
     def create_status_bar(self):
-        self.status_text = QtGui.QLabel("XFitLLS v0.4")
+        self.status_text = QtGui.QLabel("XFitLLS v0.4.1")
         self.statusBar().addWidget(self.status_text, 1)
 
     def setbzN(self):
@@ -820,15 +822,14 @@ class XFitLLSGUI(QtGui.QMainWindow):
         for kk,lls in enumerate(self.abssys_widg.all_abssys):
             # Label
             ipos = self.abssys_widg.all_items[kk].rfind('_')
-            lbl = self.abssys_widg.all_items[kk][ipos+1:]
+            ilbl = self.abssys_widg.all_items[kk][ipos+1:]
             # Add text
-            wvLLS = (1+lls.zabs)*911.7
-            wvLya = (1+lls.zabs)*1215.6700
-            idx = np.argmin(np.abs(self.continuum.dispersion-wvLLS*u.AA))
-            self.spec_widg.ax.text(wvLLS, self.continuum.flux[idx],
-                '{:s}'.format(lbl), ha='center', color='blue', size='small')
-            self.spec_widg.ax.text(wvLya, self.continuum.flux[idx],
-                '{:s}'.format(lbl), ha='center', color='blue', size='small')
+            for wv,lbl in self.plt_wv:
+                idx = np.argmin(np.abs(self.continuum.dispersion-wv*(1+lls.zabs)))
+                self.spec_widg.ax.text(wv.value*(1+lls.zabs), 
+                    self.continuum.flux[idx],
+                    '{:s}_{:s}'.format(ilbl,lbl), ha='center', 
+                    color='blue', size='small', rotation=90.)
         # Draw
         self.spec_widg.canvas.draw()
 
