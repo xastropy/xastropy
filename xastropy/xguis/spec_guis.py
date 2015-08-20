@@ -42,8 +42,10 @@ from xastropy.xutils import xdebug as xdb
 from xastropy.xguis import spec_widgets as xspw
 from xastropy.xguis import utils as xxgu
 from xastropy.igm.abs_sys.lls_utils import LLSSystem
+from xastropy.igm.abs_sys import lls_utils as xialu
 from xastropy.atomic import ionization as xatomi
 from xastropy.spec import voigt as xsv
+from xastropy.spec import continuum as xspc
 
 xa_path = imp.find_module('xastropy')[1]
 
@@ -516,18 +518,17 @@ class XFitLLSGUI(QtGui.QMainWindow):
         spec, spec_fil = xxgu.read_spec(ispec)
 
         # Continuum
-        self.conti_dict = {'Norm': float(np.median(spec.flux.value)), 'tilt': 0.,
-            'piv_wv': np.median(spec.dispersion.value)}
+        self.conti_dict = xspc.init_conti_dict(
+            Norm=float(np.median(spec.flux.value)),
+            piv_wv=np.median(spec.dispersion.value))
         if zqso is not None:
+            self.zqso = zqso
             # Read Telfer 
-            telfer = ascii.read(
-                xa_path+'/data/quasar/telfer_hst_comp01_rq.ascii', comment='#')
-            scale = telfer['flux'][(telfer['wrest'] == 1450.)]
-            tspec = XSpectrum1D.from_tuple((telfer['wrest']*(1+zqso),
-                telfer['flux']/scale[0])) # Observer frame
+            tspec = xspc.get_telfer_spec(zqso=zqso) 
             # Rebin
             self.continuum = tspec.rebin(spec.dispersion)
         else:
+            self.zqso = None
             self.continuum = XSpectrum1D.from_tuple((
                 spec.dispersion,np.ones(len(spec.dispersion))))
         self.base_continuum = self.continuum.flux
@@ -700,26 +701,9 @@ class XFitLLSGUI(QtGui.QMainWindow):
             self.spec_widg.model = None
             return
         #
-        all_tau_model = np.zeros(len(self.full_model.flux))
-        # Loop on LLS
-        for lls in self.abssys_widg.all_abssys:
-            # LL
-            wv_rest = self.full_model.dispersion / (lls.zabs+1)
-            energy = wv_rest.to(u.eV, equivalencies=u.spectral())
-            # Get photo_cross and calculate tau
-            tau_LL = (10.**lls.NHI / u.cm**2) * xatomi.photo_cross(1,1,energy)
+        all_tau_model = xialu.tau_multi_lls(self.full_model.dispersion,
+            self.abssys_widg.all_abssys)
 
-            # Lyman
-            tau_Lyman = xsv.voigt_model(self.full_model.dispersion, 
-                lls.lls_lines, flg_ret=2)
-            tau_model = tau_LL + tau_Lyman
-
-            # Kludge around the limit
-            pix_LL = np.argmin( np.fabs( wv_rest- 911.3*u.AA ) )
-            pix_kludge = np.where( (wv_rest > 911.5*u.AA) & (wv_rest < 912.8*u.AA) )[0]
-            tau_model[pix_kludge] = tau_model[pix_LL]
-            # Add
-            all_tau_model += tau_model
         # Loop on forest lines
         for forest in self.all_forest:
             tau_Lyman = xsv.voigt_model(self.full_model.dispersion, 
@@ -917,6 +901,8 @@ class XFitLLSGUI(QtGui.QMainWindow):
         # Create dict
         out_dict = dict(LLS={},conti=self.conti_dict,
             spec_file=self.spec_widg.spec.filename,smooth=self.smooth)
+        if self.zqso is not None:
+            out_dict['zqso'] = self.zqso
         # Load
         for kk,lls in enumerate(self.abssys_widg.all_abssys):
             key = '{:d}'.format(kk+1)
