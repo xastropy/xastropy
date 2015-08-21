@@ -42,7 +42,7 @@ def init_conti_dict(Norm=0., tilt=0., piv_wv=0.):
     conti_dict: dict 
       Useful for simple modeling
     '''
-    conti_dict = {'Norm': 0., 'tilt': 0., 'piv_wv': np.median(spec.dispersion.value)}
+    conti_dict = {'Norm': Norm, 'tilt': tilt, 'piv_wv': piv_wv}
     #
     return conti_dict
 
