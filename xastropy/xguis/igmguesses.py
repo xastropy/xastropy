@@ -84,7 +84,8 @@ class IGMGuessesGui(QtGui.QMainWindow):
             # 13. Toggle line ID names
         # 14. Add error + residual arrays [NT]
         # 15. Adjust component redshift by keystroke
-        # 16. Input redshift value via Widget
+            # 16. Input redshift value via Widget
+        # 17. Use Component list to jump between components (like 'S')
 
         # Build a widget combining several others
         self.main_widget = QtGui.QWidget()
@@ -676,8 +677,12 @@ class IGGVelPlotWidget(QtGui.QWidget):
                 line_lbl = []
                 for comp in components:
                     for line in comp.lines:
+                        if line.attrib['Quality'] == 'None':
+                            la = ''
+                        else: 
+                            la = line.attrib['Quality']
                         line_wvobs.append(line.wrest.value*(line.attrib['z']+1))
-                        line_lbl.append(line.trans+',{:.4f}'.format(line.attrib['z']))
+                        line_lbl.append(line.trans+',{:.3f}{:s}'.format(line.attrib['z'],la))
                 line_wvobs = np.array(line_wvobs)*u.AA
                 line_lbl = np.array(line_lbl)
             # Subplots
@@ -733,7 +738,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
                     for imt in mtw:
                         v = 3e5*(line_wvobs[imt]/wvobs - 1)
                         self.ax.text(v, 0.90, line_lbl[imt], color='green', 
-                            size='x-small', rotation=90.)
+                            size='xx-small', rotation=90.)
 
                 # Analysis regions
                 if np.sum(self.spec.mask) > 0.:
