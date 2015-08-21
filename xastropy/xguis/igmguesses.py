@@ -676,11 +676,11 @@ class IGGVelPlotWidget(QtGui.QWidget):
                 line_wvobs = []
                 line_lbl = []
                 for comp in components:
+                    if comp.attrib['Quality'] == 'None':
+                        la = ''
+                    else: 
+                        la = comp.attrib['Quality']
                     for line in comp.lines:
-                        if line.attrib['Quality'] == 'None':
-                            la = ''
-                        else: 
-                            la = line.attrib['Quality']
                         line_wvobs.append(line.wrest.value*(line.attrib['z']+1))
                         line_lbl.append(line.trans+',{:.3f}{:s}'.format(line.attrib['z'],la))
                 line_wvobs = np.array(line_wvobs)*u.AA
