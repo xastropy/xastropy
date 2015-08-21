@@ -31,7 +31,42 @@ from astropy import units as u
 from xastropy.xutils import xdebug as xdb
 
 # def EditBox
+# def WriteQuitWidget
 # def WarningWidg
+
+
+class AnsBox(QtGui.QDialog):
+    '''Solicit an input answer from the User
+    lbl: str
+    format: str
+      Format for value
+    '''
+    def __init__(self, lbl, format=str, parent=None):
+        '''
+        '''
+        super(AnsBox, self).__init__(parent)
+
+        self.format=format
+        # 
+        label = QtGui.QLabel(lbl) 
+        self.box = QtGui.QLineEdit()
+        self.box.setMinimumWidth(90)
+        # Connect
+        self.connect(self.box, 
+            QtCore.SIGNAL('editingFinished ()'), self.setv)
+        # Layout
+        vbox = QtGui.QVBoxLayout()
+        vbox.addWidget(label)
+        vbox.addWidget(self.box)
+        self.setLayout(vbox)
+
+    def setv(self):
+        try:
+            self.value = self.format(unicode(self.box.text()))
+        except ValueError:
+            print('Bad input value! Try again with right type')
+        else:
+            self.done(0)
 
 class EditBox(QtGui.QWidget):
     '''
@@ -361,9 +396,10 @@ def read_spec(ispec):
 if __name__ == "__main__":
 
     flg_fig = 0 
-    flg_fig += 2**0  # Warning
+    #flg_fig += 2**0  # Warning
+    flg_fig += 2**1  # AnsBox
 
-    if (flg_fig % 2) == 1:
+    if (flg_fig % 2**1) == 2**0:
         app = QtGui.QApplication(sys.argv)
         app.setApplicationName('Warning')
         main = WarningWidg('Will remove all lines. \n  Continue??')
@@ -373,3 +409,11 @@ if __name__ == "__main__":
             print('You answered yes!')
         else:
             print('You answered no!')
+
+    if (flg_fig % 2**2) >= 2**1:
+        app = QtGui.QApplication(sys.argv)
+        app.setApplicationName('Ans')
+        main = AnsBox('Enter redshift',float)
+        main.show()
+        app.exec_()
+        print(main.value)
