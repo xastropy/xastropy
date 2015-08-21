@@ -57,7 +57,7 @@ class IGMGuessesGui(QtGui.QMainWindow):
         30-Jul-2015 by JXP
     '''
     def __init__(self, ispec, parent=None, lls_fit_file=None, 
-        srch_id=True, outfil=None, fwhm=3., zqso=None):
+        srch_id=True, outfil=None, fwhm=3., zqso=None,plot_residuals=True):
         QtGui.QMainWindow.__init__(self, parent)
         '''
         spec = Spectrum1D
@@ -67,6 +67,9 @@ class IGMGuessesGui(QtGui.QMainWindow):
           Number of pixels to smooth on
         zqso: float, optional
           Redshift of the quasar.  If input, a Telfer continuum is used
+        plot_residuals : bool, optional
+          Whether to plot residuals
+
         '''
         # TODO
         # 1. Fix convolve window size
@@ -99,6 +102,7 @@ class IGMGuessesGui(QtGui.QMainWindow):
         else:
             self.outfil = outfil
         self.fwhm = fwhm
+        self.plot_residuals = plot_residuals
 
         # Spectrum
         spec, spec_fil = xxgu.read_spec(ispec)
@@ -109,8 +113,21 @@ class IGMGuessesGui(QtGui.QMainWindow):
             spec.dispersion,np.ones(len(spec.dispersion))))
 
         # LineList
-        self.llist = xxgu.set_llist(['CIII 977', 'HI 1215', 'HI 1025', 'CIV 1548'],sort=False)
-        z=0.112
+        z=0.0
+
+        ism = LineList('ISM')
+        wvmin = np.min(spec.dispersion) 
+        wvmax = np.max(spec.dispersion) 
+        wvlims = (wvmin,wvmax)
+        transitions = ism.available_transitions(wvlims,n_max=100,n_max_tuple=3,min_strength=4.)
+        #transitions = ism.all_transitions('HI')[::-1]
+        #import pdb
+        # pdb.set_trace()
+        if transitions is not None:
+            names = list(np.array(transitions['name']))
+        else:
+            names = ['HI 1215']
+        self.llist = xxgu.set_llist(names,sort=False)
         self.llist['z'] = z
 
         # Grab the pieces and tie together
@@ -118,7 +135,7 @@ class IGMGuessesGui(QtGui.QMainWindow):
         self.comps_widg = ComponentListWidget([], parent=self,
             linelist=self.llist[self.llist['List']])
         self.velplot_widg = IGGVelPlotWidget(spec, z, 
-            parent=self, llist=self.llist, fwhm=self.fwhm)
+            parent=self, llist=self.llist, fwhm=self.fwhm,plot_residuals=self.plot_residuals)
         self.wq_widg = xxgu.WriteQuitWidget(parent=self)
         self.slines_widg = xspw.SelectedLinesWidget(
             self.llist[self.llist['List']], parent=self, init_select='All')
@@ -173,22 +190,22 @@ class IGMGuessesGui(QtGui.QMainWindow):
         del component
         # Update
         self.velplot_widg.update_model()
-        self.velplot_widg.on_draw(fig_clear=True)
+        self.velplot_widg.on_draw(fig_clear=True,plot_residuals=self.plot_residuals)
 
     def updated_slines(self, selected):
         self.llist['show_line'] = selected
-        self.velplot_widg.on_draw(fig_clear=True)
+        self.velplot_widg.on_draw(fig_clear=True,plot_residuals=self.plot_residuals)
 
     def updated_component(self):
         '''Component attrib was updated. Deal with it'''
         self.fiddle_widg.component.sync_lines()
         self.velplot_widg.update_model()
-        self.velplot_widg.on_draw(fig_clear=True)
+        self.velplot_widg.on_draw(fig_clear=True,plot_residuals=self.plot_residuals)
 
     def updated_compslist(self):
         '''Component list was updated'''
         self.velplot_widg.update_model()
-        self.velplot_widg.on_draw(fig_clear=True)
+        self.velplot_widg.on_draw(fig_clear=True,plot_residuals=self.plot_residuals)
 
     def write_out(self):
         import json, io
@@ -231,7 +248,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
         14-Aug-2015 by JXP
     '''
     def __init__(self, ispec, z, parent=None, llist=None, norm=True,
-                 vmnx=[-300., 300.]*u.km/u.s, fwhm=0.):
+                 vmnx=[-500., 500.]*u.km/u.s, fwhm=0.,plot_residuals=True):
         '''
         spec = Spectrum1D
         Norm: Bool (False)
@@ -259,11 +276,21 @@ class IGGVelPlotWidget(QtGui.QWidget):
         self.avmnx = np.array([0.,0.])*u.km/u.s
         self.model = XSpectrum1D.from_tuple((
             spec.dispersion,np.ones(len(spec.dispersion))))
+        self.plot_residuals = plot_residuals
+
+        #Define arrays for plotting residuals
+        if self.plot_residuals:
+            self.residual_normalization_factor = 0.02/np.median(self.spec.sig)
+            self.residual_limit = self.spec.sig * self.residual_normalization_factor
+            self.residual = (self.spec.flux - self.model.flux) * self.residual_normalization_factor
+
 
         self.psdict = {} # Dict for spectra plotting
         self.psdict['xmnx'] = self.vmnx.value # Too much pain to use units with this
         self.psdict['ymnx'] = [-0.1, 1.1]
         self.psdict['nav'] = xxgu.navigate(0,0,init=True)
+
+        
 
         # Status Bar?
         #if not status is None:
@@ -297,7 +324,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
         self.sub_xy = [3,4]
         self.subxy_state = 'Out'
 
-        self.fig.subplots_adjust(hspace=0.0, wspace=0.1)
+        self.fig.subplots_adjust(hspace=0.0, wspace=0.1,left=0.04,right=0.975)
         
         vbox = QtGui.QVBoxLayout()
         vbox.addWidget(self.canvas)
@@ -305,7 +332,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
         self.setLayout(vbox)
 
         # Draw on init
-        self.on_draw()
+        self.on_draw(plot_residuals=self.plot_residuals)
 
     # Load them up for display
     def init_lines(self):
@@ -343,6 +370,12 @@ class IGGVelPlotWidget(QtGui.QWidget):
         # Voigt
         self.model = xsv.voigt_model(self.spec.dispersion,gdlin,
             fwhm=self.fwhm)#,debug=True)
+        
+        #Define arrays for plotting residuals
+        if self.plot_residuals:
+            self.residual_limit = self.spec.sig * self.residual_normalization_factor
+            self.residual = (self.spec.flux - self.model.flux) * self.residual_normalization_factor
+
         #QtCore.pyqtRemoveInputHook()
         #xdb.set_trace()
         #QtCore.pyqtRestoreInputHook()
@@ -630,11 +663,11 @@ class IGGVelPlotWidget(QtGui.QWidget):
             fig_clear = True
 
         if flg==1: # Default is to redraw
-            self.on_draw(rescale=rescale, fig_clear=fig_clear)
+            self.on_draw(rescale=rescale, fig_clear=fig_clear,plot_residuals=self.plot_residuals)
         elif flg==2: # Layer (no clear)
-            self.on_draw(replot=False, rescale=rescale) 
+            self.on_draw(replot=False, rescale=rescale,plot_residuals=self.plot_residuals) 
         elif flg==3: # Layer (no clear)
-            self.on_draw(in_wrest=wrest, rescale=rescale)
+            self.on_draw(in_wrest=wrest, rescale=rescale,plot_residuals=self.plot_residuals)
 
     # Click of main mouse button
     def on_click(self,event):
@@ -645,7 +678,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
             return
         if event.button == 1: # Draw line
             self.ax.plot( [event.xdata,event.xdata], self.psdict['ymnx'], ':', color='green')
-            self.on_draw(replot=False) 
+            self.on_draw(replot=False,plot_residuals=self.plot_residuals) 
     
             # Print values
             try:
@@ -653,7 +686,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
             except AttributeError:
                 return
 
-    def on_draw(self, replot=True, in_wrest=None, rescale=True, fig_clear=False):
+    def on_draw(self, replot=True, in_wrest=None, rescale=True, fig_clear=False,plot_residuals=False):
         """ Redraws the figure
         """
         #
@@ -661,7 +694,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
             if fig_clear:
                 self.fig.clf()
             # Title
-            self.fig.suptitle('z={:g}'.format(self.z),fontsize=7.)
+            self.fig.suptitle('z={:.5f}'.format(self.z),fontsize='large')
             # Components
             #components = self.parent.comps_widg.all_comp
             components = self.parent.comps_widg.selected_components()
@@ -723,15 +756,25 @@ class IGGVelPlotWidget(QtGui.QWidget):
                 self.ax.plot(velo, self.spec.flux, 'k-',drawstyle='steps-mid')
 
                 # Model
-                self.ax.plot(velo, self.model.flux, 'b-')
+                self.ax.plot(velo, self.model.flux, 'b-',lw=0.5)
+
+                #Error & residuals
+                if plot_residuals:
+                    self.ax.plot(velo, self.residual_limit, 'g-',drawstyle='steps-mid',lw=0.5)
+                    self.ax.plot(velo, -self.residual_limit, 'g-',drawstyle='steps-mid',lw=0.5)
+                    self.ax.plot(velo, self.residual, '.',color='grey',ms=2)
+
+                #import pdb
+                #pdb.set_trace()
+
                 # Labels
                 if (((jj+1) % self.sub_xy[0]) == 0) or ((jj+1) == len(all_idx)):
                     self.ax.set_xlabel('Relative Velocity (km/s)')
                 else:
                     self.ax.get_xaxis().set_ticks([])
                 lbl = self.llist[self.llist['List']].name[idx]
-                self.ax.text(0.05, 0.90, lbl, color='blue', transform=self.ax.transAxes,
-                             size='x-small', ha='left')
+                self.ax.text(0.01, 0.15, lbl, color='blue', transform=self.ax.transAxes,
+                             size='x-small', ha='left',va='center',backgroundcolor='w',bbox={'pad':0,'edgecolor':'none'})
                 if self.flag_idlbl:
                     # Any lines inside?
                     mtw = np.where((line_wvobs > wvmnx[0]) & (line_wvobs<wvmnx[1]))[0]
