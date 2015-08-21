@@ -79,7 +79,7 @@ class IGMGuessesGui(QtGui.QMainWindow):
             # 5. Recenter on 'z'
         # 6. Add COS LSF
             # 7. Refit component key 'F'
-            # 8. Plot only selected components
+            # 8. Plot only selected components [DEPRECATED]
             # 9. Avoid shifting z of component outside its velocity range
             # 10. Write Component vlim to JSON
             # 11. Key to set line as some other transition (e.g. RMB in XSpec)
@@ -88,7 +88,7 @@ class IGMGuessesGui(QtGui.QMainWindow):
         # 14. Add error + residual arrays [NT]
         # 15. Adjust component redshift by keystroke
             # 16. Input redshift value via Widget
-        # 17. Use Component list to jump between components (like 'S')
+            # 17. Use Component list to jump between components (like 'S')
 
         # Build a widget combining several others
         self.main_widget = QtGui.QWidget()
@@ -202,10 +202,14 @@ class IGMGuessesGui(QtGui.QMainWindow):
         self.velplot_widg.update_model()
         self.velplot_widg.on_draw(fig_clear=True,plot_residuals=self.plot_residuals)
 
-    def updated_compslist(self):
+    def updated_compslist(self,component):
         '''Component list was updated'''
-        self.velplot_widg.update_model()
-        self.velplot_widg.on_draw(fig_clear=True,plot_residuals=self.plot_residuals)
+        if component is None:
+            self.fiddle_widg.reset()
+        else:
+            self.fiddle_widg.init_component(component)
+        #self.velplot_widg.update_model()
+        #self.velplot_widg.on_draw(fig_clear=True)
 
     def write_out(self):
         import json, io
@@ -351,7 +355,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
     def update_model(self):
         if self.parent is None:
             return
-        all_comp = self.parent.comps_widg.selected_components()
+        all_comp = self.parent.comps_widg.all_comp #selected_components()
         if len(all_comp) == 0:
             self.model.flux[:] = 1.
             return
@@ -696,8 +700,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
             # Title
             self.fig.suptitle('z={:.5f}'.format(self.z),fontsize='large')
             # Components
-            #components = self.parent.comps_widg.all_comp
-            components = self.parent.comps_widg.selected_components()
+            components = self.parent.comps_widg.all_comp 
             iwrest = np.array([comp.init_wrest.value for comp in components])*u.AA
             # Loop on windows
             all_idx = self.llist['show_line']
@@ -922,6 +925,8 @@ class FiddleComponentWidget(QtGui.QWidget):
         self.zwidget.set_text(-1.)
         self.bwidget.set_text(-1.)
         self.Cwidget.set_text('None')
+        idx = self.ddlist.findText('None')
+        self.ddlist.setCurrentIndex(idx)
         # Label
         self.set_label()
 
@@ -987,7 +992,7 @@ class ComponentListWidget(QtGui.QWidget):
 
         list_label = QtGui.QLabel('Components:')
         self.complist_widget = QtGui.QListWidget(self) 
-        self.complist_widget.setSelectionMode(QtGui.QAbstractItemView.ExtendedSelection)
+        #self.complist_widget.setSelectionMode(QtGui.QAbstractItemView.ExtendedSelection)
         self.complist_widget.addItem('None')
         #self.abslist_widget.addItem('Test')
 
@@ -1009,8 +1014,15 @@ class ComponentListWidget(QtGui.QWidget):
         '''
         Changed an item in the list
         '''
-        if self.parent is not None:
-            self.parent.updated_compslist()
+        item = self.complist_widget.selectedItems()
+        txt = item[0].text()
+        if txt == 'None':
+            if self.parent is not None:
+                self.parent.updated_compslist(None)
+        else:
+            ii = self.all_items.index(txt)
+            if self.parent is not None:
+                self.parent.updated_compslist(self.all_comp[ii])
 
         '''
         items = self.complist_widget.selectedItems()
@@ -1038,6 +1050,7 @@ class ComponentListWidget(QtGui.QWidget):
         #xdb.set_trace()
         #QtCore.pyqtRestoreInputHook()
         '''
+    '''
     def selected_components(self):
         items = self.complist_widget.selectedItems()
         selc = []
@@ -1049,6 +1062,7 @@ class ComponentListWidget(QtGui.QWidget):
             selc.append(self.all_comp[ii])
         # Return
         return selc
+    '''
 
     def add_component(self,component):
         self.all_comp.append( component )
