@@ -12,7 +12,7 @@
 
 # Import libraries
 import numpy as np
-from astropy.table import QTable, Column
+from astropy.table import QTable, Column, Table
 from astropy.coordinates import SkyCoord
 from astropy import units as u
 from astropy.units import Quantity
@@ -114,14 +114,14 @@ def dtos1(irad, fmt=0):
 #### ###############################
 #  Add RA, DEC to a Table
 def stod_table(table):
-    ''' Converts RAS, DECS columns in a Table to RA, DEC
+    ''' Converts RAS, DECS columns in a QTable to RA, DEC
 
     Parameters
     ----------
     table:  QTable (needs to handle units)
     '''
 
-    if type(table) is not QTable:
+    if not isinstance(table,QTable):
         raise TypeError('radec.stod_table: table needs to be a QTable')
 
     # Generate Columns (as needed)
