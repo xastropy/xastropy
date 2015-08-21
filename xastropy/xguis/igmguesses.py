@@ -522,7 +522,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
         if event.key == 'z': 
             #from xastropy.relativity import velocities
             #newz = velocities.z_from_v(self.z, event.xdata)
-            self.z = self.z + event.xdata/(1+self.z)/3e5
+            self.z = self.z + event.xdata*(1+self.z)/3e5
             #self.abs_sys.zabs = newz
             # Drawing
             self.psdict['xmnx'] = self.vmnx.value
