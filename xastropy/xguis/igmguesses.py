@@ -812,7 +812,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
                     mtw = np.where((line_wvobs > wvmnx[0]) & (line_wvobs<wvmnx[1]))[0]
                     for imt in mtw:
                         v = 3e5*(line_wvobs[imt]/wvobs - 1)
-                        self.ax.text(v, 0.90, line_lbl[imt], color='green', 
+                        self.ax.text(v, 0.90, line_lbl[imt], color='green',backgroundcolor='w',bbox={'pad':0,'edgecolor':'none'})
                             size='xx-small', rotation=90.)
 
                 # Analysis regions
