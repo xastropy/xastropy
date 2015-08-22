@@ -931,8 +931,7 @@ class ComponentListWidget(QtGui.QWidget):
 
     16-Dec-2014 by JXP
     '''
-    def __init__(self, components, parent=None, 
-        only_one=False, linelist=None, no_buttons=False):
+    def __init__(self, components, parent=None, no_buttons=False):
         '''
         only_one: bool, optional
           Restrict to one selection at a time? [False]
