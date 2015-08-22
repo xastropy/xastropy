@@ -112,33 +112,29 @@ class IGMGuessesGui(QtGui.QMainWindow):
         self.model = XSpectrum1D.from_tuple((
             spec.dispersion,np.ones(len(spec.dispersion))))
 
-        # LineList
-        z=0.0
-
-        ism = LineList('ISM')
-        wvmin = np.min(spec.dispersion) 
-        wvmax = np.max(spec.dispersion) 
-        wvlims = (wvmin,wvmax)
-        transitions = ism.available_transitions(wvlims,n_max=100,n_max_tuple=3,min_strength=4.)
-        #transitions = ism.all_transitions('HI')[::-1]
-        #import pdb
-        # pdb.set_trace()
-        if transitions is not None:
-            names = list(np.array(transitions['name']))
-        else:
-            names = ['HI 1215']
-        self.llist = xxgu.set_llist(names,sort=False)
+        # LineList (Grab ISM and HI as defaults)
+        z=0.17
+        self.llist = xxgu.set_llist('ISM')
+        # Load others
+        self.llist['HI'] = LineList('HI')
         self.llist['z'] = z
 
         # Grab the pieces and tie together
+        self.slines_widg = xspw.SelectedLinesWidget(
+            self.llist[self.llist['List']], parent=self, 
+            init_select='All')
         self.fiddle_widg = FiddleComponentWidget(parent=self)
-        self.comps_widg = ComponentListWidget([], parent=self,
-            linelist=self.llist[self.llist['List']])
+        self.comps_widg = ComponentListWidget([], parent=self)
         self.velplot_widg = IGGVelPlotWidget(spec, z, 
             parent=self, llist=self.llist, fwhm=self.fwhm,plot_residuals=self.plot_residuals)
         self.wq_widg = xxgu.WriteQuitWidget(parent=self)
-        self.slines_widg = xspw.SelectedLinesWidget(
-            self.llist[self.llist['List']], parent=self, init_select='All')
+        
+
+        # Rest linelist
+        self.update_strongest_lines()
+        self.slines_widg.selected = self.llist['show_line']
+        self.slines_widg.on_list_change(
+            self.llist[self.llist['List']])
 
         # Connections (buttons are above)
         #self.spec_widg.canvas.mpl_connect('key_press_event', self.on_key)
@@ -165,6 +161,26 @@ class IGMGuessesGui(QtGui.QMainWindow):
 
         # Point MainWindow
         self.setCentralWidget(self.main_widget)
+
+    def update_strongest_lines(self):
+        '''Grab the strongest lines in the spectrum at the current
+        redshift.
+        '''
+        z = self.velplot_widg.z
+        wvmin = np.min(self.velplot_widg.spec.dispersion) 
+        wvmax = np.max(self.velplot_widg.spec.dispersion) 
+        wvlims = (wvmin/(1+z),wvmax/(1+z))
+        transitions = self.llist['ISM'].available_transitions(
+            wvlims,n_max=100,
+            n_max_tuple=3,min_strength=8.)
+        if transitions is not None:
+            names = list(np.array(transitions['name']))
+        else:
+            names = ['HI 1215']
+        self.llist['strongest'] = LineList('ISM',subset=names)
+        self.llist['show_line'] = np.arange(len(self.llist['strongest']._data)) 
+        self.llist['List'] = 'strongest'
+        # self.llist['strongest'] = self.llist['ISM'].subset(names)
 
     def on_list_change(self):
         self.update_boxes()
@@ -350,6 +366,11 @@ class IGGVelPlotWidget(QtGui.QWidget):
         wvobs = (1+self.z) * wrest
         gdlin = np.where( (wvobs > wvmin) & (wvobs < wvmax) )[0]
         self.llist['show_line'] = gdlin
+        # Update GUI
+        self.parent.slines_widg.selected = self.llist['show_line']
+        self.parent.slines_widg.on_list_change(
+            self.llist[self.llist['List']])
+
 
     # Add a component
     def update_model(self):
@@ -586,6 +607,14 @@ class IGGVelPlotWidget(QtGui.QWidget):
             #
             self.z = (wvobs/wrest - 1.).value
             #self.statusBar().showMessage('z = {:f}'.format(z))
+            self.init_lines()
+
+        # Toggle line lists
+        if event.key == 'H':
+            self.llist['List'] = 'HI'
+            self.init_lines()
+        if event.key == 'U':
+            self.parent.update_strongest_lines()
             self.init_lines()
 
         ## Velocity limits
