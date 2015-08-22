@@ -41,6 +41,9 @@ def get_filename(field, ftype):
 	elif ftype == 'SDSS':
 		path = os.getenv('CASBAH_GALAXIES')
 		filename = path+'/'+field[0]+'/'+field[0]+'_SDSS.fits'
+	elif ftype == 'HECTOSPEC':
+		path = os.getenv('CASBAH_GALAXIES')
+		filename = path+'/'+field[0]+'/'+field[0]+'_HECTOSPEC.fits'
 	else:
 		raise ValueError('Not ready for this ftype: {:s}'.format(ftype))
 	# Return
