@@ -85,7 +85,7 @@ class IGMGuessesGui(QtGui.QMainWindow):
             # 11. Key to set line as some other transition (e.g. RMB in XSpec)
             # 12. Mask array with points
             # 13. Toggle line ID names
-        # 14. Add error + residual arrays [NT]
+            # 14. Add error + residual arrays [NT]
         # 15. Adjust component redshift by keystroke
             # 16. Input redshift value via Widget
             # 17. Use Component list to jump between components (like 'S')
@@ -117,6 +117,7 @@ class IGMGuessesGui(QtGui.QMainWindow):
         self.llist = xxgu.set_llist('ISM')
         # Load others
         self.llist['HI'] = LineList('HI')
+        self.llist['HI']._data = self.llist['HI']._data[::-1]
         self.llist['z'] = z
 
         # Grab the pieces and tie together
@@ -206,17 +207,17 @@ class IGMGuessesGui(QtGui.QMainWindow):
         del component
         # Update
         self.velplot_widg.update_model()
-        self.velplot_widg.on_draw(fig_clear=True,plot_residuals=self.plot_residuals)
+        self.velplot_widg.on_draw(fig_clear=True)
 
     def updated_slines(self, selected):
         self.llist['show_line'] = selected
-        self.velplot_widg.on_draw(fig_clear=True,plot_residuals=self.plot_residuals)
+        self.velplot_widg.on_draw(fig_clear=True)
 
     def updated_component(self):
         '''Component attrib was updated. Deal with it'''
         self.fiddle_widg.component.sync_lines()
         self.velplot_widg.update_model()
-        self.velplot_widg.on_draw(fig_clear=True,plot_residuals=self.plot_residuals)
+        self.velplot_widg.on_draw(fig_clear=True)
 
     def updated_compslist(self,component):
         '''Component list was updated'''
@@ -296,8 +297,8 @@ class IGGVelPlotWidget(QtGui.QWidget):
         self.avmnx = np.array([0.,0.])*u.km/u.s
         self.model = XSpectrum1D.from_tuple((
             spec.dispersion,np.ones(len(spec.dispersion))))
-        self.plot_residuals = plot_residuals
 
+        self.plot_residuals = plot_residuals
         #Define arrays for plotting residuals
         if self.plot_residuals:
             self.residual_normalization_factor = 0.02/np.median(self.spec.sig)
@@ -352,7 +353,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
         self.setLayout(vbox)
 
         # Draw on init
-        self.on_draw(plot_residuals=self.plot_residuals)
+        self.on_draw()
 
     # Load them up for display
     def init_lines(self):
@@ -696,11 +697,11 @@ class IGGVelPlotWidget(QtGui.QWidget):
             fig_clear = True
 
         if flg==1: # Default is to redraw
-            self.on_draw(rescale=rescale, fig_clear=fig_clear,plot_residuals=self.plot_residuals)
+            self.on_draw(rescale=rescale, fig_clear=fig_clear)
         elif flg==2: # Layer (no clear)
-            self.on_draw(replot=False, rescale=rescale,plot_residuals=self.plot_residuals) 
+            self.on_draw(replot=False, rescale=rescale)
         elif flg==3: # Layer (no clear)
-            self.on_draw(in_wrest=wrest, rescale=rescale,plot_residuals=self.plot_residuals)
+            self.on_draw(in_wrest=wrest, rescale=rescale)
 
     # Click of main mouse button
     def on_click(self,event):
@@ -711,7 +712,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
             return
         if event.button == 1: # Draw line
             self.ax.plot( [event.xdata,event.xdata], self.psdict['ymnx'], ':', color='green')
-            self.on_draw(replot=False,plot_residuals=self.plot_residuals) 
+            self.on_draw(replot=False) 
     
             # Print values
             try:
@@ -719,7 +720,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
             except AttributeError:
                 return
 
-    def on_draw(self, replot=True, in_wrest=None, rescale=True, fig_clear=False,plot_residuals=False):
+    def on_draw(self, replot=True, in_wrest=None, rescale=True, fig_clear=False):
         """ Redraws the figure
         """
         #
@@ -791,7 +792,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
                 self.ax.plot(velo, self.model.flux, 'b-',lw=0.5)
 
                 #Error & residuals
-                if plot_residuals:
+                if self.plot_residuals:
                     self.ax.plot(velo, self.residual_limit, 'g-',drawstyle='steps-mid',lw=0.5)
                     self.ax.plot(velo, -self.residual_limit, 'g-',drawstyle='steps-mid',lw=0.5)
                     self.ax.plot(velo, self.residual, '.',color='grey',ms=2)
@@ -1238,7 +1239,9 @@ if __name__ == "__main__":
         # LLS
         if (flg_fig % 2**1) >= 2**0:
             #spec_fil = '/Users/xavier/Keck/ESI/RedData/PSS0133+0400/PSS0133+0400_f.fits'
-            spec_fil = os.getenv('DROPBOX_DIR')+'/Tejos_X/COS-Clusters/J1018+0546.txt'
+            #spec_fil = os.getenv('DROPBOX_DIR')+'/Tejos_X/COS-Clusters/J1018+0546.txt'
+            spec_fil = os.getenv('DROPBOX_DIR')+'/Tejos_X/COS-Filaments/q1410.fits'
+            
             spec = lsi.readspec(spec_fil)
             spec.normalize()
             #spec.plot()
