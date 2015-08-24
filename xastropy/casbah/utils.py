@@ -44,6 +44,9 @@ def get_filename(field, ftype):
 	elif ftype == 'HECTOSPEC':
 		path = os.getenv('CASBAH_GALAXIES')
 		filename = path+'/'+field[0]+'/'+field[0]+'_HECTOSPEC.fits'
+	elif ftype == 'TARG_FIG':
+		path = os.getenv('CASBAH_GALAXIES')
+		filename = path+'/'+field[0]+'/'+field[0]+'_targfig.pdf'
 	else:
 		raise ValueError('Not ready for this ftype: {:s}'.format(ftype))
 	# Return

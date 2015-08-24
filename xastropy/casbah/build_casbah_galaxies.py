@@ -493,15 +493,14 @@ def mmt_targets(field,path=None):
                 raise ValueError('Multiple matches?!')
             targ_mask['MASK_NAME'][mtt[0]] = mask_nm
         all_obs.append(obs_tab)
+    # Add columns to targs
+    for tt,cname in enumerate(cnames):
+        mask = np.array([False]*len(targs))
+        bad = np.where(np.array(targ_mask[cname])==msk_val[tt])[0]
+        if len(bad)>0:
+            mask[bad]=True
+        #
+        clm = MaskedColumn(targ_mask[cname],name=cname, mask=mask)
+        targs.add_column(clm)
     # Finish
-    mask = np.array([False]*len(targs))
-    bad = np.where(np.array(targ_mask['names'])=='--')[0]
-    if len(bad)>0:
-        mask[bad]=True
-    #
-    clm = MaskedColumn(targ_mask['names'],name='MASK_NAME',
-        mask=mask)
-    targs.add_column(clm)
-
-
     return all_masks, all_obs, targs

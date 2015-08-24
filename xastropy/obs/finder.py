@@ -250,11 +250,11 @@ def main(inp, survey='2r', radec=None, deci=None, fpath=None,
 
         # Title
         plt.text(0.5,1.24, str(nm), fontsize=32, 
-        horizontalalignment='center',transform=ax.transAxes)
+            horizontalalignment='center',transform=ax.transAxes)
         plt.text(0.5,1.16, 'RA (J2000) = '+str(obj['RAS']), fontsize=28, 
-        horizontalalignment='center',transform=ax.transAxes)
+            horizontalalignment='center',transform=ax.transAxes)
         plt.text(0.5,1.10, 'DEC (J2000) = '+str(obj['DECS']), fontsize=28, 
-        horizontalalignment='center',transform=ax.transAxes)
+            horizontalalignment='center',transform=ax.transAxes)
         #import pdb; pdb.set_trace()
 
         # Circle

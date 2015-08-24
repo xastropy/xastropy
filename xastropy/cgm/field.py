@@ -131,6 +131,8 @@ class IgmGalaxyField(object):
           Sub-table of targets that have been observed within this radius
         obs_dates: List
           List of observing dates [eventually might add to Table]
+        indices: array
+          Indices from the main table
         '''
         if (self.targets is None) or (self.observing is None):
             raise ValueError('IgmGalaxyField: Need to fill the target and/or observing table first!')
@@ -144,6 +146,8 @@ class IgmGalaxyField(object):
                 return None
             # Set all to False to start
             subtab = self.targets[gdsep]
+        else:
+            gdsep = np.arange(len(subtab)) # For indexing below
         # Generate mask
         tmsk = np.array([False]*len(subtab))
         # Grab those with a MASK_NAME
@@ -162,7 +166,7 @@ class IgmGalaxyField(object):
                 tmsk[have_mask[mt2]] = True
                 obs_dict[mask] = obs_dates
         # Finish
-        return subtab[tmsk], obs_dict
+        return subtab[tmsk], obs_dict, gdsep[tmsk]
 
     def get_unobserved(self,theta):
         '''Generate a Table of observed targets within an angular offset

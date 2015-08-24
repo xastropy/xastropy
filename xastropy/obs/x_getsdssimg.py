@@ -46,6 +46,12 @@ from xastropy.xutils import xdebug as xdb
 
 # Generate the SDSS URL (default is 202" on a side)
 def sdsshttp(ra, dec, imsize, scale=0.39612, grid=None, label=None, invert=None):#, xs, ys):
+    '''
+    Parameters:
+    ----------
+    imsize: float
+      Image size (rectangular) in arcmin and without units
+    '''
 
     # Pixels
     npix = round(imsize*60./scale)
@@ -110,6 +116,7 @@ def getimg(ira, idec, imsize, BW=False, DSS=None):
     ----------
     ira: (float or Quantity) RA in decimal degrees
     idec: (float or Quantity) DEC in decimal degrees
+    imsize: Image size in arcmin (without units)
     '''
     import PIL
     from PIL import Image

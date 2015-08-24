@@ -188,7 +188,7 @@ def to_coord(irad):
 
 #### ###############################
 #  Offsets
-def offsets(irad1, irad2):
+def offsets(irad1, irad2, verbose=True):
     """
     Input a pair of RA/DEC and calculate the RA/DEC offsets between them
 
@@ -196,6 +196,7 @@ def offsets(irad1, irad2):
     ----------
     irad1 : RA/DEC of source 1 (origin)
     irad2 : RA/DEC of source 2 (destination)
+    verbose: bool, optional
 
     Returns:
     -------
@@ -214,12 +215,13 @@ def offsets(irad1, irad2):
 
     # RA/DEC
     dec_off = np.cos(PA) * sep # arcsec
-    ra_off = np.sin(PA) * sep # arcsec
+    ra_off = -1*np.sin(PA) * sep # arcsec
 
     # Print
-    print('RA Offset from 1 to 2 is {:g}'.format(ra_off))
-    print('DEC Offset from 1 to 2 is {:g}'.format(dec_off))
-    print('PA = {:g}'.format(PA.degree*u.degree))
+    if verbose:
+        print('RA Offset from 1 to 2 is {:g}'.format(ra_off))
+        print('DEC Offset from 1 to 2 is {:g}'.format(dec_off))
+        print('PA = {:g}'.format(PA.degree*u.degree))
 
     # Return
     return (ra_off, dec_off), PA.degree * u.degree
