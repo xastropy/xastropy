@@ -215,7 +215,7 @@ def offsets(irad1, irad2, verbose=True):
 
     # RA/DEC
     dec_off = np.cos(PA) * sep # arcsec
-    ra_off = -1*np.sin(PA) * sep # arcsec
+    ra_off = np.sin(PA) * sep # arcsec (East is *higher* RA)
 
     # Print
     if verbose:

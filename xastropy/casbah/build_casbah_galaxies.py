@@ -56,6 +56,34 @@ def build_spectra(field,path='./'):
     '''
     # MMT
 
+def build_imaging(field,path='./'):
+    '''Top-level program to build images
+
+    Parameters:
+    -----------
+    field: tuple
+      (Name, ra, dec)
+    '''
+    import shutil
+    # DEIMOS mask image
+    targ_file = xcasbahu.get_filename(field,'TARGETS')
+    targets = Table.read(targ_file,delimiter='|',
+        format='ascii.fixed_width', 
+        fill_values=[('--','0','MASK_NAME')])
+    deimos_targ = np.where(targets['INSTR'] == 'DEIMOS')[0]
+    if len(deimos_targ) > 0:
+        # Search for LBT image
+        msk_img = targets[deimos_targ]['TARG_IMG'][0]
+        img_fil = glob.glob(field[0]+'/IMG/LBT/'+msk_img+'*')
+        if len(img_fil) == 1:
+            # Copy
+            path = os.getenv('CASBAH_GALAXIES')
+            shutil.copy2(img_fil[0], path+'/'+field[0]+'/')
+            print('Copied {:s}'.format(img_fil[0]))
+        else:
+            raise ValueError('Need to provide the image! {:s}'.format(
+                field[0]+'/IMG/LBT/'+msk_img))
+
 def build_targets(field,path='./'):
     '''Top-level program to build target info 
 
@@ -69,7 +97,6 @@ def build_targets(field,path='./'):
 
     # DEIMOS
     deimos_sex, deimos_masks, deimos_obs, deimos_targs = deimos_targets(field)
-
 
     # COLLATE
     all_masks = deimos_masks + mmt_masks
