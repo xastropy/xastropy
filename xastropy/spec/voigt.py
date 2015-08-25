@@ -126,7 +126,8 @@ def voigt_model(wave, line, fwhm=0., flg_ret=1, debug=False):
         nujk = (const.c / wv).to(u.Hz)
         dnu = (par[2].to(u.km/u.s) / wv).to('Hz')
         if par[5].value == 0.:
-            warnings.warn('Gamma value is probably not set for wrest={:g}!'.format(par[3]))
+            warnings.warn('Gamma value is probably not set for wrest={:g} {}!'
+            	.format(float(par[3].value),par[3].unit))
         avoigt = (par[5]/( 4 * np.pi * dnu)).to(u.dimensionless_unscaled)
 
         uvoigt = ( ((const.c / (wave/zp1)) - nujk) / dnu).to(u.dimensionless_unscaled)
