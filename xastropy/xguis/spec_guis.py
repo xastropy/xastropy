@@ -513,6 +513,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
         self.count_lls = 0
         self.lls_model = None
         self.all_forest = []
+        self.flag_write = False
 
         # Spectrum
         spec, spec_fil = xxgu.read_spec(ispec)
@@ -523,10 +524,12 @@ class XFitLLSGUI(QtGui.QMainWindow):
             piv_wv=np.median(spec.dispersion.value))
         if zqso is not None:
             self.zqso = zqso
-            # Read Telfer 
-            tspec = xspc.get_telfer_spec(zqso=zqso) 
+            # Read Telfer and apply IGM
+            tspec = xspc.get_telfer_spec(zqso=zqso,igm=True) 
             # Rebin
             self.continuum = tspec.rebin(spec.dispersion)
+            # Reset pivot wave
+            self.conti_dict['piv_wv'] = 1025.*(1+zqso)
         else:
             self.zqso = None
             self.continuum = XSpectrum1D.from_tuple((
@@ -742,7 +745,9 @@ class XFitLLSGUI(QtGui.QMainWindow):
             if event.key == 'C':
                 imin = np.argmin(np.abs(
                     self.continuum.dispersion.value-event.xdata))
-                self.conti_dict['Norm'] = float(event.ydata / self.base_continuum[imin].value)
+                self.conti_dict['Norm'] = float(event.ydata / 
+                    (self.base_continuum[imin].value*(event.xdata/
+                        self.conti_dict['piv_wv'])**self.conti_dict['tilt']))
             elif event.key == '1':
                 self.conti_dict['tilt'] += 0.1
             elif event.key == '2':
@@ -918,6 +923,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
         with io.open(self.outfil, 'w', encoding='utf-8') as f:
             f.write(unicode(json.dumps(out_dict, sort_keys=True, indent=4, 
                 separators=(',', ': '))))
+        self.flag_write = True
 
     # Write + Quit
     def write_quit(self):

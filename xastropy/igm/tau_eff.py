@@ -34,13 +34,22 @@ xa_path = imp.find_module('xastropy')[1]
 
 #    Calculate tau_effective for the Lyman series using the EW
 #    approximation (e.g. Zuo 93)
+def map_etl(dict_inp):
+    ''' Simple routine to enable parallel processing
+    '''
+    teff = ew_teff_lyman(dict_inp['ilambda'], 
+        dict_inp['zem'], dict_inp['fN_model'])
+    # Return
+    return teff
+
 def ew_teff_lyman(ilambda, zem, fN_model, NHI_MIN=11.5, NHI_MAX=22.0, N_eval=5000,
                   EW_spline=None, bval=24., fNz=False, cosmo=None, debug=False,
-                  cumul=None):
+                  cumul=None, verbose=False):
     """ tau effective (follows ew_teff_lyman.pro from XIDL)
        teff = ew_teff_lyman(3400., 2.4)
 
     Parameters:
+    -------------
       ilambda: float
         Observed wavelength 
       zem: float 
@@ -70,15 +79,17 @@ def ew_teff_lyman(ilambda, zem, fN_model, NHI_MIN=11.5, NHI_MAX=22.0, N_eval=500
     """
     # Lambda
     if not isinstance(ilambda,float):
-        raise ValueError('igm.tau_eff: ilambda must be a flaat for now') # Will need to not flatten eval otherwise
+        raise ValueError('igm.tau_eff: ilambda must be a float for now') 
     Lambda = ilambda
     if not isinstance(Lambda,u.quantity.Quantity):
         Lambda = Lambda * u.AA # Ang
 
     # Read in EW spline (if needed)
     if EW_spline == None:
-        if int(bval) == 24: EW_FIL = xa_path+'/igm/EW_SPLINE_b24.p'
-        elif int(bval) == 35: EW_FIL = os.environ.get('XIDL_DIR')+'/IGM/EW_SPLINE_b35.fits'
+        if int(bval) == 24: 
+            EW_FIL = xa_path+'/igm/EW_SPLINE_b24.p'
+        elif int(bval) == 35: 
+            EW_FIL = os.environ.get('XIDL_DIR')+'/IGM/EW_SPLINE_b35.fits'
         else: 
             raise ValueError('igm.tau_eff: Not ready for this bvalue %g' % bval)
         EW_spline = pickle.load(open(EW_FIL,"rb"))
@@ -90,8 +101,9 @@ def ew_teff_lyman(ilambda, zem, fN_model, NHI_MIN=11.5, NHI_MAX=22.0, N_eval=500
     gd_Lyman = wrest[(Lambda/(1+zem)) < wrest]
     nlyman = len(gd_Lyman) 
     if nlyman == 0:
-        print('igm.tau_eff: No Lyman lines covered at this wavelength')
-        return -1
+        if verbose:
+            print('igm.tau_eff: No Lyman lines covered at this wavelength')
+        return 0
 
     # N_HI grid
     lgNval = NHI_MIN + (NHI_MAX-NHI_MIN)*np.arange(N_eval)/(N_eval-1) # Base 10 
@@ -108,6 +120,10 @@ def ew_teff_lyman(ilambda, zem, fN_model, NHI_MIN=11.5, NHI_MAX=22.0, N_eval=500
                              # (Can pack together and should)
         # Redshift
         zeval = ((Lambda / line) - 1).value
+        if zeval < 0.:
+            teff_lyman[qq] = 0.
+            continue
+        # Cosmology
         if fNz is False:
             if cosmo not in locals():
                 cosmo = FlatLambdaCDM(H0=70, Om0=0.3) # Vanilla
@@ -291,20 +307,34 @@ def teff_obs(z):
 ## #################################    
 if __name__ == '__main__':
 
+    '''
     # Make EW spline file
-    #mk_ew_lyman_spline(24.)
+    mk_ew_lyman_spline(24.)
+    '''
 
-    # read f(N)
-    
     from xastropy.igm.fN import model as xifm
+    import multiprocessing
 
     #xdb.set_trace()
+    # read f(N)
     fN_model = xifm.default_model()
     print(fN_model)
 
     # tau_eff
-    lamb = 1215.6701*(1+2.4)
-    teff = ew_teff_lyman(lamb, 2.5, fN_model, NHI_MIN=12., NHI_MAX=17.)
-    print('teff at z=2.4 :: %g' % teff)
+    #tst_wv = tau_eff_llist()
+    tst_wv = np.arange(915.,1255,1.)
+    #lamb = 1215.6701*(1+2.4)
+    adict = []
+    for wrest in tst_wv:
+        tdict = dict(ilambda=wrest*(1+2.4), zem=2.5, fN_model=fN_model)
+        adict.append(tdict)
+
+    pool = multiprocessing.Pool(4) # initialize thread pool N threads
+    ateff = pool.map(map_etl, adict)
+    # Plot
+    xdb.xplot(tst_wv,np.exp(-np.array(ateff)))
+    #xdb.set_trace()
+    #teff = ew_teff_lyman(lamb, 2.5, fN_model, NHI_MIN=12., NHI_MAX=17.)
+    #print('teff at z=2.4 :: %g' % teff)
     #teff = ew_teff_lyman(3400., 2.4, fN_model)
     #print('teff at 3400A = %g' % teff)
