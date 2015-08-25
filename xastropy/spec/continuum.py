@@ -44,8 +44,7 @@ def init_conti_dict(Norm=0., tilt=0., piv_wv=0., igm='None'):
     conti_dict: dict 
       Useful for simple modeling.  Keep as a dict for JSON writing
     '''
-    conti_dict = dict(Norm=Norm, tilt=tilt, piv_wv=piv_wv,
-        igm='None')
+    conti_dict = dict(Norm=Norm, tilt=tilt, piv_wv=piv_wv, igm=igm)
     #
     return conti_dict
 
