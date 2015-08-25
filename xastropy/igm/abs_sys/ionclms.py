@@ -17,6 +17,7 @@ import copy
 
 from astropy.io import fits, ascii
 from astropy.units.quantity import Quantity
+from astropy import units as u
 from astropy.table import QTable, Table, Column
 
 from linetools.spectralline import AbsLine
@@ -315,7 +316,7 @@ class Ionic_Clm_File(object):
             vmax = float(tmp[2].strip())
             key = float(tmp[0].strip()) # Using a float not string!
             # Generate
-            self.clm_lines[key] = AbsLine(key*u.AA)
+            self.clm_lines[key] = AbsLine(key*u.AA,closest=True)
             #self.clm_lines[key] = xa.spec.analysis.Spectral_Line(key)
             self.clm_lines[key].analy['FLAGS'] = ionflg, int(tmp[3].strip())
             # By-hand
