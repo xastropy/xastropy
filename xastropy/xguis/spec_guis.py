@@ -483,7 +483,7 @@ class XAODMGui(QtGui.QDialog):
 # GUI for fitting LLS in a spectrum
 class XFitLLSGUI(QtGui.QMainWindow):
     ''' GUI to fit LLS in a given spectrum
-        v0.4.2
+        v0.5.0
         30-Jul-2015 by JXP
     '''
     def __init__(self, ispec, parent=None, lls_fit_file=None, 
@@ -494,7 +494,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
         lls_fit_file: str, optional
           Name of the LLS fit file to input
         smooth: float, optional
-          Number of pixels to smooth on
+          Number of pixels to smooth on (FWHM)
         zqso: float, optional
           Redshift of the quasar.  If input, a Telfer continuum is used
         '''
@@ -521,11 +521,13 @@ class XFitLLSGUI(QtGui.QMainWindow):
         # Continuum
         self.conti_dict = xspc.init_conti_dict(
             Norm=float(np.median(spec.flux.value)),
-            piv_wv=np.median(spec.dispersion.value))
+            piv_wv=np.median(spec.dispersion.value),
+            igm='True')
         if zqso is not None:
             self.zqso = zqso
             # Read Telfer and apply IGM
-            tspec = xspc.get_telfer_spec(zqso=zqso,igm=True) 
+            tspec = xspc.get_telfer_spec(zqso=zqso,
+                igm=(self.conti_dict['igm']=='True'))
             # Rebin
             self.continuum = tspec.rebin(spec.dispersion)
             # Reset pivot wave
