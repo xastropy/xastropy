@@ -66,8 +66,10 @@ class fN_Model(object):
         self.zmnx = zmnx  
 
         # Pivots
-        if pivots == None: self.pivots = np.zeros(2)
-        else: self.pivots = pivots
+        if pivots is None: 
+            self.pivots = np.zeros(2)
+        else: 
+            self.pivots = pivots
         self.npivot = len(pivots)
 
         # Param
@@ -80,7 +82,9 @@ class fN_Model(object):
             #    self.param = np.append(self.param,-30.)
             # Init
             if fN_mtype == 'Hspline':
-                self.model = scii.PchipInterpolator(self.pivots, self.param)
+                self.model = scii.PchipInterpolator(self.pivots, self.param,
+                    extrapolate=True) # scipy 0.16
+                #xdb.set_trace()
 
         # Redshift (needs updating)
         self.zpivot = zpivot
@@ -583,7 +587,8 @@ if __name__ == '__main__':
     #flg_test += 2**2 # Data
     #flg_test += 2**3 # l(X)
     #flg_test += 64 # Akio
-    flg_test += 2**7 # rho_HI
+    #flg_test += 2**7 # rho_HI
+    flg_test += 2**8 # Create Pickle file
     #flg_test = 0 + 64
     
     if (flg_test % 2) == 1:
@@ -599,7 +604,7 @@ if __name__ == '__main__':
         print(fN_model)
 
     # Compare default against P+13
-    if (flg_test % 4) >= 2:
+    if (flg_test % 2**2) >= 2**1:
         fN_model = xifm.default_model()
         p13_file = (os.environ.get('DROPBOX_DIR')+'IGM/fN/fN_spline_z24.fits.gz')
         hdu = fits.open(p13_file)
@@ -678,3 +683,7 @@ if __name__ == '__main__':
         # Evaluate
         rho_HI = fN_model.calc_rhoHI(z, (20.3, 22.))
         print('rho_HI = {:g}'.format(rho_HI))
+
+    # Generate pickle file
+    if (flg_test % 2**9) >= 2**8:
+        fN_model = xifm.default_model(recalc=True,write=True)

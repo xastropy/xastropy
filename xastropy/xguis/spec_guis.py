@@ -760,7 +760,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
             # Update
             self.llist['Plot'] = False # Turn off metal-lines
             self.update_model()
-        elif event.key in ['L','a','N','n','v','V','D','@']: # LLS-centric
+        elif event.key in ['L','a','N','n','v','V','D','@','g']: # LLS-centric
             idx = self.get_sngl_sel_sys()
             if idx is None:
                 return
@@ -768,6 +768,8 @@ class XFitLLSGUI(QtGui.QMainWindow):
                 self.abssys_widg.all_abssys[idx].zabs = event.xdata/911.7633 - 1.
             elif event.key == 'a': #Lya
                 self.abssys_widg.all_abssys[idx].zabs = event.xdata/1215.6700-1.
+            elif event.key == 'g': #Lyg
+                self.abssys_widg.all_abssys[idx].zabs = event.xdata/972.5367-1.
             elif event.key == 'N': #Add to NHI
                 self.abssys_widg.all_abssys[idx].NHI += 0.05
             elif event.key == 'n': #Subtract from NHI

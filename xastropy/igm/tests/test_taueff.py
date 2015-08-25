@@ -21,6 +21,7 @@ def data_path(filename):
 def test_lya():
     # f(N)
     fN_model = xifm.default_model()
+    #fN_model = xifm.default_model(recalc=True)
 
     # tau_eff
     lamb = 1215.6701*(1+2.4)
