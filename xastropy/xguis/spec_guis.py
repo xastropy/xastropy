@@ -483,7 +483,7 @@ class XAODMGui(QtGui.QDialog):
 # GUI for fitting LLS in a spectrum
 class XFitLLSGUI(QtGui.QMainWindow):
     ''' GUI to fit LLS in a given spectrum
-        v0.4.2
+        v0.5.0
         30-Jul-2015 by JXP
     '''
     def __init__(self, ispec, parent=None, lls_fit_file=None, 
@@ -494,7 +494,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
         lls_fit_file: str, optional
           Name of the LLS fit file to input
         smooth: float, optional
-          Number of pixels to smooth on
+          Number of pixels to smooth on (FWHM)
         zqso: float, optional
           Redshift of the quasar.  If input, a Telfer continuum is used
         '''
@@ -513,6 +513,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
         self.count_lls = 0
         self.lls_model = None
         self.all_forest = []
+        self.flag_write = False
 
         # Spectrum
         spec, spec_fil = xxgu.read_spec(ispec)
@@ -520,13 +521,17 @@ class XFitLLSGUI(QtGui.QMainWindow):
         # Continuum
         self.conti_dict = xspc.init_conti_dict(
             Norm=float(np.median(spec.flux.value)),
-            piv_wv=np.median(spec.dispersion.value))
+            piv_wv=np.median(spec.dispersion.value),
+            igm='True')
         if zqso is not None:
             self.zqso = zqso
-            # Read Telfer 
-            tspec = xspc.get_telfer_spec(zqso=zqso) 
+            # Read Telfer and apply IGM
+            tspec = xspc.get_telfer_spec(zqso=zqso,
+                igm=(self.conti_dict['igm']=='True'))
             # Rebin
             self.continuum = tspec.rebin(spec.dispersion)
+            # Reset pivot wave
+            self.conti_dict['piv_wv'] = 1025.*(1+zqso)
         else:
             self.zqso = None
             self.continuum = XSpectrum1D.from_tuple((
@@ -742,7 +747,9 @@ class XFitLLSGUI(QtGui.QMainWindow):
             if event.key == 'C':
                 imin = np.argmin(np.abs(
                     self.continuum.dispersion.value-event.xdata))
-                self.conti_dict['Norm'] = float(event.ydata / self.base_continuum[imin].value)
+                self.conti_dict['Norm'] = float(event.ydata / 
+                    (self.base_continuum[imin].value*(event.xdata/
+                        self.conti_dict['piv_wv'])**self.conti_dict['tilt']))
             elif event.key == '1':
                 self.conti_dict['tilt'] += 0.1
             elif event.key == '2':
@@ -755,7 +762,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
             # Update
             self.llist['Plot'] = False # Turn off metal-lines
             self.update_model()
-        elif event.key in ['L','a','N','n','v','V','D','@']: # LLS-centric
+        elif event.key in ['L','a','N','n','v','V','D','@','g']: # LLS-centric
             idx = self.get_sngl_sel_sys()
             if idx is None:
                 return
@@ -763,6 +770,8 @@ class XFitLLSGUI(QtGui.QMainWindow):
                 self.abssys_widg.all_abssys[idx].zabs = event.xdata/911.7633 - 1.
             elif event.key == 'a': #Lya
                 self.abssys_widg.all_abssys[idx].zabs = event.xdata/1215.6700-1.
+            elif event.key == 'g': #Lyg
+                self.abssys_widg.all_abssys[idx].zabs = event.xdata/972.5367-1.
             elif event.key == 'N': #Add to NHI
                 self.abssys_widg.all_abssys[idx].NHI += 0.05
             elif event.key == 'n': #Subtract from NHI
@@ -918,6 +927,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
         with io.open(self.outfil, 'w', encoding='utf-8') as f:
             f.write(unicode(json.dumps(out_dict, sort_keys=True, indent=4, 
                 separators=(',', ': '))))
+        self.flag_write = True
 
     # Write + Quit
     def write_quit(self):
