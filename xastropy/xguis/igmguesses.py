@@ -579,7 +579,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
             # Updates (this captures them all and redraws)
             self.parent.fiddle_widg.update_component()
         ## Grab/Delete a component
-        if event.key in ['D','S']:
+        if event.key in ['D','S','d']:
             components = self.parent.comps_widg.all_comp
             iwrest = np.array([comp.init_wrest.value for comp in components])*u.AA
             mtc = np.where(wrest == iwrest)[0]
@@ -593,7 +593,9 @@ class IGGVelPlotWidget(QtGui.QWidget):
             mindvz = np.argmin(np.abs(dvz+event.xdata))
             if event.key == 'S':
                 self.parent.fiddle_widg.init_component(components[mtc[mindvz]])
-            elif event.key == 'D':
+            elif event.key == 'd': # Delete selected component
+                self.parent.delete_component(self.parent.fiddle_widg.component)
+            elif event.key == 'D': # Delete nearest component to cursor
                 self.parent.delete_component(components[mtc[mindvz]])
 
             #absline = self.abs_sys.grab_line((self.z,wrest))
@@ -668,7 +670,9 @@ class IGGVelPlotWidget(QtGui.QWidget):
                 self.wrest = 0.
 
         # Fiddle with analysis mask        
-        if event.key in ['x']: 
+        if event.key in ['x','X']:  
+            # x = Delete mask
+            # X = Add to mask
             if self.flag_mask is False:
                 self.wrest = wrest
                 self.wtmp = wvobs*(1+event.xdata/3e5)
@@ -683,6 +687,8 @@ class IGGVelPlotWidget(QtGui.QWidget):
                 #print(twvmnx,len(mskp))
                 if event.key == 'x':
                     self.spec.mask[mskp] = 0
+                elif event.key == 'X':
+                    self.spec.mask[mskp] = 1
                 # Reset
                 self.flag_mask = False
                 self.wrest = 0.
