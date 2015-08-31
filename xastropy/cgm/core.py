@@ -35,7 +35,7 @@ from astropy.utils.misc import isiterable
 
 ########################## ##########################
 ########################## ##########################
-class CGM_Sys(object):
+class CGMSys(object):
     """ Class for a CGM absorption system
     Combines absorption lines with a Galaxy
 
@@ -52,7 +52,7 @@ class CGM_Sys(object):
                  g_ras='02 26 12.98', g_decs='+00 15 29.1', zgal=0.227, verbose=False):
 
         # Absorption system
-        self.abs_sys = CGM_Abs()
+        self.abs_sys = CGMAbs()
 
         self.abs_sys.coord = SkyCoord(ras, decs, 'icrs', unit=(u.hour, u.deg))
         # Name
@@ -87,14 +87,14 @@ class CGM_Sys(object):
                  self.galaxy.z, self.rho, self.NHI, self.MH))
 
 # Class for DLA Absorption Lines 
-class CGM_Abs(AbslineSystem):
+class CGMAbs(AbslineSystem):
     """A CGM absorption system
 
     Attributes:
     """
     def __init__(self): 
         # Generate with type
-        Absline_System.__init__(self,'CGM')
+        AbslineSystem.__init__(self,'CGM')
 
         # Init
         self.ions = None
@@ -113,7 +113,7 @@ class CGM_Abs(AbslineSystem):
 
 
 # Class for CGM Survey
-class CGM_Abs_Survey(object):
+class CGMAbsSurvey(object):
     """A CGM Survey class in absorption
 
     Attributes:
@@ -121,7 +121,7 @@ class CGM_Abs_Survey(object):
     # Initialize with a .dat file
     def __init__(self, tree=None, survey=''):
 
-        from xastropy.igm.abs_sys.abs_survey import Absline_Survey
+        from xastropy.igm.abs_sys.abs_survey import AbslineSurvey
 
         # Name of survey
         self.survey = ''
@@ -193,8 +193,8 @@ class CGM_Abs_Survey(object):
 if __name__ == '__main__':
 
     # Initialize
-    tmp = CGM_Abs()
+    tmp = CGMAbs()
     print(tmp)
 
-    tmp2 = CGM_Abs_Survey()
+    tmp2 = CGMAbsSurvey()
     print(tmp2)

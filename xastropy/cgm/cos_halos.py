@@ -16,13 +16,16 @@ import numpy as np
 import os, imp, pickle, sys, glob
 from astropy.io import fits, ascii
 from astropy import units as u 
+from astropy.table import QTable, Table, Column
 #from astropy import constants as const
+
+from linetools.spectra import io as lsio
 
 from xastropy.galaxy.core import Galaxy
 #from xastropy.cgm.core import CGM_Abs, CGM_Abs_Survey
-from xastropy.cgm.core import CGM_Abs_Survey, CGM_Sys
+from xastropy.cgm.core import CGMAbsSurvey, CGMSys
 from xastropy.xutils import xdebug as xdb
-from xastropy import spec as xspec
+from xastropy.igm.abs_sys.ionclms import IonClms
 from xastropy.kinematics.absline import Kin_Abs
 
 from astropy.utils.misc import isiterable
@@ -34,7 +37,7 @@ from astropy.utils.misc import isiterable
 #def photo_cross(Z, ion, E, datfil=None, silent=False):
 
 # Class for COS_Halos Survey
-class COS_Halos(CGM_Abs_Survey):
+class COSHalos(CGMAbsSurvey):
     """Inherits CGM Abs Survey
 
     Attributes:
@@ -43,7 +46,7 @@ class COS_Halos(CGM_Abs_Survey):
     def __init__(self, tree=None):
 
         # Generate with type
-        CGM_Abs_Survey.__init__(self)
+        CGMAbsSurvey.__init__(self)
         self.survey = 'COS-Halos'
         self.ref = 'Tumlinson+11; Werk+12; Tumlinson+13; Werk+13'
 
@@ -109,8 +112,7 @@ class COS_Halos(CGM_Abs_Survey):
                 hdu = fits.open(fil)
                 summ = hdu[1].data
                 galx = hdu[2].data
-                self.cgm_abs.append(CGM_Sys(
-                    ras=galx['qsora'][0],
+                self.cgm_abs.append( CGMSys(ras=galx['qsora'][0],
                     decs=galx['qsodec'][0],
                     g_ras=galx['ra'][0],
                     g_decs=galx['dec'][0],
@@ -125,12 +127,21 @@ class COS_Halos(CGM_Abs_Survey):
                 # Ions
                 if skip_ions is True:
                     continue
-                self.cgm_abs[mm].abs_sys.ions = Ions_Clm()
-                self.cgm_abs[mm].abs_sys.ions.ion_data = {}
+                self.cgm_abs[mm].abs_sys.ions = IonClms()
+                all_Z = []
+                all_ion = []
                 for jj in range(summ['nion'][0]):
                     iont = hdu[3+jj].data
-                    zion = (iont['zion'][0][0], iont['zion'][0][1])
-                    self.cgm_abs[mm].abs_sys.ions.ion_data[zion] = {}
+                    if jj == 0: # Generate new Table
+                        dat_tab = Table(iont)
+                    else:
+                        try:
+                            dat_tab.add_row(Table(iont)[0])
+                        except:
+                            xdb.set_trace()
+                    all_Z.append(iont['zion'][0][0])
+                    all_ion.append(iont['zion'][0][1])
+                    '''
                     for key in self.cgm_abs[mm].abs_sys.ions.keys:
                         try:
                             self.cgm_abs[mm].abs_sys.ions.ion_data[zion][key] = iont[key][0]
@@ -139,8 +150,14 @@ class COS_Halos(CGM_Abs_Survey):
                                 self.cgm_abs[mm].abs_sys.ions.ion_data[zion][key] = 0
                             else:
                                 xdb.set_trace()
+                    '''
+                # Add Z,ion
+                dat_tab.add_column(Column(all_Z,name='Z'))
+                dat_tab.add_column(Column(all_ion,name='ion'))
+                # Set
+                self.cgm_abs[mm].abs_sys.ions._data = dat_tab
                 # NHI
-                self.cgm_abs[mm].abs_sys.NHI = self.cgm_abs[mm].abs_sys.ions.ion_data[(1,1)]['clm']
+                self.cgm_abs[mm].abs_sys.NHI = self.cgm_abs[mm].abs_sys.ions[(1,1)]['CLM']
             # Mask
             self.mask = np.ones(self.nsys, dtype=bool)
         else:
@@ -196,31 +213,34 @@ class COS_Halos(CGM_Abs_Survey):
 
                 # Metals
                 if kin_init['flgL'][mt] > 0:
-                    wrest = kin_init['mtl_wr'][mt] 
-                    if wrest <= 1:
+                    wrest = kin_init['mtl_wr'][mt]*u.AA 
+                    if wrest.value <= 1:
                         xdb.set_trace()
                     spec = get_coshalo_spec( cgm_abs, wrest )
-                    vmnx = (kin_init['L_vmn'][mt], kin_init['L_vmx'][mt]) 
+                    vmnx = (kin_init['L_vmn'][mt]*u.km/u.s, kin_init['L_vmx'][mt]*u.km/u.s)
                     # Process
                     cgm_abs.abs_sys.kin['Metal'] = Kin_Abs(wrest, vmnx)
                     cgm_abs.abs_sys.kin['Metal'].fill_kin(spec, per=0.07)
+                    # Save spec
+                    cgm_abs.abs_sys.kin['Metal'].spec = spec
                 else:
                     # Fill with zeros (for the keys)
-                    cgm_abs.abs_sys.kin['Metal'] = Kin_Abs(0., (0., 0.))
+                    cgm_abs.abs_sys.kin['Metal'] = Kin_Abs(0.*u.AA, (0., 0.))
 
                 # HI
                 if kin_init['flgH'][mt] > 0:
-                    wrest = kin_init['HI_wrest'][mt] 
-                    if wrest <= 1:
+                    wrest = kin_init['HI_wrest'][mt]*u.AA 
+                    if wrest.value <= 1:
                         xdb.set_trace()
                     spec = get_coshalo_spec( cgm_abs, wrest )
-                    vmnx = (kin_init['HIvmn'][mt], kin_init['HIvmx'][mt]) 
+                    vmnx = (kin_init['HIvmn'][mt]*u.km/u.s, kin_init['HIvmx'][mt]*u.km/u.s) 
                     # Process
                     cgm_abs.abs_sys.kin['HI'] = Kin_Abs(wrest, vmnx)
                     cgm_abs.abs_sys.kin['HI'].fill_kin(spec, per=0.07)
+                    cgm_abs.abs_sys.kin['HI'].spec = spec
                 else:
                     # Fill with zeros (for the keys)
-                    cgm_abs.abs_sys.kin['HI'] = Kin_Abs(0., (0., 0.))
+                    cgm_abs.abs_sys.kin['HI'] = Kin_Abs(0.*u.AA, (0., 0.))
 
 
             #tmp = cos_halos.abs_kin('Metal')['Dv']
@@ -249,7 +269,7 @@ def get_coshalo_spec(cgm_abs, wrest):
         # Transition
         templ_fil = os.environ.get('DROPBOX_DIR')+'/COS-Halos/Targets/system_template.lst'
         tab = ascii.read(templ_fil)
-        mt = np.where( np.fabs(tab['col1']-wrest) < 1e-3)[0]
+        mt = np.where( np.fabs(tab['col1']-wrest.value) < 1e-3)[0]
         if len(mt) == 0:
             raise ValueError('get_coshalo_spec: wrest={:g} not found!'.format(wrest))
         mt = mt[0]
@@ -258,8 +278,7 @@ def get_coshalo_spec(cgm_abs, wrest):
         # Read
         slicedir = cdir+fielddir+sysdir+'/fitting/'
         slicename = sysname+'_'+trans+'_slice.fits'
-        spec = xspec.readwrite.readspec(slicedir+slicename,
-                                        flux_tags=['FNORM'], sig_tags=['ENORM'])
+        spec = lsio.readspec(slicedir+slicename, flux_tags=['FNORM'], sig_tags=['ENORM'])
         # Fill velocity
         spec.velo = spec.relative_vel((cgm_abs.galaxy.z+1)*wrest)
     
@@ -277,13 +296,13 @@ if __name__ == '__main__':
 
     # Load FITS
     if (flg_fig % 2) == 1:
-        cos_halos = COS_Halos()
+        cos_halos = COSHalos()
         cos_halos.load_mega()
         print(cos_halos)
     
     # Simple rho vs NHI plot
     if (flg_fig % 2**2) >= 2**1:
-        cos_halos = COS_Halos()
+        cos_halos = COSHalos()
         cos_halos.load_mega()
         x= cos_halos.rho
         y= cos_halos.NHI
@@ -291,7 +310,7 @@ if __name__ == '__main__':
     #
     # Simple kinematics
     if (flg_fig % 2**3) >= 2**2:
-        cos_halos = COS_Halos()
+        cos_halos = COSHalos()
         cos_halos.load_mega()#test=True)
         cos_halos.load_abskin()
         # Plot
