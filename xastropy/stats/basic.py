@@ -41,7 +41,9 @@ def lin_to_log(x, sig):
     return logx, sig_logx
 
 def perc(x, per=0.68):
-    """ Calculate the percentile bounds of a distribution
+    """ Calculate the percentile bounds of a distribution, 
+    i.e. for per=0.68, the code returns the upper and lower bounds
+    that encompass 68percent of the distribution.
 
     Parameters:
       x: float
