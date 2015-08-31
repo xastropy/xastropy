@@ -121,7 +121,7 @@ class IGMGuessesGui(QtGui.QMainWindow):
         self.llist['Strong'] = LineList('Strong')
         self.llist['Lists'].append('HI')
         self.llist['HI']._data = self.llist['HI']._data[::-1] #invert order of Lyman series
-        self.llist['show_line'] = np.arange(10) #maximum 10 to show for Lyman series
+        #self.llist['show_line'] = np.arange(10) #maximum 10 to show for Lyman series
         
         #define initial redshift
         z=0.0
@@ -180,7 +180,7 @@ class IGMGuessesGui(QtGui.QMainWindow):
         wvmin = np.min(self.velplot_widg.spec.dispersion) 
         wvmax = np.max(self.velplot_widg.spec.dispersion) 
         wvlims = (wvmin/(1+z),wvmax/(1+z))
-        transitions = self.llist['Strong'].available_transitions(
+        transitions = self.llist['ISM'].available_transitions(
             wvlims,n_max=100, n_max_tuple=4,min_strength=5.)
 
         if transitions is not None:
@@ -427,10 +427,15 @@ class IGGVelPlotWidget(QtGui.QWidget):
         new_comp = Component((zmin+zmax)/2.,wrest,vlim=vlim,
             linelist=self.llist['ISM']) 
         # Fit
+        #print('doing fit for {:g}'.format(wrest))
         self.fit_component(new_comp)
 
         # Mask for analysis
+        #QtCore.pyqtRemoveInputHook()
+        #xdb.set_trace()
+        #QtCore.pyqtRestoreInputHook()
         for line in new_comp.lines:
+            #print('masking {:g}'.format(line.wrest))
             wvmnx = line.wrest*(1+new_comp.zcomp)*(1 + vlim.value/3e5)
             gdp = np.where((self.spec.dispersion>wvmnx[0])&
                 (self.spec.dispersion<wvmnx[1]))[0]
@@ -1035,8 +1040,7 @@ class ComponentListWidget(QtGui.QWidget):
 
     16-Dec-2014 by JXP
     '''
-    def __init__(self, components, parent=None, 
-        only_one=False, linelist=None, no_buttons=False):
+    def __init__(self, components, parent=None, no_buttons=False):
         '''
         only_one: bool, optional
           Restrict to one selection at a time? [False]
@@ -1170,10 +1174,11 @@ class Component(object):
         if self.linelist is None:
             self.linelist = LineList('Strong')
         # Get the lines
+
+        all_trans = self.linelist.all_transitions(self.init_wrest)
         #QtCore.pyqtRemoveInputHook()
         #xdb.set_trace()
         #QtCore.pyqtRestoreInputHook()
-        all_trans = self.linelist.all_transitions(self.init_wrest)
         if isinstance(all_trans,dict):
             all_trans = [all_trans]
         for trans in all_trans:

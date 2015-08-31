@@ -85,7 +85,7 @@ def dtos1(irad, fmt=0):
     ----------
     rad: tuple (RA, DEC in decimal degrees [with units!]) or SkyCoord
     fmt: int (0)
-      0: colon deliminated, e.g. '11:23:21.23', '+23:11:45.0'
+      0: colon delimitered, e.g. '11:23:21.23', '+23:11:45.0'
       1: J name, e.g. 'J112321.23+231145.0'
     '''
     # Get to SkyCoord

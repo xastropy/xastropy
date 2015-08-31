@@ -62,6 +62,7 @@ def load_field(field):
 	sdss_file = xcasbahu.get_filename(field,'SDSS')
 	sdss_tab = Table.read(sdss_file)
 	# VSTACK
+	hectospec_file = xcasbahu.get_filename(field,'HECTOSPEC')
 
 	lfield.galaxies = sdss_tab
 

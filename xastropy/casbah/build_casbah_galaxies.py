@@ -46,6 +46,16 @@ def build_sdss(radius=2.0*u.deg):
             radius=radius, outfil=sdss_fil, maxsep=20., zmin=500./3e5)
         #outfig = os.environ.get('DROPBOX_DIR')+'/CASBAH/Galaxies/SDSS/PG1407+265_SDSS.pdf'
 
+def build_spectra(field,path='./'):
+    '''Top-level program to build spectra files
+
+    Parameters:
+    -----------
+    field: tuple
+      (Name, ra, dec)
+    '''
+    # MMT
+
 def build_targets(field,path='./'):
     '''Top-level program to build target info 
 
@@ -229,9 +239,9 @@ def deimos_targets(field,path=None):
         sex_coord = SkyCoord(ra=sex_targ['TARG_RA']*u.deg, 
             dec=sex_targ['TARG_DEC']*u.deg)
         sex_msk_clms = {}
-        cnames = ['MASK_NAME']
+        cnames = ['MASK_NAME', 'MASK_ID']
         smsk = '--'
-        msk_val = [smsk]
+        msk_val = [smsk]*len(cnames)
         for kk,cname in enumerate(cnames):
             sex_msk_clms[cname] = [msk_val[kk]]*len(sex_targ)
     elif len(targetting_file) == 0:
@@ -420,7 +430,13 @@ def mmt_targets(field,path=None):
     targs.add_column(Column([0.]*nrow,name='EPOCH'))
     targs.add_column(Column(['SDSS']*nrow,name='TARG_IMG'))
     targs.add_column(Column(['HECTOSPEC']*nrow,name='INSTR'))
-    targ_mask = {'names':['--']*nrow}
+
+    targ_mask = {}
+    cnames = ['MASK_NAME', 'MASK_ID']
+    smsk = '--'
+    msk_val = [smsk]*len(cnames)
+    for kk,cname in enumerate(cnames):
+        targ_mask[cname] = [msk_val[kk]]*nrow
 
     # Now the 'mask' files
     mask_files = glob.glob(targ_path+'*.cat')
@@ -428,11 +444,26 @@ def mmt_targets(field,path=None):
     all_masks = []
     for mask_file in mask_files:
         print('Reading MMT mask file: {:s}'.format(mask_file))
-        mask_nm = mask_file[mask_file.rfind('/')+1:mask_file.find('.cat')]
-        ras, decs = xra.dtos1((field[1],field[2]))
+        i0 = mask_file.rfind('/')
+        mask_nm = mask_file[i0+1:mask_file.find('.cat')]
+        # Grab info from spectrum file
+        #xdb.set_trace()
+        spec_fil = glob.glob(mask_file[:i0+1]+'spHect-'+mask_nm+'*.fits.gz')
+        if len(spec_fil) != 1:
+            print('spec_fil -- Not found!'.format(spec_fil))
+            ras, decs = xra.dtos1((field[1],field[2]))
+            pa=0.
+        else:
+            header = fits.open(spec_fil[0])[0].header
+            if header['APERTURE'] != mask_nm:
+                raise ValueError('Mask doesnt match!')
+            pa = header['POSANGLE']
+            ras = header['CAT-RA']
+            decs = header['CAT-DEC']
+        # Continuing
         mask_dict = dict(INSTR='HECTOSPEC',MASK_NAME=mask_nm,
             MASK_RA=ras, MASK_DEC=decs, MASK_EPOCH=2000.,
-            MASK_PA=0.)
+            MASK_PA=pa) # SHOULD GRAB PA, RA, DEC FROM SPECTRA FITS HEADER
         all_masks.append(mask_dict)
         # Read obs
         f = open(mask_file, 'r')
@@ -460,7 +491,7 @@ def mmt_targets(field,path=None):
                 int(obs_targ['objid'][gdi]))[0]
             if len(mtt) != 1:
                 raise ValueError('Multiple matches?!')
-            targ_mask['names'][mtt[0]] = mask_nm
+            targ_mask['MASK_NAME'][mtt[0]] = mask_nm
         all_obs.append(obs_tab)
     # Finish
     mask = np.array([False]*len(targs))
