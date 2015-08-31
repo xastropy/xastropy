@@ -38,7 +38,7 @@ class IonClms(object):
     """Set of Ionic column densities for an absorption system
 
     Attributes:
-    _data -- Dict containing the Ion info
+    _data -- Table containing the Ion info
     
     """
 
@@ -74,7 +74,7 @@ class IonClms(object):
             raise ValueError('Read these in as AbsLine(s)')
             #self.read_ion_file(trans_file)
 
-    # Read a .all file
+    # Read a dict of ions info
     def from_dict(self,idict,verbose=False):
         # Manipulate for astropy Table
         table = None
