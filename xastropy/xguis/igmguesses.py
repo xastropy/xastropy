@@ -57,7 +57,7 @@ class IGMGuessesGui(QtGui.QMainWindow):
         30-Jul-2015 by JXP
     '''
     def __init__(self, ispec, parent=None, lls_fit_file=None, 
-        srch_id=True, outfil=None, fwhm=3., zqso=None):
+        srch_id=True, outfil=None, fwhm=3., zqso=None,plot_residuals=True):
         QtGui.QMainWindow.__init__(self, parent)
         '''
         spec = Spectrum1D
@@ -67,6 +67,9 @@ class IGMGuessesGui(QtGui.QMainWindow):
           Number of pixels to smooth on
         zqso: float, optional
           Redshift of the quasar.  If input, a Telfer continuum is used
+        plot_residuals : bool, optional
+          Whether to plot residuals
+
         '''
         # TODO
         # 1. Fix convolve window size
@@ -82,7 +85,7 @@ class IGMGuessesGui(QtGui.QMainWindow):
             # 11. Key to set line as some other transition (e.g. RMB in XSpec)
             # 12. Mask array with points
             # 13. Toggle line ID names
-        # 14. Add error + residual arrays [NT]
+            # 14. Add error + residual arrays [NT]
         # 15. Adjust component redshift by keystroke
             # 16. Input redshift value via Widget
             # 17. Use Component list to jump between components (like 'S')
@@ -99,6 +102,7 @@ class IGMGuessesGui(QtGui.QMainWindow):
         else:
             self.outfil = outfil
         self.fwhm = fwhm
+        self.plot_residuals = plot_residuals
 
         # Spectrum
         spec, spec_fil = xxgu.read_spec(ispec)
@@ -108,20 +112,30 @@ class IGMGuessesGui(QtGui.QMainWindow):
         self.model = XSpectrum1D.from_tuple((
             spec.dispersion,np.ones(len(spec.dispersion))))
 
-        # LineList
-        self.llist = xxgu.set_llist(['CIII 977', 'HI 1215', 'HI 1025', 'CIV 1548'],sort=False)
-        z=0.112
+        # LineList (Grab ISM and HI as defaults)
+        z=0.17
+        self.llist = xxgu.set_llist('ISM')
+        # Load others
+        self.llist['HI'] = LineList('HI')
+        self.llist['HI']._data = self.llist['HI']._data[::-1]
         self.llist['z'] = z
 
         # Grab the pieces and tie together
-        self.fiddle_widg = FiddleComponentWidget(parent=self)
-        self.comps_widg = ComponentListWidget([], parent=self,
-            linelist=self.llist[self.llist['List']])
-        self.velplot_widg = IGGVelPlotWidget(spec, z, 
-            parent=self, llist=self.llist, fwhm=self.fwhm)
-        self.wq_widg = xxgu.WriteQuitWidget(parent=self)
         self.slines_widg = xspw.SelectedLinesWidget(
-            self.llist[self.llist['List']], parent=self, init_select='All')
+            self.llist[self.llist['List']], parent=self, 
+            init_select='All')
+        self.fiddle_widg = FiddleComponentWidget(parent=self)
+        self.comps_widg = ComponentListWidget([], parent=self)
+        self.velplot_widg = IGGVelPlotWidget(spec, z, 
+            parent=self, llist=self.llist, fwhm=self.fwhm,plot_residuals=self.plot_residuals)
+        self.wq_widg = xxgu.WriteQuitWidget(parent=self)
+        
+
+        # Rest linelist
+        self.update_strongest_lines()
+        self.slines_widg.selected = self.llist['show_line']
+        self.slines_widg.on_list_change(
+            self.llist[self.llist['List']])
 
         # Connections (buttons are above)
         #self.spec_widg.canvas.mpl_connect('key_press_event', self.on_key)
@@ -148,6 +162,26 @@ class IGMGuessesGui(QtGui.QMainWindow):
 
         # Point MainWindow
         self.setCentralWidget(self.main_widget)
+
+    def update_strongest_lines(self):
+        '''Grab the strongest lines in the spectrum at the current
+        redshift.
+        '''
+        z = self.velplot_widg.z
+        wvmin = np.min(self.velplot_widg.spec.dispersion) 
+        wvmax = np.max(self.velplot_widg.spec.dispersion) 
+        wvlims = (wvmin/(1+z),wvmax/(1+z))
+        transitions = self.llist['ISM'].available_transitions(
+            wvlims,n_max=100,
+            n_max_tuple=3,min_strength=8.)
+        if transitions is not None:
+            names = list(np.array(transitions['name']))
+        else:
+            names = ['HI 1215']
+        self.llist['strongest'] = LineList('ISM',subset=names)
+        self.llist['show_line'] = np.arange(len(self.llist['strongest']._data)) 
+        self.llist['List'] = 'strongest'
+        # self.llist['strongest'] = self.llist['ISM'].subset(names)
 
     def on_list_change(self):
         self.update_boxes()
@@ -235,7 +269,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
         14-Aug-2015 by JXP
     '''
     def __init__(self, ispec, z, parent=None, llist=None, norm=True,
-                 vmnx=[-300., 300.]*u.km/u.s, fwhm=0.):
+                 vmnx=[-500., 500.]*u.km/u.s, fwhm=0.,plot_residuals=True):
         '''
         spec = Spectrum1D
         Norm: Bool (False)
@@ -264,10 +298,20 @@ class IGGVelPlotWidget(QtGui.QWidget):
         self.model = XSpectrum1D.from_tuple((
             spec.dispersion,np.ones(len(spec.dispersion))))
 
+        self.plot_residuals = plot_residuals
+        #Define arrays for plotting residuals
+        if self.plot_residuals:
+            self.residual_normalization_factor = 0.02/np.median(self.spec.sig)
+            self.residual_limit = self.spec.sig * self.residual_normalization_factor
+            self.residual = (self.spec.flux - self.model.flux) * self.residual_normalization_factor
+
+
         self.psdict = {} # Dict for spectra plotting
         self.psdict['xmnx'] = self.vmnx.value # Too much pain to use units with this
         self.psdict['ymnx'] = [-0.1, 1.1]
         self.psdict['nav'] = xxgu.navigate(0,0,init=True)
+
+        
 
         # Status Bar?
         #if not status is None:
@@ -301,7 +345,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
         self.sub_xy = [3,4]
         self.subxy_state = 'Out'
 
-        self.fig.subplots_adjust(hspace=0.0, wspace=0.1)
+        self.fig.subplots_adjust(hspace=0.0, wspace=0.1,left=0.04,right=0.975)
         
         vbox = QtGui.QVBoxLayout()
         vbox.addWidget(self.canvas)
@@ -323,6 +367,11 @@ class IGGVelPlotWidget(QtGui.QWidget):
         wvobs = (1+self.z) * wrest
         gdlin = np.where( (wvobs > wvmin) & (wvobs < wvmax) )[0]
         self.llist['show_line'] = gdlin
+        # Update GUI
+        self.parent.slines_widg.selected = self.llist['show_line']
+        self.parent.slines_widg.on_list_change(
+            self.llist[self.llist['List']])
+
 
     # Add a component
     def update_model(self):
@@ -347,6 +396,12 @@ class IGGVelPlotWidget(QtGui.QWidget):
         # Voigt
         self.model = xsv.voigt_model(self.spec.dispersion,gdlin,
             fwhm=self.fwhm)#,debug=True)
+        
+        #Define arrays for plotting residuals
+        if self.plot_residuals:
+            self.residual_limit = self.spec.sig * self.residual_normalization_factor
+            self.residual = (self.spec.flux - self.model.flux) * self.residual_normalization_factor
+
         #QtCore.pyqtRemoveInputHook()
         #xdb.set_trace()
         #QtCore.pyqtRestoreInputHook()
@@ -555,6 +610,14 @@ class IGGVelPlotWidget(QtGui.QWidget):
             #self.statusBar().showMessage('z = {:f}'.format(z))
             self.init_lines()
 
+        # Toggle line lists
+        if event.key == 'H':
+            self.llist['List'] = 'HI'
+            self.init_lines()
+        if event.key == 'U':
+            self.parent.update_strongest_lines()
+            self.init_lines()
+
         ## Velocity limits
         unit = u.km/u.s
         if event.key in ['1','2']:
@@ -636,7 +699,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
         if flg==1: # Default is to redraw
             self.on_draw(rescale=rescale, fig_clear=fig_clear)
         elif flg==2: # Layer (no clear)
-            self.on_draw(replot=False, rescale=rescale) 
+            self.on_draw(replot=False, rescale=rescale)
         elif flg==3: # Layer (no clear)
             self.on_draw(in_wrest=wrest, rescale=rescale)
 
@@ -665,7 +728,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
             if fig_clear:
                 self.fig.clf()
             # Title
-            self.fig.suptitle('z={:g}'.format(self.z),fontsize=7.)
+            self.fig.suptitle('z={:.5f}'.format(self.z),fontsize='large')
             # Components
             components = self.parent.comps_widg.all_comp 
             iwrest = np.array([comp.init_wrest.value for comp in components])*u.AA
@@ -726,22 +789,31 @@ class IGGVelPlotWidget(QtGui.QWidget):
                 self.ax.plot(velo, self.spec.flux, 'k-',drawstyle='steps-mid')
 
                 # Model
-                self.ax.plot(velo, self.model.flux, 'b-')
+                self.ax.plot(velo, self.model.flux, 'b-',lw=0.5)
+
+                #Error & residuals
+                if self.plot_residuals:
+                    self.ax.plot(velo, self.residual_limit, 'g-',drawstyle='steps-mid',lw=0.5)
+                    self.ax.plot(velo, -self.residual_limit, 'g-',drawstyle='steps-mid',lw=0.5)
+                    self.ax.plot(velo, self.residual, '.',color='grey',ms=2)
+
+                #import pdb
+                #pdb.set_trace()
+
                 # Labels
                 if (((jj+1) % self.sub_xy[0]) == 0) or ((jj+1) == len(all_idx)):
                     self.ax.set_xlabel('Relative Velocity (km/s)')
                 else:
                     self.ax.get_xaxis().set_ticks([])
                 lbl = self.llist[self.llist['List']].name[idx]
-                self.ax.text(0.05, 0.90, lbl, color='blue', transform=self.ax.transAxes,
-                             size='x-small', ha='left')
+                self.ax.text(0.01, 0.15, lbl, color='blue', transform=self.ax.transAxes,
+                             size='x-small', ha='left',va='center',backgroundcolor='w',bbox={'pad':0,'edgecolor':'none'})
                 if self.flag_idlbl:
                     # Any lines inside?
                     mtw = np.where((line_wvobs > wvmnx[0]) & (line_wvobs<wvmnx[1]))[0]
                     for imt in mtw:
                         v = 3e5*(line_wvobs[imt]/wvobs - 1)
-                        self.ax.text(v, 0.90, line_lbl[imt], color='green', 
-                            size='xx-small', rotation=90.)
+                        self.ax.text(v, 0.90, line_lbl[imt], color='green',backgroundcolor='w',bbox={'pad':0,'edgecolor':'none'}, size='xx-small', rotation=90.)
 
                 # Analysis regions
                 if np.sum(self.spec.mask) > 0.:
@@ -1166,7 +1238,9 @@ if __name__ == "__main__":
         # LLS
         if (flg_fig % 2**1) >= 2**0:
             #spec_fil = '/Users/xavier/Keck/ESI/RedData/PSS0133+0400/PSS0133+0400_f.fits'
-            spec_fil = os.getenv('DROPBOX_DIR')+'/Tejos_X/COS-Clusters/J1018+0546.txt'
+            #spec_fil = os.getenv('DROPBOX_DIR')+'/Tejos_X/COS-Clusters/J1018+0546.txt'
+            spec_fil = os.getenv('DROPBOX_DIR')+'/Tejos_X/COS-Filaments/q1410.fits'
+            
             spec = lsi.readspec(spec_fil)
             spec.normalize()
             #spec.plot()
