@@ -26,9 +26,6 @@ from xastropy.xutils import xdebug as xdb
 
 from xastropy.spec import abs_line
 
-#For convolving with COS LSF; NT
-from COS.utils import LSF
-
 # The standard King model
 def voigtking(vin,a):
     oneonsqrtpi=0.56418958354775630
