@@ -281,10 +281,11 @@ def set_llist(llist,in_dict=None, sort=True):
     from astropy.units.quantity import Quantity
 
     if in_dict is None:
-        in_dict = {}
+        in_dict = dict(Lists=[])
 
     if isinstance(llist,basestring): # Set line list from a file
         in_dict['List'] = llist
+        in_dict['Lists'].append(llist)
         if llist == 'None':
             in_dict['Plot'] = False
         else:
@@ -305,6 +306,7 @@ def set_llist(llist,in_dict=None, sort=True):
                     in_dict[llist] = llist_cls
     elif isinstance(llist,(Quantity,list)): # Set from a list of wrest
         in_dict['List'] = 'input.lst'
+        in_dict['Lists'].append('input.lst')
         in_dict['Plot'] = True
         # Fill
         if sort:
