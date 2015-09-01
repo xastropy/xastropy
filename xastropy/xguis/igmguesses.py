@@ -352,7 +352,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
         self.canvas.mpl_connect('button_press_event', self.on_click)
 
         # Sub_plots
-        self.sub_xy = [3,4]
+        self.sub_xy = [5,3]
         self.subxy_state = 'Out'
 
         self.fig.subplots_adjust(hspace=0.0, wspace=0.1,left=0.04,right=0.975)
@@ -531,7 +531,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
                 self.sub_xy = [3,2]
                 self.subxy_state = 'In'
             else:
-                self.sub_xy = [5,4]
+                self.sub_xy = [5,3]
                 self.subxy_state = 'Out'
 
         ## NAVIGATING
@@ -863,7 +863,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
                     gdp = self.spec.mask==1
                     if len(gdp) > 0:
                         self.ax.scatter(velo[gdp],self.spec.flux[gdp],
-                            marker='o',color=color,s=2.,alpha=0.5)
+                            marker='o',color=color,s=3.,alpha=0.5)
 
                 # Reset window limits
                 self.ax.set_ylim(self.psdict['ymnx'])
