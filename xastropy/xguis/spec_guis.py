@@ -919,9 +919,9 @@ class XFitLLSGUI(QtGui.QMainWindow):
         # Updates
         self.update_boxes()
         self.update_model()
-        QtCore.pyqtRemoveInputHook()
-        xdb.set_trace()
-        QtCore.pyqtRestoreInputHook()
+        #QtCore.pyqtRemoveInputHook()
+        #xdb.set_trace()
+        #QtCore.pyqtRestoreInputHook()
 
     # Write
     def write_out(self):
