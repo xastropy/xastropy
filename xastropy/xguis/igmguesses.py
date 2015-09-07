@@ -58,13 +58,14 @@ class IGMGuessesGui(QtGui.QMainWindow):
         v0.5
         30-Jul-2015 by JXP
     '''
-    def __init__(self, ispec, parent=None, lls_fit_file=None, 
-        srch_id=True, outfil=None, fwhm=3., zqso=None,plot_residuals=True):
+    def __init__(self, ispec, parent=None, previous_file=None, 
+        srch_id=True, outfil=None, fwhm=None, zqso=None,
+        plot_residuals=True):
         QtGui.QMainWindow.__init__(self, parent)
         '''
         spec = Spectrum1D
-        lls_fit_file: str, optional
-          Name of the LLS fit file to input
+        previous_file: str, optional
+          Name of the previous guesses file
         smooth: float, optional
           Number of pixels to smooth on
         zqso: float, optional
@@ -99,16 +100,23 @@ class IGMGuessesGui(QtGui.QMainWindow):
         self.create_status_bar()
 
         # Initialize
+        self.previous_file = previous_file
         if outfil is None:
             self.outfil = 'IGM_model.json'
         else:
             self.outfil = outfil
-        self.fwhm = fwhm
+        if fwhm is None:
+            self.fwhm = 3.
+        else:
+            self.fwhm = fwhm
         self.plot_residuals = plot_residuals
 
         # Spectrum
         spec, spec_fil = xxgu.read_spec(ispec)
+        spec.normalize() # Need to change this..
         spec.mask = np.zeros(len(spec.dispersion),dtype=int)
+
+        # Normalize
 
         # Full Model 
         self.model = XSpectrum1D.from_tuple((
@@ -129,8 +137,7 @@ class IGMGuessesGui(QtGui.QMainWindow):
         
         # Grab the pieces and tie together
         self.slines_widg = xspw.SelectedLinesWidget(
-            self.llist[self.llist['List']], parent=self, 
-            init_select='All')
+            self.llist[self.llist['List']], parent=self, init_select='All')
         self.fiddle_widg = FiddleComponentWidget(parent=self)
         self.comps_widg = ComponentListWidget([], parent=self)
         self.velplot_widg = IGGVelPlotWidget(spec, z, 
@@ -145,6 +152,10 @@ class IGMGuessesGui(QtGui.QMainWindow):
         self.slines_widg.selected = self.llist['show_line']
         self.slines_widg.on_list_change(
             self.llist[self.llist['List']])
+
+        # Load prevoius file
+        if self.previous_file is not None:
+            self.read_previous()
 
         # Connections (buttons are above)
         #self.spec_widg.canvas.mpl_connect('key_press_event', self.on_key)
@@ -238,7 +249,49 @@ class IGMGuessesGui(QtGui.QMainWindow):
         #self.velplot_widg.update_model()
         #self.velplot_widg.on_draw(fig_clear=True)
 
+    def read_previous(self):
+        ''' Read from a previous guesses file'''
+        import json
+        # Read the JSON file
+        with open(self.previous_file) as data_file:    
+            igmg_dict = json.load(data_file)
+        # Check FWHM
+        if igmg_dict['fwhm'] != self.fwhm:
+            raise ValueError('Input FWHMs do not match.  Fix')
+        # Mask
+        msk = igmg_dict['mask']
+        if len(msk) > 0:
+            self.velplot_widg.spec.mask[np.array(msk)] = 1
+        # Check spectra names
+        if self.velplot_widg.spec.filename != igmg_dict['spec_file']:
+            warnings.warn('Spec file names do not match! Could just be path..')
+        # Components
+        for key in igmg_dict['cmps'].keys():
+            self.velplot_widg.add_component(
+                igmg_dict['cmps'][key]['wrest']*u.AA, 
+                zcomp=igmg_dict['cmps'][key]['zcomp'],
+                vlim=igmg_dict['cmps'][key]['vlim']*u.km/u.s,
+                no_fit_mask=True)
+            # Name
+            self.velplot_widg.current_comp.name = key
+            # Set N,b,z
+            self.velplot_widg.current_comp.attrib['z']= igmg_dict['cmps'][key]['zfit']
+            self.velplot_widg.current_comp.attrib['b']= igmg_dict['cmps'][key]['bval']*u.km/u.s
+            self.velplot_widg.current_comp.attrib['N']= igmg_dict['cmps'][key]['N']
+            self.velplot_widg.current_comp.attrib['Quality']= igmg_dict['cmps'][key]['Quality']
+            self.velplot_widg.current_comp.comment = igmg_dict['cmps'][key]['comment']
+            # Sync
+            self.velplot_widg.current_comp.sync_lines()
+        # Updates
+        #QtCore.pyqtRemoveInputHook()
+        #xdb.set_trace()
+        #QtCore.pyqtRestoreInputHook()
+        self.velplot_widg.update_model()
+        self.fiddle_widg.init_component(self.velplot_widg.current_comp)
+
+
     def write_out(self):
+        ''' Write to a JSON file'''
         import json, io
         # Create dict of the components
         out_dict = dict(cmps={},
@@ -251,9 +304,11 @@ class IGMGuessesGui(QtGui.QMainWindow):
         for kk,comp in enumerate(self.comps_widg.all_comp):
             key = comp.name
             out_dict['cmps'][key] = {}
-            out_dict['cmps'][key]['z'] = comp.attrib['z']
-            out_dict['cmps'][key]['NHI'] = comp.attrib['N']
+            out_dict['cmps'][key]['zcomp'] = comp.zcomp
+            out_dict['cmps'][key]['zfit'] = comp.attrib['z']
+            out_dict['cmps'][key]['N'] = comp.attrib['N']
             out_dict['cmps'][key]['bval'] = comp.attrib['b'].value
+            out_dict['cmps'][key]['wrest'] = comp.init_wrest.value
             out_dict['cmps'][key]['vlim'] = list(comp.vlim.value)
             out_dict['cmps'][key]['Quality'] = str(comp.attrib['Quality'])
             out_dict['cmps'][key]['comment'] = str(comp.comment)
@@ -392,55 +447,53 @@ class IGGVelPlotWidget(QtGui.QWidget):
             self.model.flux[:] = 1.
             return
         # Setup lines
-        wvmin = np.min(self.spec.dispersion)
-        wvmax = np.max(self.spec.dispersion)
+        wvmin, wvmax = np.min(self.spec.dispersion), np.max(self.spec.dispersion)
         gdlin = []
-        #QtCore.pyqtRemoveInputHook()
-        #xdb.set_trace()
-        #QtCore.pyqtRestoreInputHook()
         for comp in all_comp:
             for line in comp.lines:
                 wvobs = (1+line.attrib['z'])*line.wrest 
                 if (wvobs>wvmin) & (wvobs<wvmax):
                     gdlin.append(line)
         # Voigt
-        self.model = xsv.voigt_model(self.spec.dispersion,gdlin,
-            fwhm=self.fwhm)#,debug=True)
+        #QtCore.pyqtRemoveInputHook()
+        #xdb.set_trace()
+        #QtCore.pyqtRestoreInputHook()
+        self.model = xsv.voigt_model(self.spec.dispersion,gdlin, fwhm=self.fwhm)#,debug=True)
         
         #Define arrays for plotting residuals
         if self.plot_residuals:
             self.residual_limit = self.spec.sig * self.residual_normalization_factor
             self.residual = (self.spec.flux - self.model.flux) * self.residual_normalization_factor
 
-        #QtCore.pyqtRemoveInputHook()
-        #xdb.set_trace()
-        #QtCore.pyqtRestoreInputHook()
-
     # Add a component
-    def add_component(self,wrest):
-        '''Generate a component and fit with Gaussian'''
-        #
-
+    def add_component(self, wrest, vlim=None, zcomp=None, no_fit_mask=False):
+        '''Generate a component and fit with Gaussian
+        Parameters:
+        ------------
+        no_fit_mask: bool, optional
+          Skip fit + masking (mainly for reading in a previous file)
+        '''
         # Center z and reset vmin/vmax
-        zmin,zmax = self.z + (1+self.z)*(self.avmnx.value/3e5)
-        vlim = self.avmnx - (self.avmnx[1]+self.avmnx[0])/2.
-        new_comp = Component((zmin+zmax)/2.,wrest,vlim=vlim,
+        if zcomp is None:
+            zmin,zmax = self.z + (1+self.z)*(self.avmnx.value/3e5)
+            zcomp = (zmin+zmax)/2.
+        if vlim is None:
+            vlim = self.avmnx - (self.avmnx[1]+self.avmnx[0])/2.
+        new_comp = Component(zcomp, wrest,vlim=vlim,
             linelist=self.llist['ISM']) 
         # Fit
         #print('doing fit for {:g}'.format(wrest))
-        self.fit_component(new_comp)
+        if not no_fit_mask:
+            self.fit_component(new_comp)
 
-        # Mask for analysis
-        #QtCore.pyqtRemoveInputHook()
-        #xdb.set_trace()
-        #QtCore.pyqtRestoreInputHook()
-        for line in new_comp.lines:
-            #print('masking {:g}'.format(line.wrest))
-            wvmnx = line.wrest*(1+new_comp.zcomp)*(1 + vlim.value/3e5)
-            gdp = np.where((self.spec.dispersion>wvmnx[0])&
-                (self.spec.dispersion<wvmnx[1]))[0]
-            if len(gdp) > 0:
-                self.spec.mask[gdp] = 1
+            # Mask for analysis
+            for line in new_comp.lines:
+                #print('masking {:g}'.format(line.wrest))
+                wvmnx = line.wrest*(1+new_comp.zcomp)*(1 + vlim.value/3e5)
+                gdp = np.where((self.spec.dispersion>wvmnx[0])&
+                    (self.spec.dispersion<wvmnx[1]))[0]
+                if len(gdp) > 0:
+                    self.spec.mask[gdp] = 1
 
         # Add to component list and Fiddle
         if self.parent is not None:
@@ -449,13 +502,8 @@ class IGGVelPlotWidget(QtGui.QWidget):
 
         # Update model
         self.current_comp = new_comp
-        self.update_model()
-
-        # Update model and plot
-        #QtCore.pyqtRemoveInputHook()
-        #xdb.set_trace()
-        #QtCore.pyqtRestoreInputHook()
-            #,weights=1./(np.ones(len(wave))*0.1))
+        if not no_fit_mask:
+            self.update_model()
 
     def fit_component(self,component):
         '''Fit the component and save values'''
@@ -473,6 +521,9 @@ class IGGVelPlotWidget(QtGui.QWidget):
         bguess = (component.vlim[1]-component.vlim[0])/2.
         Nguess = fit_line.attrib['logN']
         # Voigt model
+        #QtCore.pyqtRemoveInputHook()
+        #xdb.set_trace()
+        #QtCore.pyqtRestoreInputHook()
         fitvoigt = xsv.single_voigt_model(logN=Nguess,b=bguess.value,
                                 z=zguess, wrest=component.init_wrest.value,
                                 gamma=fit_line.data['gamma'].value, 
@@ -580,6 +631,11 @@ class IGGVelPlotWidget(QtGui.QWidget):
             self.parent.fiddle_widg.update_component()
         ## Grab/Delete a component
         if event.key in ['D','S','d']:
+            # Delete selected component
+            if event.key == 'd': 
+                self.parent.delete_component(self.parent.fiddle_widg.component)
+                return
+            #
             components = self.parent.comps_widg.all_comp
             iwrest = np.array([comp.init_wrest.value for comp in components])*u.AA
             mtc = np.where(wrest == iwrest)[0]
@@ -593,13 +649,8 @@ class IGGVelPlotWidget(QtGui.QWidget):
             mindvz = np.argmin(np.abs(dvz+event.xdata))
             if event.key == 'S':
                 self.parent.fiddle_widg.init_component(components[mtc[mindvz]])
-            elif event.key == 'd': # Delete selected component
-                self.parent.delete_component(self.parent.fiddle_widg.component)
             elif event.key == 'D': # Delete nearest component to cursor
                 self.parent.delete_component(components[mtc[mindvz]])
-
-            #absline = self.abs_sys.grab_line((self.z,wrest))
-            #kwrest = wrest.value
 
         ## Reset z
         if event.key == ' ': #space to move redshift
@@ -1218,11 +1269,10 @@ def run_gui(*args, **kwargs):
     from specutils import Spectrum1D
 
     parser = argparse.ArgumentParser(description='Parser for XFitLLSGUI')
-    parser.add_argument("flag", type=int, help="GUI flag (ignored)")
     parser.add_argument("in_file", type=str, help="Spectral file")
-    parser.add_argument("-out_file", type=str, help="Output LLS Fit file")
-    parser.add_argument("-smooth", type=float, help="Smoothing (pixels)")
-    parser.add_argument("-lls_fit_file", type=str, help="Input LLS Fit file")
+    parser.add_argument("-out_file", type=str, help="Output Guesses file")
+    parser.add_argument("-fwhm", type=float, help="FWHM smoothing (pixels)")
+    parser.add_argument("-previous_file", type=str, help="Input Guesses file")
     parser.add_argument("-zqso", type=float, help="Use Telfer template with zqso")
 
     if len(args) == 0:
@@ -1246,25 +1296,25 @@ def run_gui(*args, **kwargs):
 
     # Input LLS file
     try:
-        lls_fit_file = pargs.lls_fit_file
+        previous_file = pargs.previous_file
     except AttributeError:
-        lls_fit_file=None
+        previous_file=None
 
     # Smoothing parameter
     try:
-        smooth = pargs.smooth
+        fwhm = pargs.smooth
     except AttributeError:
-        smooth=3.
+        fwhm=None
 
-    # Smoothing parameter
+    # zqso
     try:
         zqso = pargs.zqso
     except AttributeError:
         zqso=None
     
     app = QtGui.QApplication(sys.argv)
-    gui = XFitLLSGUI(pargs.in_file,outfil=outfil,smooth=smooth,
-        lls_fit_file=lls_fit_file, zqso=zqso)
+    gui = IGMGuessesGui(pargs.in_file, outfil=outfil, fwhm=fwhm,
+        previous_file=previous_file, zqso=zqso)
     gui.show()
     app.exec_()
 
@@ -1286,7 +1336,6 @@ if __name__ == "__main__":
             # spec_fil = os.getenv('DROPBOX_DIR')+'/Tejos_X/COS-Filaments/q1410.fits'
             spec_fil = os.getenv('DROPBOX_DIR')+'/Tejos_X/COS-Filaments/J1619+2543.fits'
             
-            
             spec = lsi.readspec(spec_fil)
             spec.normalize()
             #spec.plot()
@@ -1299,10 +1348,5 @@ if __name__ == "__main__":
             sys.exit(app.exec_())
 
     else: # RUN A GUI
-        id_gui = int(sys.argv[1])  # 1 = XSpec, 2=XAbsId
-
-        if id_gui == 1:
-            run_gui()
-        else:
-            raise ValueError('Unsupported flag for spec_guis')
+        run_gui()
             

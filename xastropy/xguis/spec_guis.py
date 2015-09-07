@@ -483,11 +483,11 @@ class XAODMGui(QtGui.QDialog):
 # GUI for fitting LLS in a spectrum
 class XFitLLSGUI(QtGui.QMainWindow):
     ''' GUI to fit LLS in a given spectrum
-        v0.5.0
+        v0.6
         30-Jul-2015 by JXP
     '''
     def __init__(self, ispec, parent=None, lls_fit_file=None, 
-        outfil=None, smooth=3., zqso=None): 
+        outfil=None, smooth=3., zqso=None, fN_gamma=None): 
         QtGui.QMainWindow.__init__(self, parent)
         '''
         ispec = Spectrum1D or specfil
@@ -497,6 +497,8 @@ class XFitLLSGUI(QtGui.QMainWindow):
           Number of pixels to smooth on (FWHM)
         zqso: float, optional
           Redshift of the quasar.  If input, a Telfer continuum is used
+        fN_gamma: float, optional
+          Redshift evolution of f(N) or IGM fiddled continuum
         '''
 
         # Build a widget combining several others
@@ -531,7 +533,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
             # Rebin
             self.continuum = tspec.rebin(spec.dispersion)
             # Reset pivot wave
-            self.conti_dict['piv_wv'] = 1025.*(1+zqso)
+            self.conti_dict['piv_wv'] = 915.*(1+zqso)
         else:
             self.zqso = None
             self.continuum = XSpectrum1D.from_tuple((
@@ -724,6 +726,11 @@ class XFitLLSGUI(QtGui.QMainWindow):
 
         # Finish
         self.full_model.flux = self.lls_model * self.continuum.flux
+        # Over-absorbed
+        self.spec_widg.bad_model = np.where( (self.lls_model < 0.7) &
+            (self.full_model.flux < (self.spec_widg.spec.flux-
+                self.spec_widg.spec.sig*1.5)))[0] 
+        # Model
         self.spec_widg.model = self.full_model
 
     def get_sngl_sel_sys(self):
@@ -758,7 +765,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
         elif event.key == 'A': # New LLS
             # Generate
             z = event.xdata/911.7633 - 1.
-            self.add_LLS(z)
+            self.add_LLS(z, bval=20.*u.km/u.s, NHI=17.3)
             # Update
             self.llist['Plot'] = False # Turn off metal-lines
             self.update_model()
@@ -770,8 +777,14 @@ class XFitLLSGUI(QtGui.QMainWindow):
                 self.abssys_widg.all_abssys[idx].zabs = event.xdata/911.7633 - 1.
             elif event.key == 'a': #Lya
                 self.abssys_widg.all_abssys[idx].zabs = event.xdata/1215.6700-1.
-            elif event.key == 'g': #Lyg
-                self.abssys_widg.all_abssys[idx].zabs = event.xdata/972.5367-1.
+            elif event.key == 'g': # Move nearest line to cursor
+                wrest = event.xdata/(1+self.abssys_widg.all_abssys[idx].zabs)
+                #QtCore.pyqtRemoveInputHook()
+                #xdb.set_trace()
+                #QtCore.pyqtRestoreInputHook()
+                awrest = np.array([iline.wrest.value for iline in self.abssys_widg.all_abssys[idx].lls_lines])
+                imn = np.argmin(np.abs(wrest-awrest))
+                self.abssys_widg.all_abssys[idx].zabs = event.xdata/awrest[imn]-1.
             elif event.key == 'N': #Add to NHI
                 self.abssys_widg.all_abssys[idx].NHI += 0.05
             elif event.key == 'n': #Subtract from NHI
@@ -793,6 +806,9 @@ class XFitLLSGUI(QtGui.QMainWindow):
             # Update the lines 
             if idx is not None:
                 self.llist['z'] = self.abssys_widg.all_abssys[idx].zabs
+                #QtCore.pyqtRemoveInputHook()
+                #xdb.set_trace()
+                #QtCore.pyqtRestoreInputHook()
                 for iline in self.abssys_widg.all_abssys[idx].lls_lines:
                     iline.attrib['z'] = self.abssys_widg.all_abssys[idx].zabs 
                     iline.attrib['N'] = self.abssys_widg.all_abssys[idx].NHI
@@ -903,6 +919,9 @@ class XFitLLSGUI(QtGui.QMainWindow):
         # Updates
         self.update_boxes()
         self.update_model()
+        #QtCore.pyqtRemoveInputHook()
+        #xdb.set_trace()
+        #QtCore.pyqtRestoreInputHook()
 
     # Write
     def write_out(self):

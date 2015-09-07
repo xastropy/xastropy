@@ -83,6 +83,7 @@ class ExamineSpecWidget(QtGui.QWidget):
         # Other bits (modified by other widgets)
         self.continuum = None
         self.model = None
+        self.bad_model = None  # Discrepant pixels in model
         self.use_event = 1
 
         # Abs Systems
@@ -421,6 +422,11 @@ class ExamineSpecWidget(QtGui.QWidget):
             if self.model is not None:
                 self.ax.plot(self.model.dispersion, self.model.flux, 
                     color='cyan')
+                if self.bad_model is not None:
+                    self.ax.scatter(self.model.dispersion[self.bad_model], 
+                        self.model.flux[self.bad_model],  marker='o',
+                        color='red', s=3.)
+
 
             # Spectral lines?
             if self.llist['Plot'] is True:
