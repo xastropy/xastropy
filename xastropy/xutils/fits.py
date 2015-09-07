@@ -73,3 +73,22 @@ def table_to_fits(itable, outfil, compress=False, comment=None):
     # Compress?
     if compress:
         subprocess.call(["gzip", "-f", outfil])
+
+def write_quick_fits(arr_list, outfil, clobber=True):
+    ''' Write an astropy Table as a FITS binary table
+    Parameters
+    ---------
+    arr_list: list of ndarray
+    outfil: str
+    '''
+    hdulist = None
+    for arr in arr_list:
+        if hdulist is None:
+            hdulist = fits.HDUList([fits.PrimaryHDU(arr)])
+        else:
+            hdulist.append(fits.ImageHDU(arr))
+    # Write
+    hdulist.writeto(outfil, clobber=clobber)
+    print('Wrote: {:s}'.format(outfil))
+
+

@@ -26,7 +26,8 @@ from xastropy.xutils import xdebug as xdb
 
 xa_path = imp.find_module('xastropy')[1]
 
-def init_conti_dict(Norm=0., tilt=0., piv_wv=0., igm='None'):
+def init_conti_dict(Norm=0., tilt=0., piv_wv=0., igm='None',
+    fN_gamma=-1., LL_flatten='True'):
     '''Initialize a continuum conti_dict
     Parameters:
     ----------
@@ -38,17 +39,20 @@ def init_conti_dict(Norm=0., tilt=0., piv_wv=0., igm='None'):
       Pivot wave for tilt.  Best kept *without* units
     igm: str, optional
       Adopt average IGM model? ['None']
+    LL_flatten: bool, optional
+      Set Telfer to a constant below the LL?
 
     Returns:
     ---------
     conti_dict: dict 
       Useful for simple modeling.  Keep as a dict for JSON writing
     '''
-    conti_dict = dict(Norm=Norm, tilt=tilt, piv_wv=piv_wv, igm=igm)
+    conti_dict = dict(Norm=Norm, tilt=tilt, piv_wv=piv_wv, igm=igm,
+        fN_gamma=fN_gamma, LL_flatten=LL_flatten)
     #
     return conti_dict
 
-def get_telfer_spec(zqso=0., igm=False):
+def get_telfer_spec(zqso=0., igm=False, fN_gamma=None, LL_flatten=True):
     '''Generate a Telfer QSO composite spectrum
 
     Paraemters:
@@ -57,6 +61,10 @@ def get_telfer_spec(zqso=0., igm=False):
       Redshift of the QSO
     igm: bool, optional
       Include IGM opacity? [False]
+    fN_gamma: float, optional
+      Power-law evolution in f(N,X)
+    LL_flatten: bool, optional
+      Set Telfer to a constant below the LL?
 
     Returns:
     --------
@@ -81,6 +89,8 @@ def get_telfer_spec(zqso=0., igm=False):
         fN_model = xifm.default_model()
         # Expanding range of zmnx (risky)
         fN_model.zmnx = (0.,5.)
+        if fN_gamma is not None:
+            fN_model.gamma = fN_gamma
         # Parallel
         igm_wv = np.where(telfer['wrest']<1220.)[0]
         adict = []
@@ -93,6 +103,12 @@ def get_telfer_spec(zqso=0., igm=False):
         ateff = pool.map(xit.map_etl, adict)
         # Apply
         telfer_spec.flux[igm_wv] *= np.exp(-1.*np.array(ateff))
+        # Flatten?
+        if LL_flatten:
+            wv_LL = np.where(np.abs(telfer_spec.dispersion/(1+zqso)-914.*u.AA)<3.*u.AA)[0]
+            f_LL = np.median(telfer_spec.flux[wv_LL])
+            wv_low = np.where(telfer_spec.dispersion/(1+zqso)<911.7*u.AA)[0]
+            telfer_spec.flux[wv_low] = f_LL
 
     # Return
     return telfer_spec
