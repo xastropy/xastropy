@@ -60,18 +60,26 @@ class IGMGuessesGui(QtGui.QMainWindow):
     '''
     def __init__(self, ispec, parent=None, previous_file=None, 
         srch_id=True, outfil=None, fwhm=None, zqso=None,
-        plot_residuals=True):
+        plot_residuals=True,n_max_tuple=None, min_strength=3.):
         QtGui.QMainWindow.__init__(self, parent)
         '''
         spec = Spectrum1D
         previous_file: str, optional
-          Name of the previous guesses file
+            Name of the previous guesses file
         smooth: float, optional
-          Number of pixels to smooth on
+            Number of pixels to smooth on
         zqso: float, optional
-          Redshift of the quasar.  If input, a Telfer continuum is used
+            Redshift of the quasar.  If input, a Telfer continuum is used
         plot_residuals : bool, optional
-          Whether to plot residuals
+            Whether to plot residuals
+        n_max_tuple : int, optional
+            Maximum number of transitions per ion species to consider for plotting and
+            analysis regions.
+        min_strength : float, optional
+            Minimum strength for a transition to be considered in the analysis
+            The value should vary between 0. and 14. (log scale), where 0. means 
+            include everything.
+
 
         '''
         # TODO
@@ -110,6 +118,8 @@ class IGMGuessesGui(QtGui.QMainWindow):
         else:
             self.fwhm = fwhm
         self.plot_residuals = plot_residuals
+        self.n_max_tuple = n_max_tuple
+        self.min_strength = min_strength
 
         # Spectrum
         spec, spec_fil = xxgu.read_spec(ispec)
@@ -191,7 +201,7 @@ class IGMGuessesGui(QtGui.QMainWindow):
         wvmax = np.max(self.velplot_widg.spec.dispersion) 
         wvlims = (wvmin/(1+z),wvmax/(1+z))
         transitions = self.llist['ISM'].available_transitions(
-            wvlims,n_max=None, n_max_tuple=None,min_strength=5.)
+            wvlims,n_max=None, n_max_tuple=self.n_max_tuple,min_strength=self.min_strength)
 
         if transitions is not None:
             names = list(np.array(transitions['name']))
@@ -305,12 +315,12 @@ class IGMGuessesGui(QtGui.QMainWindow):
             out_dict['cmps'][key] = {}
             out_dict['cmps'][key]['zcomp'] = comp.zcomp
             out_dict['cmps'][key]['zfit'] = comp.attrib['z']
-            out_dict['cmps'][key]['N'] = comp.attrib['N']
-            out_dict['cmps'][key]['bval'] = comp.attrib['b'].value
+            out_dict['cmps'][key]['Nfit'] = comp.attrib['N']
+            out_dict['cmps'][key]['bfit'] = comp.attrib['b'].value
             out_dict['cmps'][key]['wrest'] = comp.init_wrest.value
             out_dict['cmps'][key]['vlim'] = list(comp.vlim.value)
             out_dict['cmps'][key]['Quality'] = str(comp.attrib['Quality'])
-            out_dict['cmps'][key]['comment'] = str(comp.comment)
+            out_dict['cmps'][key]['Comment'] = str(comp.comment)
         # Write
         print('Wrote: {:s}'.format(self.outfil))
         with io.open(self.outfil, 'w', encoding='utf-8') as f:
@@ -1280,6 +1290,9 @@ def run_gui(*args, **kwargs):
     parser.add_argument("-fwhm", type=float, help="FWHM smoothing (pixels)")
     parser.add_argument("-previous_file", type=str, help="Input Guesses file")
     parser.add_argument("-zqso", type=float, help="Use Telfer template with zqso")
+    parser.add_argument("-n_max_tuple", type=int, help="Maximum number of transitions per ion species to display")
+    parser.add_argument("-min_strength", type=float, help="Minimum strength for transitions to be considered; choose values [0.,14.0]")
+
 
     if len(args) == 0:
         pargs = parser.parse_args()
@@ -1317,10 +1330,23 @@ def run_gui(*args, **kwargs):
         zqso = pargs.zqso
     except AttributeError:
         zqso=None
+
+    # n_max_tuple
+    try:
+        n_max_tuple = pargs.n_max_tuple
+    except AttributeError:
+        n_max_tuple=None
+
+    # min_strength
+    try:
+        min_strength = pargs.min_strength
+    except AttributeError:
+        min_strength = 3.
+
     
     app = QtGui.QApplication(sys.argv)
     gui = IGMGuessesGui(pargs.in_file, outfil=outfil, fwhm=fwhm,
-        previous_file=previous_file, zqso=zqso)
+        previous_file=previous_file, zqso=zqso,n_max_tuple=n_max_tuple,min_strength=min_strength)
     gui.show()
     app.exec_()
 
