@@ -51,6 +51,35 @@ xa_path = imp.find_module('xastropy')[1]
 
 # class XFitLLSGUI(QtGui.QMainWindow):
 
+'''
+=======
+Analyzing spectra with auto_plls
+
+Here is now my preferred approach to searching for
+LLS with auto_plls:
+
+1.  Load up the spectrum.  Fiddle with the continuum
+normalization (and tilt, if necessary).
+
+2.  Eyeball search for a putative break that one might
+associate with a PLLS.
+
+3.  Put the cursor a bit to the left (blueward) of the break
+and at the approximate flux level of the data, post-break.
+The former sets the starting redshift to search and the latter
+sets a guess for NHI.
+
+4. Hit "F" and wait for magic to happen.
+
+5. If an LLS satisfying a rather simple criterion is found, it 
+should appear.  Otherwise, a message prints to the terminal
+stating none found.  You should then inspect the model,
+including at Lyb and Lya and modify it (or even delete it).
+
+6. Once you are happy with what you got (hopefully you are),
+move on to the next putative break and try again, i.e.
+repeat steps 2-5.
+'''
 
 # GUI for fitting LLS in a spectrum
 class XFitLLSGUI(QtGui.QMainWindow):
@@ -309,7 +338,9 @@ class XFitLLSGUI(QtGui.QMainWindow):
         '''Grab selected system
         '''
         items = self.abssys_widg.abslist_widget.selectedItems()
-        if len(items) > 1:
+        if len(items) == 0:
+            return None
+        elif len(items) > 1:
             print('Need to select only 1 system!')
             return None
         # 
