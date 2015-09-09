@@ -60,7 +60,7 @@ class IGMGuessesGui(QtGui.QMainWindow):
     '''
     def __init__(self, ispec, parent=None, previous_file=None, 
         srch_id=True, outfil=None, fwhm=None, zqso=None,
-        plot_residuals=True,n_max_tuple=None, min_strength=3.):
+        plot_residuals=True,n_max_tuple=None, min_strength=0.):
         QtGui.QMainWindow.__init__(self, parent)
         '''
         spec = Spectrum1D
@@ -73,12 +73,12 @@ class IGMGuessesGui(QtGui.QMainWindow):
         plot_residuals : bool, optional
             Whether to plot residuals
         n_max_tuple : int, optional
-            Maximum number of transitions per ion species to consider for plotting and
-            analysis regions.
+            Maximum number of transitions per ion species to consider for plotting display.
         min_strength : float, optional
-            Minimum strength for a transition to be considered in the analysis
-            The value should vary between 0. and 14. (log scale), where 0. means 
-            include everything.
+            Minimum strength for a transition to be considered in the analysis.
+            The value should lie between (0,14.7), where 0. means 
+            include everything, and 14.7 corresponds to the strength of 
+            HI Lya transition assuming solar abundance.
 
 
         '''
