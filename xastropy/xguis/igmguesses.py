@@ -266,7 +266,7 @@ class IGMGuessesGui(QtGui.QMainWindow):
             igmg_dict = json.load(data_file)
         # Check FWHM
         if igmg_dict['fwhm'] != self.fwhm:
-            raise ValueError('Input FWHMs do not match.  Fix')
+            raise ValueError('Input FWHMs do not match. Please fix it!')
         # Mask
         msk = igmg_dict['mask']
         if len(msk) > 0:
@@ -285,10 +285,10 @@ class IGMGuessesGui(QtGui.QMainWindow):
             self.velplot_widg.current_comp.name = key
             # Set N,b,z
             self.velplot_widg.current_comp.attrib['z']= igmg_dict['cmps'][key]['zfit']
-            self.velplot_widg.current_comp.attrib['b']= igmg_dict['cmps'][key]['bval']*u.km/u.s
-            self.velplot_widg.current_comp.attrib['N']= igmg_dict['cmps'][key]['N']
+            self.velplot_widg.current_comp.attrib['b']= igmg_dict['cmps'][key]['bfit']*u.km/u.s
+            self.velplot_widg.current_comp.attrib['N']= igmg_dict['cmps'][key]['Nfit']
             self.velplot_widg.current_comp.attrib['Quality']= igmg_dict['cmps'][key]['Quality']
-            self.velplot_widg.current_comp.comment = igmg_dict['cmps'][key]['comment']
+            self.velplot_widg.current_comp.comment = igmg_dict['cmps'][key]['Comment']
             # Sync
             self.velplot_widg.current_comp.sync_lines()
         # Updates
@@ -502,6 +502,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
                 aux_comp_list = new_comp.lines[::-1][:3] #invert order from ISM LineList and truncate
             else:
                 aux_comp_list = new_comp.lines
+
             # Mask for analysis
             for line in aux_comp_list:
                 #print('masking {:g}'.format(line.wrest))
@@ -1291,7 +1292,7 @@ def run_gui(*args, **kwargs):
     parser.add_argument("-previous_file", type=str, help="Input Guesses file")
     parser.add_argument("-zqso", type=float, help="Use Telfer template with zqso")
     parser.add_argument("-n_max_tuple", type=int, help="Maximum number of transitions per ion species to display")
-    parser.add_argument("-min_strength", type=float, help="Minimum strength for transitions to be considered; choose values [0.,14.0]")
+    parser.add_argument("-min_strength", type=float, help="Minimum strength for transitions to be considered; choose values (0,14.7)")
 
 
     if len(args) == 0:
@@ -1341,8 +1342,9 @@ def run_gui(*args, **kwargs):
     try:
         min_strength = pargs.min_strength
     except AttributeError:
-        min_strength = 3.
-
+        min_strength = 0.
+    if min_strength is None:
+        min_strength = 0.
     
     app = QtGui.QApplication(sys.argv)
     gui = IGMGuessesGui(pargs.in_file, outfil=outfil, fwhm=fwhm,
