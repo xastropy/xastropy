@@ -89,7 +89,7 @@ class IGMGuessesGui(QtGui.QMainWindow):
             # 12. Mask array with points
             # 13. Toggle line ID names
             # 14. Add error + residual arrays [NT]
-        # 15. Adjust component redshift by keystroke
+            # 15. Adjust component redshift by keystroke
             # 16. Input redshift value via Widget
             # 17. Use Component list to jump between components (like 'S')
 
@@ -126,7 +126,7 @@ class IGMGuessesGui(QtGui.QMainWindow):
         self.llist = xxgu.set_llist('ISM')
         # Load others
         self.llist['HI'] = LineList('HI')
-        self.llist['Strong'] = LineList('Strong')
+        # self.llist['Strong'] = LineList('Strong')
         self.llist['Lists'].append('HI')
         self.llist['HI']._data = self.llist['HI']._data[::-1] #invert order of Lyman series
         #self.llist['show_line'] = np.arange(10) #maximum 10 to show for Lyman series
@@ -144,7 +144,6 @@ class IGMGuessesGui(QtGui.QMainWindow):
             parent=self, llist=self.llist, fwhm=self.fwhm,plot_residuals=self.plot_residuals)
         self.wq_widg = xxgu.WriteQuitWidget(parent=self)
         
-
         # Setup strongest LineList
         self.llist['strongest'] = LineList('ISM')
         self.llist['Lists'].append('strongest')
@@ -192,7 +191,7 @@ class IGMGuessesGui(QtGui.QMainWindow):
         wvmax = np.max(self.velplot_widg.spec.dispersion) 
         wvlims = (wvmin/(1+z),wvmax/(1+z))
         transitions = self.llist['ISM'].available_transitions(
-            wvlims,n_max=100, n_max_tuple=4,min_strength=5.)
+            wvlims,n_max=None, n_max_tuple=None,min_strength=5.)
 
         if transitions is not None:
             names = list(np.array(transitions['name']))
@@ -486,8 +485,15 @@ class IGGVelPlotWidget(QtGui.QWidget):
         if not no_fit_mask:
             self.fit_component(new_comp)
 
+            # For Lyman series only mask pixels for fitting 
+            # up to Ly-gamma; the rest should be done manually 
+            # if wanted
+            if new_comp.lines[0].trans.startswith('HI '):
+                aux_comp_list = new_comp.lines[::-1][:3] #invert order from ISM LineList and truncate
+            else:
+                aux_comp_list = new_comp.lines
             # Mask for analysis
-            for line in new_comp.lines:
+            for line in aux_comp_list:
                 #print('masking {:g}'.format(line.wrest))
                 wvmnx = line.wrest*(1+new_comp.zcomp)*(1 + vlim.value/3e5)
                 gdp = np.where((self.spec.dispersion>wvmnx[0])&

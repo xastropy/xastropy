@@ -36,6 +36,7 @@ from astropy.io import fits, ascii
 from linetools.lists.linelist import LineList
 from linetools.spectra.xspectrum1d import XSpectrum1D
 from linetools.spectra import convolve as lsc
+import linetools.spectra.io as lsi
 from linetools.spectralline import AbsLine
 
 from xastropy.xutils import xdebug as xdb
@@ -88,7 +89,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
         30-Jul-2015 by JXP
     '''
     def __init__(self, ispec, parent=None, lls_fit_file=None, 
-        outfil=None, smooth=3., zqso=None, fN_gamma=None): 
+        outfil=None, smooth=3., zqso=None, fN_gamma=None, template=None): 
         QtGui.QMainWindow.__init__(self, parent)
         '''
         ispec = Spectrum1D or specfil
@@ -100,6 +101,9 @@ class XFitLLSGUI(QtGui.QMainWindow):
           Redshift of the quasar.  If input, a Telfer continuum is used
         fN_gamma: float, optional
           Redshift evolution of f(N) or IGM fiddled continuum
+        template: str, optional
+          Filename of a QSO template to use instead of the Telfer
+          continuum. Only used if zqso is also given.
         '''
 
         # Build a widget combining several others
@@ -129,8 +133,15 @@ class XFitLLSGUI(QtGui.QMainWindow):
         if zqso is not None:
             self.zqso = zqso
             # Read Telfer and apply IGM
-            tspec = xspc.get_telfer_spec(zqso=zqso,
-                igm=(self.conti_dict['igm']=='True'))
+            if template is not None:
+                tspec = lsi.readspec(template)
+                # assume wavelengths
+                tspec = XSpectrum1D.from_tuple(
+                    (tspec.dispersion.value * (1 + zqso),
+                    tspec.flux.value))
+            else:
+                tspec = xspc.get_telfer_spec(zqso=zqso,
+                          igm=(self.conti_dict['igm']=='True'))
             # Rebin
             self.continuum = tspec.rebin(spec.dispersion)
             # Reset pivot wave
@@ -724,7 +735,6 @@ def run_fitlls(*args, **kwargs):
 # ################
 if __name__ == "__main__":
     import sys
-    from linetools.spectra import io as lsi
     from xastropy.igm import abs_sys as xiabs
 
     if len(sys.argv) == 1: # TESTING
