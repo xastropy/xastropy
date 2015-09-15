@@ -75,7 +75,7 @@ def table_to_fits(itable, outfil, compress=False, comment=None):
         subprocess.call(["gzip", "-f", outfil])
 
 def write_quick_fits(arr_list, outfil, clobber=True):
-    ''' Write an astropy Table as a FITS binary table
+    ''' Write a list of arrays to a FITS file
     Parameters
     ---------
     arr_list: list of ndarray
