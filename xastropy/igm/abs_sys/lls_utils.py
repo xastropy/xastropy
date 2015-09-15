@@ -142,7 +142,7 @@ class LLSSystem(AbslineSystem):
     def get_ions(self, idict=None, closest=False):
         """Parse the ions for each Subsystem
         And put them together for the full system
-        Fills .ions with a Ions_Clm Class
+        Fills .ions with a IonsClm Class
 
         Parameters:
         -----------
@@ -163,7 +163,7 @@ class LLSSystem(AbslineSystem):
             for ii in range(self.nsub):
                 clm_fil = self.tree+self.subsys[lbls[ii]].clm_file
                 # Parse .clm and .all files
-                self.subsys[lbls[ii]].clm_analy = Ionic_Clm_File(clm_fil)
+                self.subsys[lbls[ii]].clm_analy = Ionic_Clm_File(clm_fil, self.linelist)
                 ion_fil = self.tree+self.subsys[lbls[ii]].clm_analy.ion_fil 
                 all_fil = ion_fil.split('.ion')[0]+'.all'
                 self.all_fil=all_fil #MF: useful to have

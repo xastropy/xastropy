@@ -375,7 +375,7 @@ class AbslineSystem(object):
     def get_ions(self, skip_ions=False, fill_lines=False):
         # Read .clm file
         clm_fil=self.tree+self.clm_fil
-        self.clm_analy = Ionic_Clm_File(clm_fil)
+        self.clm_analy = Ionic_Clm_File(clm_fil, self.linelist)
         if fill_lines is True:
             self.lines = self.clm_analy.clm_lines
         # Read .all file

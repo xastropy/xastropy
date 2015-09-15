@@ -103,7 +103,7 @@ class ExamineSpecWidget(QtGui.QWidget):
 
         # Line List?
         if llist is None:
-            self.llist = {'Plot': False, 'List': 'None', 'z': 0.}
+            self.llist = {'Plot': False, 'List': 'None', 'z': 0., 'Lists': []}
         else:
             self.llist = llist
 
@@ -551,6 +551,7 @@ class PlotLinesWidget(QtGui.QWidget):
             self.llist['Plot'] = False
             self.llist['z'] = 0.
             self.llist['List'] = 'None'
+            self.llist['Lists'] = []
         else: # Fill it all up and select
             self.llist = init_llist
             if not init_llist['List'] in self.lists:
