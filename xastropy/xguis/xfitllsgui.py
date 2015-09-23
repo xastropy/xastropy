@@ -460,7 +460,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
             ipos = self.abssys_widg.all_items[idxl].rfind('_')
             ilbl = self.abssys_widg.all_items[idxl][ipos+1:]
             for line in lls.lls_lines:
-                if line.wrest < 916.*u.AA:
+                if line.wrest < 915.*u.AA:
                     continue
                 idx = np.argmin(np.abs(self.continuum.dispersion-
                     line.wrest*(1+lls.zabs)))

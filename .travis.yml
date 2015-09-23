@@ -95,7 +95,7 @@ install:
     - if [[ $SETUP_CMD != egg_info ]]; then $CONDA_INSTALL numpy=$NUMPY_VERSION PIL ; fi
     - if [[ $SETUP_CMD != egg_info ]]; then $PIP_INSTALL specutils; fi
     - if [[ $SETUP_CMD != egg_info ]]; then $PIP_INSTALL astroquery; fi
-    - if [[ $SETUP_CMD != egg_info ]]; then $PIP_INSTALL yaml; fi
+    #- if [[ $SETUP_CMD != egg_info ]]; then $PIP_INSTALL yaml; fi
     - if [[ $SETUP_CMD != egg_info ]]; then $PIP_INSTALL git+git://github.com/linetools/linetools ;fi
     - if [[ $SETUP_CMD != egg_info ]]; then $PIP_INSTALL git+git://github.com/ejeschke/ginga.git ;fi
 
