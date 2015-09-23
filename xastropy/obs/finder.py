@@ -272,6 +272,7 @@ def main(inp, survey='2r', radec=None, deci=None, fpath=None,
         else:
             plt.savefig(outfil)
         print 'finder: Wrote '+outfil
+        plt.close()
         #xdb.set_trace()
 
     print 'finder: All done.'
