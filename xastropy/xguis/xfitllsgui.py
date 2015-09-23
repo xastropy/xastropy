@@ -85,7 +85,7 @@ repeat steps 2-5.
 # GUI for fitting LLS in a spectrum
 class XFitLLSGUI(QtGui.QMainWindow):
     ''' GUI to fit LLS in a given spectrum
-        v1.0
+        v1.1
         30-Jul-2015 by JXP
     '''
     def __init__(self, ispec, parent=None, lls_fit_file=None, 
@@ -161,8 +161,8 @@ class XFitLLSGUI(QtGui.QMainWindow):
         # LineList
         self.llist = xxgu.set_llist('Strong') 
         self.llist['z'] = 0.
-        self.plt_wv = zip(np.array([911.7,972.5367,1025.7222,1215.6700])*u.AA,
-            ['LL','Lyg','Lyb','Lya'])
+        self.plt_wv = zip(np.array([911.7, 949.743, 972.5367,1025.7222,1215.6700])*u.AA,
+            ['LL','Lyd', 'Lyg','Lyb','Lya'])
 
         # z and N boxes
         self.zwidget = xxgu.EditBox(-1., 'z_LLS=', '{:0.5f}')
@@ -452,6 +452,22 @@ class XFitLLSGUI(QtGui.QMainWindow):
                     self.continuum.flux[idx],
                     '{:s}_{:s}'.format(ilbl,lbl), ha='center', 
                     color='blue', size='small', rotation=90.)
+        # Ticks for selected LLS
+        idxl = self.get_sngl_sel_sys()
+        if idxl is not None:
+            lls = self.abssys_widg.all_abssys[idxl]
+            # Label
+            ipos = self.abssys_widg.all_items[idxl].rfind('_')
+            ilbl = self.abssys_widg.all_items[idxl][ipos+1:]
+            for line in lls.lls_lines:
+                if line.wrest < 916.*u.AA:
+                    continue
+                idx = np.argmin(np.abs(self.continuum.dispersion-
+                    line.wrest*(1+lls.zabs)))
+                self.spec_widg.ax.text(line.wrest.value*(1+lls.zabs), 
+                    self.continuum.flux[idx],
+                    '-{:s}'.format(ilbl), ha='center', 
+                    color='red', size='small', rotation=90.)
         # Draw
         self.spec_widg.canvas.draw()
 
