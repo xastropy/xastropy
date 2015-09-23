@@ -234,9 +234,10 @@ class Ionic_Clm_File(object):
         clm_fil: Systemic redshift
     """
     # Initialize with a .clm file
-    def __init__(self, clm_fil):
+    def __init__(self, clm_fil, linelist):
         #
         self.clm_fil = clm_fil
+        self.linelist = linelist
         # Parse
         self.read_clmfil()
 
@@ -316,13 +317,13 @@ class Ionic_Clm_File(object):
             vmax = float(tmp[2].strip())
             key = float(tmp[0].strip()) # Using a float not string!
             # Generate
-            self.clm_lines[key] = AbsLine(key*u.AA,closest=True)
+            self.clm_lines[key] = AbsLine(key*u.AA,closest=True,linelist=self.linelist)
             #self.clm_lines[key] = xa.spec.analysis.Spectral_Line(key)
             self.clm_lines[key].analy['FLAGS'] = ionflg, int(tmp[3].strip())
             # By-hand
             if ionflg >= 8:
-                self.clm_lines[key].measure['N'] = 10.**vmin
-                self.clm_lines[key].measure['SIGN'] = (10.**(vmin+vmax) - 10.**(vmin-vmax))/2	      
+                self.clm_lines[key].attrib['N'] = 10.**vmin
+                self.clm_lines[key].attrib['SIGN'] = (10.**(vmin+vmax) - 10.**(vmin-vmax))/2	      
             else:
                 self.clm_lines[key].analy['VLIM']= [vmin,vmax]
 
