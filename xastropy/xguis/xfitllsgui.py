@@ -528,7 +528,11 @@ class XFitLLSGUI(QtGui.QMainWindow):
             conti= self.continuum
         # Generate toy LLS from click
         ximn = np.argmin(np.abs(spec.dispersion.value-x))
-        NHI = 16.29 - np.log(y/self.continuum.flux.value[ximn])
+        NHI = 17.29 + np.log10(-1.*np.log(y/conti.flux.value[ximn]))
+        #QtCore.pyqtRemoveInputHook()
+        #xdb.set_trace()
+        #QtCore.pyqtRestoreInputHook()
+
         #print('NHI={:g}'.format(NHI))
         plls = LLSSystem(NHI=NHI)
         plls.zabs = x/(911.7)-1
@@ -542,10 +546,13 @@ class XFitLLSGUI(QtGui.QMainWindow):
         lls_flux = lsc.convolve_psf(emtau, 3.)
 #xdb.xplot(wrest, lls_flux)
 
-        # zmin
+        # zmin (next highest LLS or zem)
         if len(self.abssys_widg.all_abssys) != 0:
-            zlls = [lls.zabs for lls in self.abssys_widg.all_abssys]
-            zmin = np.min(np.array(zlls)) - 0.01
+            zlls = [lls.zabs for lls in self.abssys_widg.all_abssys if lls.zabs > plls.zabs]
+            if len(zlls) == 0:
+                zmin = self.zqso+0.01
+            else:
+                zmin = np.min(np.array(zlls)) - 0.01
         else:
             zmin = self.zqso+0.01
 
