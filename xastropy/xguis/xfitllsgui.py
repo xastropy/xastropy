@@ -528,7 +528,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
             conti= self.continuum
         # Generate toy LLS from click
         ximn = np.argmin(np.abs(spec.dispersion.value-x))
-        NHI = 17.29 + np.log10(-1.*np.log(y/conti.flux[ximn]))
+        NHI = 17.29 + np.log10(-1.*np.log(y/conti.flux.value[ximn]))
         #QtCore.pyqtRemoveInputHook()
         #xdb.set_trace()
         #QtCore.pyqtRestoreInputHook()
