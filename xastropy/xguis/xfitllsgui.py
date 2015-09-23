@@ -52,11 +52,40 @@ xa_path = imp.find_module('xastropy')[1]
 
 # class XFitLLSGUI(QtGui.QMainWindow):
 
+'''
+=======
+Analyzing spectra with auto_plls
+
+Here is now my preferred approach to searching for
+LLS with auto_plls:
+
+1.  Load up the spectrum.  Fiddle with the continuum
+normalization (and tilt, if necessary).
+
+2.  Eyeball search for a putative break that one might
+associate with a PLLS.
+
+3.  Put the cursor a bit to the left (blueward) of the break
+and at the approximate flux level of the data, post-break.
+The former sets the starting redshift to search and the latter
+sets a guess for NHI.
+
+4. Hit "F" and wait for magic to happen.
+
+5. If an LLS satisfying a rather simple criterion is found, it 
+should appear.  Otherwise, a message prints to the terminal
+stating none found.  You should then inspect the model,
+including at Lyb and Lya and modify it (or even delete it).
+
+6. Once you are happy with what you got (hopefully you are),
+move on to the next putative break and try again, i.e.
+repeat steps 2-5.
+'''
 
 # GUI for fitting LLS in a spectrum
 class XFitLLSGUI(QtGui.QMainWindow):
     ''' GUI to fit LLS in a given spectrum
-        v1.0
+        v1.1
         30-Jul-2015 by JXP
     '''
     def __init__(self, ispec, parent=None, lls_fit_file=None, 
@@ -132,8 +161,8 @@ class XFitLLSGUI(QtGui.QMainWindow):
         # LineList
         self.llist = xxgu.set_llist('Strong') 
         self.llist['z'] = 0.
-        self.plt_wv = zip(np.array([911.7,972.5367,1025.7222,1215.6700])*u.AA,
-            ['LL','Lyg','Lyb','Lya'])
+        self.plt_wv = zip(np.array([911.7, 949.743, 972.5367,1025.7222,1215.6700])*u.AA,
+            ['LL','Lyd', 'Lyg','Lyb','Lya'])
 
         # z and N boxes
         self.zwidget = xxgu.EditBox(-1., 'z_LLS=', '{:0.5f}')
@@ -320,7 +349,9 @@ class XFitLLSGUI(QtGui.QMainWindow):
         '''Grab selected system
         '''
         items = self.abssys_widg.abslist_widget.selectedItems()
-        if len(items) > 1:
+        if len(items) == 0:
+            return None
+        elif len(items) > 1:
             print('Need to select only 1 system!')
             return None
         # 
@@ -421,6 +452,22 @@ class XFitLLSGUI(QtGui.QMainWindow):
                     self.continuum.flux[idx],
                     '{:s}_{:s}'.format(ilbl,lbl), ha='center', 
                     color='blue', size='small', rotation=90.)
+        # Ticks for selected LLS
+        idxl = self.get_sngl_sel_sys()
+        if idxl is not None:
+            lls = self.abssys_widg.all_abssys[idxl]
+            # Label
+            ipos = self.abssys_widg.all_items[idxl].rfind('_')
+            ilbl = self.abssys_widg.all_items[idxl][ipos+1:]
+            for line in lls.lls_lines:
+                if line.wrest < 915.*u.AA:
+                    continue
+                idx = np.argmin(np.abs(self.continuum.dispersion-
+                    line.wrest*(1+lls.zabs)))
+                self.spec_widg.ax.text(line.wrest.value*(1+lls.zabs), 
+                    self.continuum.flux[idx],
+                    '-{:s}'.format(ilbl), ha='center', 
+                    color='red', size='small', rotation=90.)
         # Draw
         self.spec_widg.canvas.draw()
 
