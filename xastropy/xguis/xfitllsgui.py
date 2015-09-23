@@ -85,7 +85,7 @@ repeat steps 2-5.
 # GUI for fitting LLS in a spectrum
 class XFitLLSGUI(QtGui.QMainWindow):
     ''' GUI to fit LLS in a given spectrum
-        v1.1
+        v1.2
         30-Jul-2015 by JXP
     '''
     def __init__(self, ispec, parent=None, lls_fit_file=None, 
@@ -119,44 +119,14 @@ class XFitLLSGUI(QtGui.QMainWindow):
             self.outfil = outfil
         self.count_lls = 0
         self.lls_model = None
+        self.smooth = None
+        self.base_continuum = None
         self.all_forest = []
         self.flag_write = False
 
         # Spectrum
         spec, spec_fil = xxgu.read_spec(ispec)
 
-        # Continuum
-        self.conti_dict = xspc.init_conti_dict(
-            Norm=float(np.median(spec.flux.value)),
-            piv_wv=np.median(spec.dispersion.value),
-            igm='True')
-        if zqso is not None:
-            self.zqso = zqso
-            # Read Telfer and apply IGM
-            if template is not None:
-                tspec = lsi.readspec(template)
-                # assume wavelengths
-                tspec = XSpectrum1D.from_tuple(
-                    (tspec.dispersion.value * (1 + zqso),
-                    tspec.flux.value))
-            else:
-                tspec = xspc.get_telfer_spec(zqso=zqso,
-                          igm=(self.conti_dict['igm']=='True'))
-            # Rebin
-            self.continuum = tspec.rebin(spec.dispersion)
-            # Reset pivot wave
-            self.conti_dict['piv_wv'] = 915.*(1+zqso)
-        else:
-            self.zqso = None
-            self.continuum = XSpectrum1D.from_tuple((
-                spec.dispersion,np.ones(len(spec.dispersion))))
-        self.base_continuum = self.continuum.flux
-        self.update_conti()
-
-        # Full Model (LLS+continuum)
-        self.full_model = XSpectrum1D.from_tuple((
-            spec.dispersion,np.ones(len(spec.dispersion))))
-        self.smooth = smooth
 
         # LineList
         self.llist = xxgu.set_llist('Strong') 
@@ -176,15 +146,50 @@ class XFitLLSGUI(QtGui.QMainWindow):
         self.spec_widg = xspw.ExamineSpecWidget(spec,status=self.statusBar,
                                                 llist=self.llist, key_events=False,
                                                 abs_sys=self.abssys_widg.abs_sys)
+        # Initialize continuum (and LLS if from a file)
+        if lls_fit_file is not None:
+            self.init_LLS(lls_fit_file,spec)
+        else:
+            self.conti_dict = xspc.init_conti_dict(
+                Norm=float(np.median(spec.flux.value)),
+                piv_wv=np.median(spec.dispersion.value),
+                igm='True')
+        if self.base_continuum is None:
+            if zqso is not None:
+                self.zqso = zqso
+                # Read Telfer and apply IGM
+                if template is not None:
+                    tspec = lsi.readspec(template)
+                    # assume wavelengths
+                    tspec = XSpectrum1D.from_tuple(
+                        (tspec.dispersion.value * (1 + zqso),
+                        tspec.flux.value))
+                else:
+                    tspec = xspc.get_telfer_spec(zqso=zqso,
+                              igm=(self.conti_dict['igm']=='True'))
+                # Rebin
+                self.continuum = tspec.rebin(spec.dispersion)
+                # Reset pivot wave
+                self.conti_dict['piv_wv'] = 915.*(1+zqso)
+            else:
+                self.zqso = None
+                self.continuum = XSpectrum1D.from_tuple((
+                    spec.dispersion,np.ones(len(spec.dispersion))))
+            self.base_continuum = self.continuum.flux
+        self.update_conti()
+
         self.spec_widg.continuum = self.continuum
 
-        #if other_spec is not None:
-        #    ospec, ospec_fil = xxgu.read_spec(other_spec)
-        #    self.spec_widg.other_spec = ospec
+        # Full Model (LLS+continuum)
+        self.full_model = XSpectrum1D.from_tuple((
+            spec.dispersion,np.ones(len(spec.dispersion))))
+        if self.smooth is None:
+            self.smooth = smooth
 
-        # Initial file
+        # Initialize as needed
         if lls_fit_file is not None:
-            self.init_LLS(lls_fit_file)
+            self.update_boxes()
+            self.update_model()
 
         # Outfil
         wbtn = QtGui.QPushButton('Write', self)
@@ -492,7 +497,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
         # Append to forest lines
         self.all_forest.append(forest)
 
-    def add_LLS(self,z,NHI=17.3,bval=20.*u.km/u.s,comment='None'):
+    def add_LLS(self,z,NHI=17.3,bval=20.*u.km/u.s,comment='None', model=True):
         '''Generate a new LLS
         '''
         #
@@ -512,7 +517,8 @@ class XFitLLSGUI(QtGui.QMainWindow):
         
         # Update
         self.llist['Plot'] = False # Turn off metal-lines
-        self.update_model()
+        if model:  # For dealing with initialization
+            self.update_model()
 
     def auto_plls(self,x,y):
         '''Automatically fit a pLLS
@@ -627,16 +633,28 @@ class XFitLLSGUI(QtGui.QMainWindow):
         gui.exec_()
 
     # Read from a JSON file
-    def init_LLS(self,fit_file):
+    def init_LLS(self,fit_file,spec):
         import json
         # Read the JSON file
         with open(fit_file) as data_file:    
             lls_dict = json.load(data_file)
-        # Init
-        self.conti_dict = lls_dict['conti']
-        self.update_conti()
+        # Init continuum
+        try:
+            self.conti_dict = lls_dict['conti_model']
+        except KeyError: # Historic
+            self.conti_dict = lls_dict['conti']
+        else:
+            try:
+                self.base_continuum = Quantity(lls_dict['conti'])
+            except:
+                print('Will generate a new base continuum')
+                self.base_continuum = None
+            else:
+                self.continuum = XSpectrum1D.from_tuple((
+                    spec.dispersion,np.ones(len(spec.dispersion))))
+        #self.update_conti()
         # Check spectra names
-        if self.spec_widg.spec.filename != lls_dict['spec_file']:
+        if spec.filename != lls_dict['spec_file']:
             warnings.warn('Spec file names do not match!')
         # LLS
         for key in lls_dict['LLS'].keys():
@@ -646,11 +664,15 @@ class XFitLLSGUI(QtGui.QMainWindow):
             self.add_LLS(lls_dict['LLS'][key]['z'],
                 NHI=lls_dict['LLS'][key]['NHI'],
                 bval=lls_dict['LLS'][key]['bval']*u.km/u.s,
-                comment=lls_dict['LLS'][key]['comment'])
+                comment=lls_dict['LLS'][key]['comment'], model=False)
         self.smooth = lls_dict['smooth']
+        try:
+            self.zqso = lls_dict['zqso']
+        except KeyError:
+            self.zqso = None
         # Updates
-        self.update_boxes()
-        self.update_model()
+        #self.update_boxes()
+        #self.update_model()
         #QtCore.pyqtRemoveInputHook()
         #xdb.set_trace()
         #QtCore.pyqtRestoreInputHook()
@@ -659,7 +681,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
     def write_out(self):
         import json, io
         # Create dict
-        out_dict = dict(LLS={},conti=self.conti_dict,
+        out_dict = dict(LLS={},conti_model=self.conti_dict, conti=list(self.base_continuum.value),
             spec_file=self.spec_widg.spec.filename,smooth=self.smooth)
         if self.zqso is not None:
             out_dict['zqso'] = self.zqso
