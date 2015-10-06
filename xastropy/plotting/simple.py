@@ -20,7 +20,6 @@ import matplotlib.pyplot as plt
 
 #def plot_1d_arrays -- Plot a series of arrays (as many as you want!!)
 #def plot_hist -- Plot a simple histogram 
-
 #### ###############################
 #  Simplest quick plot
 #   Plot a series of arrays (as many as you want!!)

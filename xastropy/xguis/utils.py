@@ -14,7 +14,7 @@ from __future__ import print_function, absolute_import, division, unicode_litera
 
 # Import libraries
 import numpy as np
-import os, sys
+import os, sys, copy
 import matplotlib.pyplot as plt
 import glob
 
@@ -258,8 +258,8 @@ def navigate(psdict,event,init=False):
             new_center = center + 4*deltx
         psdict['xmnx'] = [new_center-deltx, new_center+deltx]
     elif event.key == 'W': # Reset the Window
-        psdict['xmnx'] = psdict['sv_xy'][0]
-        psdict['ymnx'] = psdict['sv_xy'][1]
+        psdict['xmnx'] = copy.deepcopy(psdict['sv_xy'][0])
+        psdict['ymnx'] = copy.deepcopy(psdict['sv_xy'][1])
     elif event.key == 'Z': # Zero
         psdict['ymnx'][0] = 0.
     else:
