@@ -32,7 +32,7 @@ from xastropy.atomic import ionization as xai
 xa_path = imp.find_module('xastropy')[1]
 
 class fN_Model(object):
-    """A Class for fN models
+    """A Class for f(N,X) models
 
     Attributes:
        fN_mtype: string
@@ -49,7 +49,7 @@ class fN_Model(object):
        zpivot: float (2.4)
           Pivot for redshift evolution
        gamma: float (1.5)
-          Power law for dN/dX
+          Power law for dN/dX, not dN/dz
     """
 
     # Initialize with type
@@ -251,7 +251,7 @@ class fN_Model(object):
     ##
     # Evaluate
     def eval(self, NHI, z, vel_array=None, cosmo=None):
-        """ Evaluate the model at a set of NHI values
+        """ Evaluate the f(N,X) model at a set of NHI values
 
         Parameters:
         NHI: array
