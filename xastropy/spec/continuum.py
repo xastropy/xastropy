@@ -55,7 +55,7 @@ def init_conti_dict(Norm=0., tilt=0., piv_wv=0., igm='None',
 def get_telfer_spec(zqso=0., igm=False, fN_gamma=None, LL_flatten=True):
     '''Generate a Telfer QSO composite spectrum
 
-    Paraemters:
+    Parameters:
     ----------
     zqso: float, optional
       Redshift of the QSO

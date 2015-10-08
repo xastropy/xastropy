@@ -145,7 +145,7 @@ class fN_Model(object):
             z = np.array([z])
 
         # Brute force (should be good to ~0.5%)
-        lgNHI = NHI_min + (NHI_max-NHI_min)*np.arange(neval)/(neval-1.)
+        lgNHI = np.linspace(NHI_min,NHI_max,neval)#NHI_min + (NHI_max-NHI_min)*np.arange(neval)/(neval-1.)
         dlgN = lgNHI[1]-lgNHI[0]
 
         # Evaluate f(N,X)

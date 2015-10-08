@@ -67,6 +67,7 @@ def voigtking(vin,a):
 # The primary call
 def voigt_model(wave, line, fwhm=0., flg_ret=1, debug=False):
     '''Generates a Voigt model from a line or list of lines
+    This will run *slowly* for many many lines
 
     Parameters:
     ------------
