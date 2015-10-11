@@ -16,11 +16,16 @@ from __future__ import print_function, absolute_import, division, unicode_litera
 import numpy as np
 import sys
 import os
+import copy
+import warnings
 
 from astropy import units as u
 from astropy.units import Unit, Quantity
 from astropy import constants as const
 from astropy.modeling import FittableModel, Parameter
+
+from linetools.spectra.xspectrum1d import XSpectrum1D
+from linetools.spectralline import AbsLine
 
 from xastropy.xutils import xdebug as xdb
 
@@ -86,12 +91,7 @@ def voigt_model(wave, line, fwhm=0., flg_ret=1, debug=False):
     JXP 01 Nov 2014
     '''
     # Imports
-    import copy
-    from specutils.spectrum1d import Spectrum1D
-    from linetools.spectra.xspectrum1d import XSpectrum1D
-    from linetools.spectralline import AbsLine
-    from astropy.nddata import StdDevUncertainty
-    import warnings
+
 
     # Wavelength input
     if not isinstance(wave,Quantity):  # Standard wavelength array
@@ -292,8 +292,7 @@ if __name__ == '__main__':
 
     # Test spec input
     if flg_test % 64 >= 32:
-        from specutils.spectrum1d import Spectrum1D
-        spec = Spectrum1D.from_array(wave, np.zeros(len(wave)))
+        spec = XSpectrum1D.from_array(wave, np.zeros(len(wave)))
         vmodel = voigt_model(spec, line, Npix=None, flg_ret=1)  # No smoothing
         print('voigt: Spec input test')
         vmodel.qck_plot()
