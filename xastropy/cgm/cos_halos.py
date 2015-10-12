@@ -41,19 +41,96 @@ class COSHalos(CGMAbsSurvey):
     """Inherits CGM Abs Survey
 
     Attributes:
+    -----------
+    fits_path: str, optional
+      Path to the FITS data files for COS-Halos
     """
     # Initialize with a .dat file
-    def __init__(self, tree=None):
+    def __init__(self, tree=None, fits_path=None):
 
         # Generate with type
         CGMAbsSurvey.__init__(self)
         self.survey = 'COS-Halos'
         self.ref = 'Tumlinson+11; Werk+12; Tumlinson+13; Werk+13'
+        if fits_path is None:
+            self.fits_path = os.path.abspath(os.environ.get('DROPBOX_DIR')+'/COS-Halos/lowions/FITS')
+        else:
+            self.fits_path = fits_path
+
+    # Load from mega structure
+    def load_single(self,inp, skip_ions=False):
+        """ Load a single COS-Halos sightline
+        Appends to cgm_abs list
+
+        Paramaeters
+        ----------
+        inp: tuple or str
+          if tuple -- (field,gal_id)
+            field: str 
+              Name of field (e.g. 'J0226+0015')
+            gal_id: str 
+              Name of galaxy (e.g. '268_22')
+        """
+        # Parse input
+        if isinstance(inp,basestring):
+            fil = inp
+        elif isinstance(inp,tuple):
+            field,gal_id  = inp
+            fils = glob.glob(self.fits_path+'/'+field+'.'+gal_id+'.fits')
+            if len(fils) != 1:
+                raise IOError('Bad field, gal_id')
+            fil = fils[0]
+        else:
+            raise IOError('Bad input to load_single')
+
+        # Read COS-Halos file
+        print('cos_halos: Reading {:s}'.format(fil))
+        hdu = fits.open(fil)
+        summ = hdu[1].data
+        galx = hdu[2].data
+        self.cgm_abs.append( CGMSys(galx['ra'][0],
+            galx['dec'][0],
+            summ['zfinal'][0],
+            galx['qsora'][0],
+            galx['qsodec'][0], 
+            galx['zqso'][0]))
+        mm = len(self.cgm_abs)-1
+        # COS-Halos naming
+        self.cgm_abs[mm].field = galx['field'][0]
+        self.cgm_abs[mm].gal_id = galx['galid'][0]
+        # Galxy properties
+        self.cgm_abs[mm].galaxy.halo_mass = summ['LOGMHALO'][0] 
+        self.cgm_abs[mm].galaxy.stellar_mass = summ['LOGMFINAL'][0] 
+        self.cgm_abs[mm].galaxy.sfr = (galx['SFR_UPLIM'][0], galx['SFR'][0],
+            galx['SFR_FLAG'][0]) # FLAG actually gives method used
+        # Ions
+        if skip_ions is True:
+            return
+        self.cgm_abs[mm].abs_sys.ions = IonClms()
+        all_Z = []
+        all_ion = []
+        for jj in range(summ['nion'][0]):
+            iont = hdu[3+jj].data
+            if jj == 0: # Generate new Table
+                dat_tab = Table(iont)
+            else:
+                try:
+                    dat_tab.add_row(Table(iont)[0])
+                except:
+                    xdb.set_trace()
+            all_Z.append(iont['zion'][0][0])
+            all_ion.append(iont['zion'][0][1])
+        # Add Z,ion
+        dat_tab.add_column(Column(all_Z,name='Z'))
+        dat_tab.add_column(Column(all_ion,name='ion'))
+        # Set
+        self.cgm_abs[mm].abs_sys.ions._data = dat_tab
+        # NHI
+        self.cgm_abs[mm].abs_sys.NHI = self.cgm_abs[mm].abs_sys.ions[(1,1)]['CLM']
 
 
     # Load from mega structure
-    def load_mega(self,flg=1, data_file=None,cosh_dct=None, pckl_fil=None,
-                  skip_ions=False, test=False):
+    def load_mega(self,flg=1, data_file=None, cosh_dct=None, test=False, **kwargs):
         """ Load the data for COS-Halos
 
         Paramaeters
@@ -74,106 +151,24 @@ class COSHalos(CGMAbsSurvey):
 
         # IDL save file
         if flg == 0:
+            raise ValueError('This will not work.')
             if data_file is None:
                 data_file = os.path.abspath(os.environ.get('DROPBOX_DIR')+'/COS-Halos/lowions/'+
                                             'coshalos_lowmetals_mega.sav')
-            '''
-            from scipy.io import readsav
-            print('cos_halos.load:  Be patient...')
-            if cosh_dct is None:
-                cosh_dct = readsav(data_file)
-    
-            # Generate the CGM Survey
-            ncos = len(cosh_dct['megastruct'])
-            self.nsys = ncos
-            for kk in range(ncos):
-            #  
-                self.cgm_abs.append(CGM_Abs(
-                    ras=cosh_dct['megastruct'][kk]['galaxy']['qsora'][0],
-                    decs=cosh_dct['megastruct'][kk]['galaxy']['qsodec'][0],
-                    g_ras=cosh_dct['megastruct'][kk]['galaxy']['ra'][0],
-                    g_decs=cosh_dct['megastruct'][kk]['galaxy']['dec'][0],
-                    zgal=cosh_dct['megastruct'][kk]['galaxy']['zspec'][0]
-                    ))
-            '''
         elif flg == 1: # FITS files
-            fits_path = os.path.abspath(os.environ.get('DROPBOX_DIR')+'/COS-Halos/lowions/FITS')
             # Loop
             if test is True:
-                cos_files = glob.glob(fits_path+'/J091*.fits') # For testing
+                cos_files = glob.glob(self.fits_path+'/J091*.fits') # For testing
             else:
-                cos_files = glob.glob(fits_path+'/J*.fits')
+                cos_files = glob.glob(self.fits_path+'/J*.fits')
             # Setup
             self.nsys = len(cos_files)
             # Read
             for fil in cos_files:
-                print('cos_halos: Reading {:s}'.format(fil))
-                mm = cos_files.index(fil)
-                hdu = fits.open(fil)
-                summ = hdu[1].data
-                galx = hdu[2].data
-                self.cgm_abs.append( CGMSys(ras=galx['qsora'][0],
-                    decs=galx['qsodec'][0],
-                    g_ras=galx['ra'][0],
-                    g_decs=galx['dec'][0],
-                    zgal=summ['zfinal'][0]
-                    ))
-                # COS-Halos naming
-                self.cgm_abs[mm].field = galx['field'][0]
-                self.cgm_abs[mm].gal_id = galx['galid'][0]
-                # Galxy properties
-                self.cgm_abs[mm].galaxy.halo_mass = summ['LOGMHALO'][0] 
-                self.cgm_abs[mm].galaxy.stellar_mass = summ['LOGMFINAL'][0] 
-                # Ions
-                if skip_ions is True:
-                    continue
-                self.cgm_abs[mm].abs_sys.ions = IonClms()
-                all_Z = []
-                all_ion = []
-                for jj in range(summ['nion'][0]):
-                    iont = hdu[3+jj].data
-                    if jj == 0: # Generate new Table
-                        dat_tab = Table(iont)
-                    else:
-                        try:
-                            dat_tab.add_row(Table(iont)[0])
-                        except:
-                            xdb.set_trace()
-                    all_Z.append(iont['zion'][0][0])
-                    all_ion.append(iont['zion'][0][1])
-                    '''
-                    for key in self.cgm_abs[mm].abs_sys.ions.keys:
-                        try:
-                            self.cgm_abs[mm].abs_sys.ions.ion_data[zion][key] = iont[key][0]
-                        except KeyError:
-                            if key == 'flg_inst':
-                                self.cgm_abs[mm].abs_sys.ions.ion_data[zion][key] = 0
-                            else:
-                                xdb.set_trace()
-                    '''
-                # Add Z,ion
-                dat_tab.add_column(Column(all_Z,name='Z'))
-                dat_tab.add_column(Column(all_ion,name='ion'))
-                # Set
-                self.cgm_abs[mm].abs_sys.ions._data = dat_tab
-                # NHI
-                self.cgm_abs[mm].abs_sys.NHI = self.cgm_abs[mm].abs_sys.ions[(1,1)]['CLM']
-            # Mask
-            self.mask = np.ones(self.nsys, dtype=bool)
+                self.load_single(fil, **kwargs)
         else:
-            raise ValueError('cos_halos.load: Not ready for this flag {:d}'.format(flg))
+            raise ValueError('cos_halos.load_mega: Not ready for this flag {:d}'.format(flg))
 
-        '''
-        # Pickle?
-        if pckl_fil is not None:
-            xdb.set_trace()  # NOT GOING TO WORK
-            pfil = open(pckl_fil, "wb")
-            sys.setrecursionlimit(20000)
-            pickle.dump(cos_halos,pfil,-1)
-            pfil.close()
-            print('cos_halos.load: Wrote pickle file {:s}'.format(pckl_fil))
-        '''
-    
     
     ########################## ##########################
     def load_abskin(self,flg=1,kin_init_file=None):
@@ -245,21 +240,64 @@ class COSHalos(CGMAbsSurvey):
 
             #tmp = cos_halos.abs_kin('Metal')['Dv']
             #xdb.set_trace()
+    # 
+    def load_gal_spec(self, idx):
+        """ Load the galaxy spectrum
+
+        Parameters
+        ----------
+        idx: int
+          Index of the cgm_abs list
+
+        Returns:
+        ----------
+        spec: XSpectrum1D 
+          Splices the blue and red side for LRIS
+
+        JXP on 12 Oct 2015
+        """
+        # Init
+        cgm_abs = self.cgm_abs[idx]
+        # Directories
+        cdir = os.environ.get('DROPBOX_DIR')+'/coshaloanalysis/'
+        fielddir = 'fields/'+cgm_abs.field+'/'
+        sysdir = cgm_abs.gal_id+'/spec1d/'
+        sysname = cgm_abs.field+'_'+cgm_abs.gal_id
+
+        # Find files
+        lris_files = glob.glob(cdir+fielddir+sysdir+sysname+'*corr.fits')
+        if len(lris_files) == 0:
+            raise ValueError('No LRIS files!')
+        elif len(lris_files) == 2:
+            lris_files.sort()
+            specb = lsio.readspec(lris_files[0]) 
+            specr = lsio.readspec(lris_files[1]) 
+            spec = specb.splice(specr)
+        else:
+            raise ValueError('Not sure what happened')
+
+        # Return
+        return spec
 
 
-# 
-def get_coshalo_spec(cgm_abs, wrest):
+    def load_bg_cos_spec(self, inp, wrest):
         """ Load the absorption-line kinematic data for COS-Halos
         Calculate from scratch if needed
 
         Paramaeters
         ----------
-        cgm_abs: CGM_Abs Class
-        wrest: float
+        idx: int or tuple
+          int -- Index of the cgm_abs list
+          tuple -- (field,gal_id)
+        wrest: Quantity
           Rest wavelength for spectrum of interest
     
         JXP on 11 Dec 2014
         """
+        if isinstance(inp,int):
+            cgm_abs = self.cgm_abs[idx]
+        elif isinstance(inp,tuple):
+            cgm_abs = self[inp]
         # Directories
         cdir = os.environ.get('DROPBOX_DIR')+'/COS-Halos/'
         fielddir = 'Targets/'+cgm_abs.field+'/'
@@ -269,10 +307,9 @@ def get_coshalo_spec(cgm_abs, wrest):
         # Transition
         templ_fil = os.environ.get('DROPBOX_DIR')+'/COS-Halos/Targets/system_template.lst'
         tab = ascii.read(templ_fil)
-        mt = np.where( np.fabs(tab['col1']-wrest.value) < 1e-3)[0]
-        if len(mt) == 0:
+        mt = np.argmin(np.abs(tab['col1']-wrest.value))
+        if np.abs(tab['col1'][mt]-wrest.value) > 1e-2:
             raise ValueError('get_coshalo_spec: wrest={:g} not found!'.format(wrest))
-        mt = mt[0]
         trans = tab['col2'][mt]+tab['col3'][mt]
 
         # Read
@@ -284,6 +321,30 @@ def get_coshalo_spec(cgm_abs, wrest):
     
         #spec.qck_plot()
         return spec
+
+
+    def __getitem__(self, inp):
+        '''Grab CgmAbs Class from the list
+
+        Parameters:
+        -----------
+        ion: tuple
+          tuple:  (field,gal_id)
+
+        Returns:
+        ----------
+        cgm_abs
+        '''
+        # Generate lists
+        fields = np.array([cgm_abs.field for cgm_abs in self.cgm_abs])
+        galids = np.array([cgm_abs.gal_id for cgm_abs in self.cgm_abs])
+        #
+        mt = np.where( (fields==inp[0]) & (galids == inp[1]))[0]
+        if len(mt) != 1:
+            warn.warning('CosHalos: CGM not found')
+            return None
+        else:
+            return self.cgm_abs[mt]
 
 ########################## ##########################
 # Testing

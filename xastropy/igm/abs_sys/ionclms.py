@@ -190,8 +190,6 @@ class IonClms(object):
         else:
             return np.array(self._data[k])
 
-
-
     def __getitem__(self, ion):
         '''Passback a dict of measured data on a given ion
 

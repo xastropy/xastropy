@@ -21,12 +21,16 @@ from astropy import units as u
 from astropy.io import ascii 
 from astropy.coordinates import SkyCoord
 
-from xastropy.xutils import xdebug as xdb
+from xastropy.obs import radec as xra
 
+from xastropy.xutils import xdebug as xdb
 
 # Class for LLS Absorption Lines 
 class Galaxy(object):
     """A Galaxy Class
+
+    Inputs:
+    ra, dec
 
     Attributes:
       name: string
@@ -39,21 +43,12 @@ class Galaxy(object):
       
     """
     # Initialize with a .dat file
-    def __init__(self, ra=None, dec=None, z=0.):
+    def __init__(self, ra, dec, z=None):
 
         self.z = z
         
         # Coord
-        if ra is None:
-            ras = '00 00 00'
-        else:
-            ras = str(ra)
-        if dec is None:
-            decs = '+00 00 00'
-        else:
-            decs = str(dec)
-
-        self.coord = SkyCoord(ras, decs, 'icrs', unit=(u.hour, u.deg))
+        self.coord = xra.to_coord( (ra,dec) ) 
 
         # Name
         self.name = ('J'+
