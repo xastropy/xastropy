@@ -149,6 +149,7 @@ class CGMAbsSurvey(object):
         #Absline_Survey.__init__(self, '', abs_type='CGM', tree=tree)
 
         self.cgm_abs = []
+        self.mask = None
 
     # Extend attributes
     def __getattr__(self, k):
@@ -177,6 +178,8 @@ class CGMAbsSurvey(object):
         ----------
         lbl : string
           Label for the Kinematics dict
+        TODO: 
+          Add wrest!!
         """
         from astropy.table import Table
 

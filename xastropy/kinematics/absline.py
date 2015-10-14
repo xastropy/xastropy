@@ -25,7 +25,7 @@ from xastropy import spec as xspec
 
 ########################## ##########################
 ########################## ##########################
-class Kin_Abs(object):
+class KinAbs(object):
     """ Class for kinematics on an absorption line
 
     Attributes

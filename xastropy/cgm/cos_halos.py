@@ -6,6 +6,7 @@
 #;
 #; PURPOSE:
 #;    Module for COS-Halos analysis
+#;        Now includes a COS-Dwarfs sub-class
 #;   29-Nov-2014 by JXP
 #;-
 #;------------------------------------------------------------------------------
@@ -26,7 +27,7 @@ from xastropy.galaxy.core import Galaxy
 from xastropy.cgm.core import CGMAbsSurvey, CGMSys
 from xastropy.xutils import xdebug as xdb
 from xastropy.igm.abs_sys.ionclms import IonClms
-from xastropy.kinematics.absline import Kin_Abs
+from xastropy.kinematics.absline import KinAbs
 
 from astropy.utils.misc import isiterable
 
@@ -52,10 +53,15 @@ class COSHalos(CGMAbsSurvey):
         CGMAbsSurvey.__init__(self)
         self.survey = 'COS-Halos'
         self.ref = 'Tumlinson+11; Werk+12; Tumlinson+13; Werk+13'
+        self.cdir = os.environ.get('DROPBOX_DIR')+'/COS-Halos/'
+        # Summary Tables
         if fits_path is None:
             self.fits_path = os.path.abspath(os.environ.get('DROPBOX_DIR')+'/COS-Halos/lowions/FITS')
         else:
             self.fits_path = fits_path
+        # Kinematics
+        self.kin_init_file = os.path.abspath(os.environ.get('DROPBOX_DIR')+'/COS-Halos/Kin/'+
+                                                  'coshalo_kin_driver.dat')
 
     # Load from mega structure
     def load_single(self,inp, skip_ions=False):
@@ -171,37 +177,48 @@ class COSHalos(CGMAbsSurvey):
 
     
     ########################## ##########################
-    def load_abskin(self,flg=1,kin_init_file=None):
-        """ Load the absorption-line kinematic data for COS-Halos
+    def load_abskin(self,flg=1,kin_file=None,kin_init_file=None):
+        """ Load the absorption-line kinematic data for COS-Halos (or COS-Dwarfs)
         Calculate from scratch if needed
 
         Paramaeters
         ----------
-        flg: integer (1)
+        flg: int, optional 
           Flag indicating how to load the data
-        0 = Load from file
-        1 = Generate
-        kin_init_file: string
+            0 = Load from file
+            1 = Generate
+        kin_init_file: str
           Name of kinematics driver file
-    
-        JXP on 10 Dec 2014
+        kin_file: str
+          Name of kinematics output file [First made for John Forbes]
         """
     
-        if flg == 1: # Generate
+        if flg == 0: # Load
+            if kin_file is None:
+                kin_file = os.path.abspath(os.environ.get('DROPBOX_DIR')+'/COS-Halos/Kin/'+
+                                                  'COS-Halos_kin.fits')
+            hdu = fits.open(kin_file)
+            # Metals
+            metals = Table(hdu[1].data)
+            for row in metals:
+                mt = np.where( (row['field']==self.field) & 
+                    (row['gal_id']==self.gal_id))[0]
+                xdb.set_trace()
+
+        elif flg == 1: # Generate
             # Read init file
             if kin_init_file is None:
-                kin_init_file = os.path.abspath(os.environ.get('DROPBOX_DIR')+'/COS-Halos/Kin/'+
-                                                  'coshalo_kin_driver.dat')
+                kin_init_file = self.kin_init_file
             kin_init = ascii.read(kin_init_file,guess=False)
     
             # Loop to my loop
             fgal = zip(self.field, self.gal_id)
-            for cgm_abs in self.cgm_abs:
+            for qq,cgm_abs in enumerate(self.cgm_abs):
                 # Match to kin_init
                 mt = np.where( (cgm_abs.field == kin_init['QSO']) &
                                (cgm_abs.gal_id == kin_init['Galaxy']) )[0]
                 if len(mt) == 0:
-                    print('load_kin: No kinemtaics for {:s}, {:s}'.format(cgm_abs.field,
+                    print('load_kin: No kinematics for {:s}, {:s}'.format(cgm_abs.field,
                                                                           cgm_abs.gal_id))
                     continue
                 mt = mt[0]
@@ -211,31 +228,31 @@ class COSHalos(CGMAbsSurvey):
                     wrest = kin_init['mtl_wr'][mt]*u.AA 
                     if wrest.value <= 1:
                         xdb.set_trace()
-                    spec = get_coshalo_spec( cgm_abs, wrest )
+                    spec = self.load_bg_cos_spec( qq, wrest )
                     vmnx = (kin_init['L_vmn'][mt]*u.km/u.s, kin_init['L_vmx'][mt]*u.km/u.s)
                     # Process
-                    cgm_abs.abs_sys.kin['Metal'] = Kin_Abs(wrest, vmnx)
+                    cgm_abs.abs_sys.kin['Metal'] = KinAbs(wrest, vmnx)
                     cgm_abs.abs_sys.kin['Metal'].fill_kin(spec, per=0.07)
                     # Save spec
                     cgm_abs.abs_sys.kin['Metal'].spec = spec
                 else:
                     # Fill with zeros (for the keys)
-                    cgm_abs.abs_sys.kin['Metal'] = Kin_Abs(0.*u.AA, (0., 0.))
+                    cgm_abs.abs_sys.kin['Metal'] = KinAbs(0.*u.AA, (0., 0.))
 
                 # HI
                 if kin_init['flgH'][mt] > 0:
                     wrest = kin_init['HI_wrest'][mt]*u.AA 
                     if wrest.value <= 1:
                         xdb.set_trace()
-                    spec = get_coshalo_spec( cgm_abs, wrest )
+                    spec = self.load_bg_cos_spec( qq, wrest )
                     vmnx = (kin_init['HIvmn'][mt]*u.km/u.s, kin_init['HIvmx'][mt]*u.km/u.s) 
                     # Process
-                    cgm_abs.abs_sys.kin['HI'] = Kin_Abs(wrest, vmnx)
+                    cgm_abs.abs_sys.kin['HI'] = KinAbs(wrest, vmnx)
                     cgm_abs.abs_sys.kin['HI'].fill_kin(spec, per=0.07)
                     cgm_abs.abs_sys.kin['HI'].spec = spec
                 else:
                     # Fill with zeros (for the keys)
-                    cgm_abs.abs_sys.kin['HI'] = Kin_Abs(0.*u.AA, (0., 0.))
+                    cgm_abs.abs_sys.kin['HI'] = KinAbs(0.*u.AA, (0., 0.))
 
 
             #tmp = cos_halos.abs_kin('Metal')['Dv']
@@ -259,13 +276,13 @@ class COSHalos(CGMAbsSurvey):
         # Init
         cgm_abs = self.cgm_abs[idx]
         # Directories
-        cdir = os.environ.get('DROPBOX_DIR')+'/coshaloanalysis/'
+        galdir = os.environ.get('DROPBOX_DIR')+'/coshaloanalysis/'
         fielddir = 'fields/'+cgm_abs.field+'/'
         sysdir = cgm_abs.gal_id+'/spec1d/'
         sysname = cgm_abs.field+'_'+cgm_abs.gal_id
 
         # Find files
-        lris_files = glob.glob(cdir+fielddir+sysdir+sysname+'*corr.fits')
+        lris_files = glob.glob(galdir+fielddir+sysdir+sysname+'*corr.fits')
         if len(lris_files) == 0:
             raise ValueError('No LRIS files!')
         elif len(lris_files) == 2:
@@ -284,7 +301,7 @@ class COSHalos(CGMAbsSurvey):
         """ Load the absorption-line kinematic data for COS-Halos
         Calculate from scratch if needed
 
-        Paramaeters
+        Parameters
         ----------
         idx: int or tuple
           int -- Index of the cgm_abs list
@@ -295,11 +312,10 @@ class COSHalos(CGMAbsSurvey):
         JXP on 11 Dec 2014
         """
         if isinstance(inp,int):
-            cgm_abs = self.cgm_abs[idx]
+            cgm_abs = self.cgm_abs[inp]
         elif isinstance(inp,tuple):
             cgm_abs = self[inp]
         # Directories
-        cdir = os.environ.get('DROPBOX_DIR')+'/COS-Halos/'
         fielddir = 'Targets/'+cgm_abs.field+'/'
         sysdir = cgm_abs.gal_id+'_z{:5.3f}'.format(cgm_abs.galaxy.z)
         sysname = cgm_abs.field+'_'+sysdir
@@ -313,7 +329,7 @@ class COSHalos(CGMAbsSurvey):
         trans = tab['col2'][mt]+tab['col3'][mt]
 
         # Read
-        slicedir = cdir+fielddir+sysdir+'/fitting/'
+        slicedir = self.cdir+fielddir+sysdir+'/fitting/'
         slicename = sysname+'_'+trans+'_slice.fits'
         spec = lsio.readspec(slicedir+slicename, flux_tags=['FNORM'], sig_tags=['ENORM'])
         # Fill velocity
@@ -345,6 +361,29 @@ class COSHalos(CGMAbsSurvey):
             return None
         else:
             return self.cgm_abs[mt]
+
+class COSDwarfs(COSHalos):
+    """Inherits COS Halos Class
+
+    Attributes:
+    -----------
+    fits_path: str, optional
+      Path to the FITS data files for COS-Halos
+    """
+    # Initialize with a .dat file
+    def __init__(self, tree=None, fits_path=None):
+
+        # Generate with type
+        CGMAbsSurvey.__init__(self)
+        self.survey = 'COS-Dwarfs'
+        self.ref = 'Bordoloi+14'
+        self.cdir = os.environ.get('DROPBOX_DIR')+'/COS-Dwarfs/'
+        if fits_path is None:
+            self.fits_path = os.path.abspath(os.environ.get('DROPBOX_DIR')+'/COS-Dwarfs/Targets/FITS')
+        else:
+            self.fits_path = fits_path
+        # Kinematics
+        self.kin_init_file = os.path.abspath(os.environ.get('DROPBOX_DIR')+'/COS-Dwarfs/Kin/cosdwarfs_kin_driver.dat') 
 
 ########################## ##########################
 # Testing
