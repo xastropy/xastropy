@@ -86,9 +86,10 @@ class COSHalos(CGMAbsSurvey):
             fil = inp
         elif isinstance(inp,tuple):
             field,gal_id  = inp
-            fils = glob.glob(self.fits_path+'/'+field+'.'+gal_id+'.fits')
+            tmp = self.fits_path+'/'+field+'.'+gal_id+'.fits'
+            fils = glob.glob(tmp)
             if len(fils) != 1:
-                raise IOError('Bad field, gal_id')
+                raise IOError('Bad field, gal_id: {:s}'.format(tmp))
             fil = fils[0]
         else:
             raise IOError('Bad input to load_single')
@@ -393,6 +394,7 @@ class COSDwarfs(COSHalos):
         else:
             self.kin_init_file = kin_init_file
 
+'''            
 ########################## ##########################
 # Testing
 if __name__ == '__main__':
@@ -430,3 +432,4 @@ if __name__ == '__main__':
         gd = np.where(HI_kin['flg'] > 0)
         xdb.xplot(cos_halos.NHI[gd], HI_kin['Dv'][gd], scatter=True)
     print('All done')
+'''            
