@@ -47,13 +47,14 @@ class COSHalos(CGMAbsSurvey):
       Path to the FITS data files for COS-Halos
     """
     # Initialize with a .dat file
-    def __init__(self, tree=None, fits_path=None, kin_init_file=None):
+    def __init__(self, tree=None, fits_path=None, kin_init_file=None, cdir=None):
 
         # Generate with type
         CGMAbsSurvey.__init__(self)
         self.survey = 'COS-Halos'
         self.ref = 'Tumlinson+11; Werk+12; Tumlinson+13; Werk+13'
-        self.cdir = os.environ.get('DROPBOX_DIR')+'/COS-Halos/'
+        if cdir is None:
+            self.cdir = os.environ.get('DROPBOX_DIR')+'/COS-Halos/'
         # Summary Tables
         if fits_path is None:
             self.fits_path = os.path.abspath(os.environ.get('DROPBOX_DIR')+'/COS-Halos/lowions/FITS')
@@ -374,13 +375,14 @@ class COSDwarfs(COSHalos):
       Path to the FITS data files for COS-Halos
     """
     # Initialize with a .dat file
-    def __init__(self, tree=None, fits_path=None, kin_init_file=None):
+    def __init__(self, tree=None, fits_path=None, kin_init_file=None, cdir=None):
 
         # Generate with type
         CGMAbsSurvey.__init__(self)
         self.survey = 'COS-Dwarfs'
         self.ref = 'Bordoloi+14'
-        self.cdir = os.environ.get('DROPBOX_DIR')+'/COS-Dwarfs/'
+        if cdir is None:
+            self.cdir = os.environ.get('DROPBOX_DIR')+'/COS-Dwarfs/'
         if fits_path is None:
             self.fits_path = os.path.abspath(os.environ.get('DROPBOX_DIR')+'/COS-Dwarfs/Targets/FITS')
         else:
