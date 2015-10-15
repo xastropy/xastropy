@@ -20,6 +20,7 @@ import matplotlib.pyplot as plt
 
 #def plot_1d_arrays -- Plot a series of arrays (as many as you want!!)
 #def plot_hist -- Plot a simple histogram 
+# def add_subplot_axes -- Add a subplot to a given axis
 #### ###############################
 #  Simplest quick plot
 #   Plot a series of arrays (as many as you want!!)
@@ -41,6 +42,7 @@ def plot_1d_arrays(*args,**kwargs):
       y-values for a second array
     scatter= : Bool
       True for a scatter plot
+    NOTE: Any extra parameters are fed as kwargs to plt.plot()
     """
     # Error checking
     if len(args) == 0:
@@ -100,7 +102,7 @@ def plot_1d_arrays(*args,**kwargs):
     plt.clf()
     # Plot it right up
     if len(args) == 1:
-        plt.plot(args[0].flatten())
+        plt.plot(args[0].flatten(), **kwargs)
     else: 
         for kk in range(1,len(args)):
             if plt_dict['flg_scatt'] == 0:
@@ -109,7 +111,7 @@ def plot_1d_arrays(*args,**kwargs):
                 plt.scatter(args[0].flatten(),args[kk].flatten(), **kwargs)
 
     if plt_dict['flg_two'] == 1:
-        plt.plot(plt_dict['xtwo'], plt_dict['ytwo'])
+        plt.plot(plt_dict['xtwo'], plt_dict['ytwo'], **kwargs)
 
     # Limits
     if plt_dict['xrng'] is not None:
@@ -262,6 +264,31 @@ def add_subplot_axes(ax, rect, axisbg='w'):
     # Return
     return subax
 
+#### ###############################
+#Inset (stolen from http://stackoverflow.com/questions/
+    #    17458580/embedding-small-plots-inside-subplots-in-matplotlib )
+def dark_bkgd(matplt):
+    '''Set up matplotlib for a dark background'''
+    matplt.rcParams['lines.color']= 'white'
+    matplt.rcParams['patch.edgecolor']= 'white'
+
+    matplt.rcParams['text.color']= 'white'
+
+    matplt.rcParams['axes.facecolor']= 'black'
+    matplt.rcParams['axes.edgecolor']= 'white'
+    matplt.rcParams['axes.labelcolor']= 'white'
+
+    matplt.rcParams['xtick.color']= 'white'
+    matplt.rcParams['ytick.color']= 'white'
+
+    matplt.rcParams['grid.color']= 'white'
+
+    matplt.rcParams['figure.facecolor']= 'black'
+    matplt.rcParams['figure.edgecolor']= 'black'
+
+    matplt.rcParams['savefig.facecolor']= 'black'
+    matplt.rcParams['savefig.edgecolor']= 'black'
+    return
 
 ## #################################    
 ## #################################    

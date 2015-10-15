@@ -23,6 +23,7 @@ from xastropy.igm.abs_sys.abssys_utils import AbslineSystem
 from xastropy.igm.abs_sys import abs_survey as xaa
 from xastropy.igm.abs_sys.abs_survey import AbslineSurvey
 from xastropy.galaxy.core import Galaxy
+from xastropy.obs import radec as xra
 
 from xastropy.atomic.elements import ELEMENTS
 from xastropy.xutils import xdebug as xdb
@@ -36,8 +37,23 @@ from astropy.utils.misc import isiterable
 ########################## ##########################
 ########################## ##########################
 class CGMSys(object):
-    """ Class for a CGM absorption system
+    """ Class for a CGM system
     Combines absorption lines with a Galaxy
+
+    Inputs:
+    ----------
+    gal_ra: str, float, Quantity
+      RA for galaxy
+    gal_dec: str, float, Quantity
+      DEC for galaxy
+    gal_z: float
+      Galaxy redshift
+    bg_ra: str, float, Quantity
+      RA for background source
+    bg_dec: str, float, Quantity
+      DEC for background source
+    bg_z: float
+      Redshift of background source
 
     Attributes
     ----------
@@ -48,20 +64,21 @@ class CGMSys(object):
     """
 
     # Initialize 
-    def __init__(self, ras='02 26 14.5', decs='+00 15 29.8', cosmo=None,
-                 g_ras='02 26 12.98', g_decs='+00 15 29.1', zgal=0.227, verbose=False):
+    def __init__(self, gal_ra, gal_dec, gal_z, bg_ra, bg_dec, bg_z,
+        cosmo=None, verbose=False):
+
+        # Galaxy
+        self.galaxy = Galaxy(gal_ra, gal_dec, z=gal_z)
+
+        # Name
+        self.name = ('CGM'+
+                    self.galaxy.coord.ra.to_string(unit=u.hour,sep='',pad=True)+
+                    self.galaxy.coord.dec.to_string(sep='',pad=True,alwayssign=True))
 
         # Absorption system
         self.abs_sys = CGMAbs()
-
-        self.abs_sys.coord = SkyCoord(ras, decs, 'icrs', unit=(u.hour, u.deg))
-        # Name
-        self.name = ('J'+
-                    self.abs_sys.coord.ra.to_string(unit=u.hour,sep='',pad=True)+
-                    self.abs_sys.coord.dec.to_string(sep='',pad=True,alwayssign=True))
-        # Galaxy
-        self.galaxy = Galaxy(ra=g_ras, dec=g_decs)
-        self.galaxy.z = zgal
+        self.abs_sys.coord = xra.to_coord( (bg_ra,bg_dec) ) # Background source
+        self.abs_sys.zem = bg_z
 
         # Calcualte rho
         if cosmo is None:
@@ -80,13 +97,13 @@ class CGMSys(object):
 
     # Output
     def __repr__(self):
-        return ('[{:s}: {:s} {:s}, zgal={:g}, rho={:g}, NHI={:g}, M/H={:g}]'.format(
+        return ('[{:s}: Galaxy RA/DEC={:s}{:s}, zgal={:g}, rho={:g}]'.format(
                 self.__class__.__name__,
-                 self.coord.ra.to_string(unit=u.hour,sep=':',pad=True),
-                 self.coord.dec.to_string(sep=':',pad=True),
-                 self.galaxy.z, self.rho, self.NHI, self.MH))
+                 self.abs_sys.coord.ra.to_string(unit=u.hour,sep=':',pad=True),
+                 self.abs_sys.coord.dec.to_string(sep=':',pad=True,alwayssign=True),
+                 self.galaxy.z, self.rho))
 
-# Class for DLA Absorption Lines 
+# Class for CGM Absorption
 class CGMAbs(AbslineSystem):
     """A CGM absorption system
 
@@ -101,11 +118,11 @@ class CGMAbs(AbslineSystem):
 
     # Output
     def __repr__(self):
-        return ('[{:s}: {:s} {:s}, {:g}, NHI={:g}, M/H={:g}]'.format(
+        return ('[{:s}: {:s} {:s}, {:g}]'.format(
                 self.__class__.__name__,
                  self.coord.ra.to_string(unit=u.hour,sep=':',pad=True),
                  self.coord.dec.to_string(sep=':',pad=True),
-                 self.zabs, self.NHI, self.MH))
+                 self.zabs))
 
     def print_abs_type(self):
         """"Return a string representing the type of vehicle this is."""
@@ -132,6 +149,7 @@ class CGMAbsSurvey(object):
         #Absline_Survey.__init__(self, '', abs_type='CGM', tree=tree)
 
         self.cgm_abs = []
+        self.mask = None
 
     # Extend attributes
     def __getattr__(self, k):
@@ -160,6 +178,8 @@ class CGMAbsSurvey(object):
         ----------
         lbl : string
           Label for the Kinematics dict
+        TODO: 
+          Add wrest!!
         """
         from astropy.table import Table
 
