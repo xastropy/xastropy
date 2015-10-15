@@ -44,4 +44,7 @@ def test_phi():
     #    
     np.testing.assert_allclose(phi.value, 95459.3988508)
     assert(phi.unit == 1/u.s/u.cm**2)
+    #
+    phi = cuba.phi(2.1, min_energy=50.*u.eV)
+    np.testing.assert_allclose(phi.value, 8171.47189724)
 

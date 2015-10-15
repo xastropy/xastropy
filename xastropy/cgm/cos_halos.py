@@ -47,7 +47,7 @@ class COSHalos(CGMAbsSurvey):
       Path to the FITS data files for COS-Halos
     """
     # Initialize with a .dat file
-    def __init__(self, tree=None, fits_path=None):
+    def __init__(self, tree=None, fits_path=None, kin_init_file=None):
 
         # Generate with type
         CGMAbsSurvey.__init__(self)
@@ -60,8 +60,11 @@ class COSHalos(CGMAbsSurvey):
         else:
             self.fits_path = fits_path
         # Kinematics
-        self.kin_init_file = os.path.abspath(os.environ.get('DROPBOX_DIR')+'/COS-Halos/Kin/'+
+        if kin_init_file is None:
+            self.kin_init_file = os.path.abspath(os.environ.get('DROPBOX_DIR')+'/COS-Halos/Kin/'+
                                                   'coshalo_kin_driver.dat')
+        else:
+            self.kin_init_file = kin_init_file
 
     # Load from mega structure
     def load_single(self,inp, skip_ions=False):
@@ -371,7 +374,7 @@ class COSDwarfs(COSHalos):
       Path to the FITS data files for COS-Halos
     """
     # Initialize with a .dat file
-    def __init__(self, tree=None, fits_path=None):
+    def __init__(self, tree=None, fits_path=None, kin_init_file=None):
 
         # Generate with type
         CGMAbsSurvey.__init__(self)
@@ -383,7 +386,10 @@ class COSDwarfs(COSHalos):
         else:
             self.fits_path = fits_path
         # Kinematics
-        self.kin_init_file = os.path.abspath(os.environ.get('DROPBOX_DIR')+'/COS-Dwarfs/Kin/cosdwarfs_kin_driver.dat') 
+        if kin_init_file is None:
+            self.kin_init_file = os.path.abspath(os.environ.get('DROPBOX_DIR')+'/COS-Dwarfs/Kin/cosdwarfs_kin_driver.dat') 
+        else:
+            self.kin_init_file = kin_init_file
 
 ########################## ##########################
 # Testing

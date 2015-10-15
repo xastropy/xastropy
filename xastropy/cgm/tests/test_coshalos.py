@@ -24,26 +24,26 @@ def test_load_kin():
 
 def test_load_sngl():
     # Class
-    cos_halos = COSHalos(fits_path='files/')
+    cos_halos = COSHalos(fits_path='files/', kin_init_file='dum')
     # Load
     cos_halos.load_single( ('J0950+4831','177_27'))
 
 def test_load_sngl_dwarf():
     # Class
-    cos_dwarfs = COSDwarfs(fits_path='files/')
+    cos_dwarfs = COSDwarfs(fits_path='files/', kin_init_file='dum')
     # Load
     cos_dwarfs.load_single( ('J0042-1037', '358_9'))
 
 def test_load_survey():
     # Class
-    cos_halos = COSHalos(fits_path='files/')
+    cos_halos = COSHalos(fits_path='files/', kin_init_file='dum')
     # Load
     cos_halos.load_mega()  # Only reads one file, actually
     cos_halos.load_mega(skip_ions=True)
 
 def test_getitem():
     # Class
-    cos_halos = COSHalos(fits_path='files/')
+    cos_halos = COSHalos(fits_path='files/', kin_init_file='dum')
     # Load
     cos_halos.load_single( ('J0950+4831','177_27'))
     # Get item
