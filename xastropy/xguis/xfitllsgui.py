@@ -324,22 +324,29 @@ class XFitLLSGUI(QtGui.QMainWindow):
             self.lls_model = None
             self.spec_widg.model = None
             return
-        #
-        all_tau_model = xialu.tau_multi_lls(self.full_model.dispersion,
+        # use finer wavelength array to resolve absorption features.
+        wa = self.full_model.dispersion
+        # Angstroms
+        dw = 0.1
+        wa1 = np.arange(wa[0].value, wa[-1].value, dw) * wa.unit
+        all_tau_model = xialu.tau_multi_lls(wa1,
             self.abssys_widg.all_abssys)
 
         # Loop on forest lines
         for forest in self.all_forest:
-            tau_Lyman = xsv.voigt_model(self.full_model.dispersion, 
+            tau_Lyman = xsv.voigt_model(wa1, 
                 forest.lines, flg_ret=2)
             all_tau_model += tau_Lyman
 
         # Flux and smooth
         flux = np.exp(-1. * all_tau_model)
         if self.smooth > 0:
-            self.lls_model = lsc.convolve_psf(flux, self.smooth)
+            mult = np.median(np.diff(wa.value)) / dw
+            temp = lsc.convolve_psf(flux, self.smooth * mult)
+            self.lls_model = np.interp(wa.value, wa1.value, temp)
         else:
-            self.lls_model = flux
+            self.lls_model = np.interp(wa.value, wa1.value, flux)
+
 
         # Finish
         self.full_model.flux = self.lls_model * self.continuum.flux
