@@ -89,7 +89,8 @@ class XFitLLSGUI(QtGui.QMainWindow):
         30-Jul-2015 by JXP
     '''
     def __init__(self, ispec, parent=None, lls_fit_file=None, 
-        outfil=None, smooth=3., zqso=None, fN_gamma=None, template=None): 
+        outfil=None, smooth=3., zqso=None, fN_gamma=None, template=None,
+        dw=0.1):
         QtGui.QMainWindow.__init__(self, parent)
         '''
         ispec = Spectrum1D or specfil
@@ -104,6 +105,9 @@ class XFitLLSGUI(QtGui.QMainWindow):
         template: str, optional
           Filename of a QSO template to use instead of the Telfer
           continuum. Only used if zqso is also given.
+        dw: float, optional
+          Pixel width in Angstroms for the wavelength array used to
+          generate optical depths. Default is 0.1.
         '''
 
         # Build a widget combining several others
@@ -123,6 +127,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
         self.base_continuum = None
         self.all_forest = []
         self.flag_write = False
+        self.dw = float(dw)
 
         # Spectrum
         spec, spec_fil = xxgu.read_spec(ispec)
@@ -327,8 +332,8 @@ class XFitLLSGUI(QtGui.QMainWindow):
         # use finer wavelength array to resolve absorption features.
         wa = self.full_model.dispersion
         # Angstroms
-        dw = 0.1
-        wa1 = np.arange(wa[0].value, wa[-1].value, dw) * wa.unit
+        # should really make this a constant velocity width array instead.
+        wa1 = np.arange(wa[0].value, wa[-1].value, self.dw) * wa.unit
         all_tau_model = xialu.tau_multi_lls(wa1,
             self.abssys_widg.all_abssys)
 
@@ -341,7 +346,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
         # Flux and smooth
         flux = np.exp(-1. * all_tau_model)
         if self.smooth > 0:
-            mult = np.median(np.diff(wa.value)) / dw
+            mult = np.median(np.diff(wa.value)) / self.dw
             temp = lsc.convolve_psf(flux, self.smooth * mult)
             self.lls_model = np.interp(wa.value, wa1.value, temp)
         else:
