@@ -122,7 +122,8 @@ def get_coord(targ_file, radec=None):
 #  finder.main(['TST', '10:31:38.87', '+25:59:02.3'])
 #  imsize is in arcmin
 def main(inp, survey='2r', radec=None, deci=None, fpath=None, show_circ=True,
-         EPOCH=0., DSS=None, BW=False, imsize=5.*astrou.arcmin, show_spec=False):
+         EPOCH=0., DSS=None, BW=False, imsize=5.*astrou.arcmin, show_spec=False,
+         OUT_TYPE='PDF'):
     '''
     Parameters:
     ---------
@@ -143,8 +144,10 @@ def main(inp, survey='2r', radec=None, deci=None, fpath=None, show_circ=True,
        Show a yellow circle on the target
     show_spec: bool (False)
        Try to grab and show an SDSS spectrum 
-    imsize: Quantity
+    imsize: Quantity, optional
        Image size 
+    OUT_TYPE: str, optional  
+       File type -- 'PDF', 'PNG'
     '''
     reload(x_r)
     reload(xgs)
@@ -154,7 +157,10 @@ def main(inp, survey='2r', radec=None, deci=None, fpath=None, show_circ=True,
     # Init
     if fpath is None:
         fpath = './'
-    imsize=imsize.to('arcmin').value
+    try:
+        imsize=imsize.to('arcmin').value
+    except AttributeError:
+        raise AttributeError('finder: Input imsize needs to be an Angle')
     cradius = imsize / 50. 
 
     # Read in the Target list
@@ -216,7 +222,10 @@ def main(inp, survey='2r', radec=None, deci=None, fpath=None, show_circ=True,
 
         # Outfil
         nm = "".join(obj['Name'].split()) 
-        outfil = fpath+ nm + '.pdf'
+        if OUT_TYPE=='PNG':
+            outfil = fpath+ nm + '.png'
+        else:
+            outfil = fpath+ nm + '.pdf'
         print(outfil)
 
         # Grab the Image
