@@ -40,6 +40,8 @@ def plot_1d_arrays(*args,**kwargs):
       x-values for a second array
     ytwo= : float 
       y-values for a second array
+    mtwo= : str
+      marker for xtwo
     scatter= : Bool
       True for a scatter plot
     NOTE: Any extra parameters are fed as kwargs to plt.plot()
@@ -77,6 +79,12 @@ def plot_1d_arrays(*args,**kwargs):
         plt_dict['ytwo'] = kwargs['ytwo']
         kwargs.pop('ytwo')
         plt_dict['flg_two'] = 1
+        # mtwo
+        if 'mtwo' in kwargs:
+            plt_dict['mtwo']=kwargs['mtwo']
+            kwargs.pop('mtwo')
+        else:
+            plt_dict['mtwo']=''
     else:
         plt_dict['flg_two'] = 0
 
@@ -111,7 +119,7 @@ def plot_1d_arrays(*args,**kwargs):
                 plt.scatter(args[0].flatten(),args[kk].flatten(), **kwargs)
 
     if plt_dict['flg_two'] == 1:
-        plt.plot(plt_dict['xtwo'], plt_dict['ytwo'], **kwargs)
+        plt.plot(plt_dict['xtwo'], plt_dict['ytwo'], plt_dict['mtwo'], **kwargs)
 
     # Limits
     if plt_dict['xrng'] is not None:
@@ -129,9 +137,8 @@ def plot_1d_arrays(*args,**kwargs):
     if plt_dict['outfil'] is not None:
         plt.savefig(plt_dict['outfil']) 
         print('Wrote figure to {:s}'.format(plt_dict['outfil']))
-
-    # Show
-    plt.show()
+    else: # Show
+        plt.show()
 
     return
     

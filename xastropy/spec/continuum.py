@@ -162,15 +162,3 @@ def wfc3_continuum(zqso=0., wave=None, smooth=3., NHI_max=17.5):
         return wfc_rebin
     else:
         return wfc_smooth
-
- 
-## #################################    
-## #################################    
-## TESTING
-## #################################    
-if __name__ == '__main__':
-
-    flg_tst = 0 
-    flg_tst += 2**0  # Simple Telfer
-
-    #if (flg_fig % 2**4) >= 2**3:
