@@ -580,13 +580,18 @@ class XFitLLSGUI(QtGui.QMainWindow):
                         (spec.dispersion<(1+zmin)*1026.*u.AA))[0] # Might go to Lyb
         nroll = (np.argmin(np.abs(spec.dispersion-(911.7*u.AA*(1+zmin))))- # Extra 0.01 for bad z
                    np.argmin(np.abs(spec.dispersion-(911.7*u.AA*(1+plls.zabs)))))
+        # Require nroll does not exceed length of spectrum
+        if np.max(apix)+nroll > len(spec.dispersion):
+            nroll = len(spec.dispersion) - np.max(apix) - 1
         gdpix = np.arange(np.min(apix)-nroll,np.max(apix)+nroll+1)
-        #print(len(apix), nroll)
         roll_flux = np.concatenate([np.ones(nroll),lls_flux[apix], np.ones(nroll)])
         roll_msk = roll_flux < 0.7
 
         # Generate data arrays
         wave_pad = spec.dispersion[gdpix]
+            #QtCore.pyqtRemoveInputHook()
+            #xdb.set_trace()
+            #QtCore.pyqtRestoreInputHook()
         flux_pad = spec.flux[gdpix]
         sig_pad = spec.sig[gdpix]
         if len(self.abssys_widg.all_abssys) > 0:
