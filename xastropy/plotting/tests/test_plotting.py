@@ -2,6 +2,9 @@
 
 # TEST_UNICODE_LITERALS
 
+import matplotlib
+matplotlib.use('Agg')  # For Travis
+
 import numpy as np
 import os, pdb
 import pytest
