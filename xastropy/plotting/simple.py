@@ -158,6 +158,8 @@ def plot_hist(*args,**kwargs):
       Set keyword to True to not show to screen
     noclear : boolean (False) 
       Set keyword to True to not clear the figure
+    xmnx : tuple, optional
+      (xmin, xmax) for plotting
     """
     # Error checking
     if len(args) == 0:
@@ -220,6 +222,8 @@ def plot_hist(*args,**kwargs):
                 ax.set_xlabel(kwargs['xlabel'])
             except: 
                 ax.xlabel(kwargs['xlabel'])
+        if 'xmnx' in kwargs:
+            ax.set_xlim(kwargs['xmnx'])
     else: 
         pdb.set_trace() # Not ready for this yet
         for kk in range(1,len(args)):
