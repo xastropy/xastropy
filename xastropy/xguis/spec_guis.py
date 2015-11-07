@@ -73,7 +73,6 @@ class XSpecGui(QtGui.QMainWindow):
         #reload(xspw)
         # INIT
         spec,_ = xxgu.read_spec(ispec)
-        #xdb.set_trace()
 
         # 
         mpl.rcParams['agg.path.chunksize'] = 20000 # Needed to avoid carsh in large spectral files
