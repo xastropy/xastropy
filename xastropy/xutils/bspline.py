@@ -1,12 +1,13 @@
+DEPRECATED!
 """
 #;+ 
 #; NAME:
-#; afits
+#; bspline
 #;    Version 1.0
 #;
 #; PURPOSE:
-#;    Module for simple fitting routines
-#;   27-Oct-2015 by JXP
+#;    Module for bspline routines (1D)
+#;   7-Nov-2015 by JXP
 #;-
 #;------------------------------------------------------------------------------
 """
@@ -16,113 +17,16 @@ import numpy as np
 import copy
 import warnings
 
-from scipy.interpolate import splev, splrep # bspline
-
+from xastropy.xutils import afits as xafits
 from xastropy.xutils import xdebug as xdb
 
 # def bintab_to_table(fits_fil,exten=1, silent=False):
 # def table_to_fits(table, outfil, compress=False, comment=None):
 
-def bspline_fit(x,y,order=3,knots=None,everyn=20,xmin=None,xmax=None,w=None):
-    ''' bspline fit to x,y
-    Should only be called from func_fit
-
-    Parameters:
-    ---------
-    x: ndarray
-    y: ndarray
-    func: str
-      Name of the fitting function:  polynomial, legendre, chebyshev, bspline
-    deg: int 
-      deg of the spline.  Default=3 (cubic)
-    xmin: float, optional
-      Minimum value in the array  [both must be set to normalize]
-    xmax: float, optional
-      Maximum value in the array  [both must be set to normalize]
-    w: ndarray, optional
-      weights to be used in the fitting (weights = 1/sigma)
-    everyn: int 
-      Knot everyn good pixels, if used
-
-    Returns:
-    ---------
-    fit_dict: dict  
-      dict describing the bspline fit 
-    ''' 
-    # Normalize?
-    if xmin is not None and xmin is not None:
-        xv = 2.0 * (x-xmin)/(xmax-xmin) - 1.0
-    else:
-        xv = x
-    #
-    if w is None:
-        ngd = xv.size
-        gd = np.arange(ngd)
-        weights = None
-    else:
-        gd = np.where(w > 0.)[0]
-        weights = w[gd]
-    # Make the knots
-    if knots is None:
-        idx_knots = np.arange(10, ngd-10, everyn) # A knot every good N pixels
-        knots = xv[gd[idx_knots]]
-    # Generate spline
-    tck = splrep( xv[gd], y[gd], w=weights, k=order, t=knots)
-    #
-    fit_dict = dict(func='bspline', knots=knots, tck=tck, order=order, xmin=xmin, xmax=xmax, everyn=everyn)
-    return fit_dict
-
 #
-def func_fit(x,y,func,deg,xmin=None,xmax=None,w=None, **kwargs):
-    ''' Simple function fit to 2 arrays
-    Modified code originally from Ryan Cooke (PYPIT)
 
-    Parameters:
-    ---------
-    x: ndarray
-    y: ndarray
-    func: str
-      Name of the fitting function:  polynomial, legendre, chebyshev, bspline
-    deg: int or dict
-      Order of the fit or a dict for bspline fits
-    xmin: float, optional
-      Minimum value in the array (or the left limit for a legendre/chebyshev polynomial)
-    xmax: float, optional
-      Maximum value in the array (or the left limit for a legendre/chebyshev polynomial)
-    w: ndarray, optional
-      weights to be used in the fitting (weights = 1/sigma)
 
-    Returns:
-    ---------
-    fit_dict: dict  
-      dict describing the Fit including the coefficients
-    ''' 
-    # Normalize
-    if xmin is None or xmax is None:
-        if np.size(x) == 1:
-            xmin, xmax = -1.0, 1.0
-        else:
-            xmin, xmax = np.min(x), np.max(x)    
-    xv = 2.0 * (x-xmin)/(xmax-xmin) - 1.0
-    # Fit
-    if func == "polynomial":
-        fit = np.polynomial.polynomial.polyfit(xv,y,deg,w=w)
-    elif func == "legendre":
-        fit = np.polynomial.legendre.legfit(xv,y,deg,w=w)
-    elif func == "chebyshev":
-        fit = np.polynomial.chebyshev.chebfit(xv,y,deg,w=w)
-    elif func == "bspline":
-        fit_dict = bspline_fit(xv,y,order=deg,w=w,**kwargs)
-        fit_dict['xmin'] = xmin
-        fit_dict['xmax'] = xmax
-        return fit_dict
-    else:
-        raise ValueError("Fitting function '{0:s}' is not implemented yet".format(func))
-    # Finish    
-    fit_dict = dict(coeff=fit, order=deg, func=func, xmin=xmin, xmax=xmax, **kwargs)
-    return fit_dict
-
-def func_val(x,fit_dict):
+def iter_fit(x,fit_dict):
     ''' Get values from a fit_dict
     Modified code originally from Ryan Cooke (PYPIT)
 
@@ -136,20 +40,19 @@ def func_val(x,fit_dict):
       dict describing the Fit including the coefficients
     '''
     xv = 2.0 * (x-fit_dict['xmin'])/(fit_dict['xmax']-fit_dict['xmin']) - 1.0
+    c = fit_dict['coeff']
     if fit_dict['func'] == "polynomial":
-        return np.polynomial.polynomial.polyval(xv,fit_dict['coeff'])
+        return np.polynomial.polynomial.polyval(xv,c)
     elif fit_dict['func'] == "legendre":
-        return np.polynomial.legendre.legval(xv,fit_dict['coeff'])
+        return np.polynomial.legendre.legval(xv,c)
     elif fit_dict['func'] == "chebyshev":
-        return np.polynomial.chebyshev.chebval(xv,fit_dict['coeff'])
-    elif fit_dict['func'] == "bspline":
-        return splev(xv, fit_dict['tck'],ext=1)
+        return np.polynomial.chebyshev.chebval(xv,c)
     else:
         raise ValueError("Fitting function '{0:s}' is not implemented yet".format(fit_dict['func']))
 
 def iter_fit(xarray, yarray, func, order, weights=None, sigma=None, max_rej=None,  
     maxone=True, sig_rej=3.0, initialmask=None, forceimask=False, 
-    xmin=None, xmax=None, niter=999, debug=False, **kwargs):
+    xmin=None, xmax=None, niter=999, debug=False):
     """A "robust" fit with iterative rejection is performed to the xarray, yarray pairs
     Modified code originally from Ryan Cooke (PYPIT)
 
@@ -216,7 +119,7 @@ def iter_fit(xarray, yarray, func, order, weights=None, sigma=None, max_rej=None
         xfit = xarray[w]
         yfit = yarray[w]
         # Fit
-        dfit = func_fit(xfit,yfit,func,order,xmin=xmin,xmax=xmax, **kwargs)
+        dfit = func_fit(xfit,yfit,func,order,xmin=xmin,xmax=xmax)
         yrng = func_val(xarray, dfit) 
         # Reject
         sigmed = 1.4826*np.median(np.abs(yfit-yrng[w]))
@@ -262,19 +165,3 @@ def iter_fit(xarray, yarray, func, order, weights=None, sigma=None, max_rej=None
     fdict = func_fit(xfit,yfit,func,order,xmin=xmin,xmax=xmax)
     return fdict, mask
 
-def normalize(x,xmin,xmax):
-    '''Normalize an array
-
-    Parameters:
-    -----------
-    x: ndarray
-      Array to normalize
-    xmin: float
-      minimum value in the array (or the left limit for a legendre/chebyshev polynomial)
-    xmax: float
-      maximum value in the array (or the right limit for a legendre/chebyshev polynomial)
-
-    Returns:
-    --------
-    xnorm: ndarray
-    '''
