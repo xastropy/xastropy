@@ -13,21 +13,111 @@
 from __future__ import print_function, absolute_import, division, unicode_literals
 
 import numpy as np
-import gzip, copy
-import subprocess, glob
+import copy
 import warnings
 
-from astropy import units as u
-from astropy.io import ascii, fits
-from astropy.table import QTable, Table, Column
+from scipy.interpolate import splev, splrep # bspline
 
 from xastropy.xutils import xdebug as xdb
 
 # def bintab_to_table(fits_fil,exten=1, silent=False):
 # def table_to_fits(table, outfil, compress=False, comment=None):
 
+def bspline_inner_knots(all_knots):
+    '''Trim to the inner knots.  Used in bspline_magfit
+    Might be useful elsewhere
+    Assumes the outer knots are identical
+
+    Parameters:
+    ---------
+    all_knots: ndarray
+      Array of knots returned by scipy.  Includes outer knots
+
+    Reults:
+    ---------
+    inner_knots: ndarray
+      Trimmed down array.  
+    '''
+    diff = all_knots - np.roll(all_knots,1)
+    pos = np.where(diff>0.)[0]
+    i0=pos[0]
+    i1=pos[-1]
+    return all_knots[i0:i1]
+
+def bspline_fit(x,y,order=3,w=None, knots=None,everyn=None,bkspace=None,
+    xmin=None,xmax=None):
+    ''' bspline fit to x,y
+    Should only be called from func_fit
+
+    Parameters:
+    ---------
+    x: ndarray
+    y: ndarray
+    func: str
+      Name of the fitting function:  polynomial, legendre, chebyshev, bspline
+    deg: int 
+      deg of the spline.  Default=3 (cubic)
+    xmin: float, optional
+      Minimum value in the array  [both must be set to normalize]
+    xmax: float, optional
+      Maximum value in the array  [both must be set to normalize]
+    w: ndarray, optional
+      weights to be used in the fitting (weights = 1/sigma)
+    everyn: int 
+      Knot everyn good pixels, if used
+    bkspace: float 
+      Spacing of breakpoints in units of x
+
+    Returns:
+    ---------
+    fit_dict: dict  
+      dict describing the bspline fit 
+    ''' 
+    # Save args for later
+    args = locals().copy()
+    # Generate dict
+    fit_dict = dict(func='bspline')
+    for key in args.keys():
+        if key in ['x','y','w']:
+            continue
+        else:
+            fit_dict[key] = args[key]
+    # Normalize?
+    if xmin is not None and xmin is not None:
+        xv = 2.0 * (x-xmin)/(xmax-xmin) - 1.0
+    else:
+        xv = x
+    #
+    if w is None:
+        ngd = xv.size
+        gd = np.arange(ngd)
+        weights = None
+    else:
+        gd = np.where(w > 0.)[0]
+        weights = w[gd]
+    # Make the knots
+    if knots is None:
+        if bkspace is not None: 
+            xrnge = (np.max(x) - np.min(x))
+            startx = np.min(x)
+            nbkpts = max(int(xrnge/bkspace) + 1,2)
+            tempbkspace = xrnge/(nbkpts-1)
+            knots = np.arange(1,nbkpts-1)*tempbkspace + startx
+        elif everyn is not None:
+            idx_knots = np.arange(10, ngd-10, everyn) # A knot every good N pixels
+            knots = xv[gd[idx_knots]]
+        else:
+            raise IOError("No method specified to generate knots")
+    # Generate spline
+    tck = splrep( xv[gd], y[gd], w=weights, k=order, t=knots)
+    # Update dict
+    fit_dict['tck'] = tck
+    fit_dict['knots'] = knots
+
+    return fit_dict
+
 #
-def func_fit(x,y,func,deg,xmin=None,xmax=None,w=None):
+def func_fit(x,y,func,deg,xmin=None,xmax=None,w=None, **kwargs):
     ''' Simple function fit to 2 arrays
     Modified code originally from Ryan Cooke (PYPIT)
 
@@ -36,13 +126,15 @@ def func_fit(x,y,func,deg,xmin=None,xmax=None,w=None):
     x: ndarray
     y: ndarray
     func: str
-      Name of the fitting function:  polynomial, legendre, chebyshev
-    deg: int
-      Order of the fit
+      Name of the fitting function:  polynomial, legendre, chebyshev, bspline
+    deg: int or dict
+      Order of the fit or a dict for bspline fits
     xmin: float, optional
       Minimum value in the array (or the left limit for a legendre/chebyshev polynomial)
     xmax: float, optional
       Maximum value in the array (or the left limit for a legendre/chebyshev polynomial)
+    w: ndarray, optional
+      weights to be used in the fitting (weights = 1/sigma)
 
     Returns:
     ---------
@@ -54,7 +146,7 @@ def func_fit(x,y,func,deg,xmin=None,xmax=None,w=None):
         if np.size(x) == 1:
             xmin, xmax = -1.0, 1.0
         else:
-            xmin, xmax = np.min(x), np.max(x)
+            xmin, xmax = np.min(x), np.max(x)    
     xv = 2.0 * (x-xmin)/(xmax-xmin) - 1.0
     # Fit
     if func == "polynomial":
@@ -63,9 +155,15 @@ def func_fit(x,y,func,deg,xmin=None,xmax=None,w=None):
         fit = np.polynomial.legendre.legfit(xv,y,deg,w=w)
     elif func == "chebyshev":
         fit = np.polynomial.chebyshev.chebfit(xv,y,deg,w=w)
+    elif func == "bspline":
+        fit_dict = bspline_fit(xv,y,order=deg,w=w,**kwargs)
+        fit_dict['xmin'] = xmin
+        fit_dict['xmax'] = xmax
+        return fit_dict
     else:
         raise ValueError("Fitting function '{0:s}' is not implemented yet".format(func))
-    fit_dict = dict(coeff=fit, order=deg, func=func, xmin=xmin, xmax=xmax)
+    # Finish    
+    fit_dict = dict(coeff=fit, order=deg, func=func, xmin=xmin, xmax=xmax, **kwargs)
     return fit_dict
 
 def func_val(x,fit_dict):
@@ -82,19 +180,20 @@ def func_val(x,fit_dict):
       dict describing the Fit including the coefficients
     '''
     xv = 2.0 * (x-fit_dict['xmin'])/(fit_dict['xmax']-fit_dict['xmin']) - 1.0
-    c = fit_dict['coeff']
     if fit_dict['func'] == "polynomial":
-        return np.polynomial.polynomial.polyval(xv,c)
+        return np.polynomial.polynomial.polyval(xv,fit_dict['coeff'])
     elif fit_dict['func'] == "legendre":
-        return np.polynomial.legendre.legval(xv,c)
+        return np.polynomial.legendre.legval(xv,fit_dict['coeff'])
     elif fit_dict['func'] == "chebyshev":
-        return np.polynomial.chebyshev.chebval(xv,c)
+        return np.polynomial.chebyshev.chebval(xv,fit_dict['coeff'])
+    elif fit_dict['func'] == "bspline":
+        return splev(xv, fit_dict['tck'],ext=1)
     else:
         raise ValueError("Fitting function '{0:s}' is not implemented yet".format(fit_dict['func']))
 
 def iter_fit(xarray, yarray, func, order, weights=None, sigma=None, max_rej=None,  
     maxone=True, sig_rej=3.0, initialmask=None, forceimask=False, 
-    xmin=None, xmax=None, niter=999, debug=False):
+    xmin=None, xmax=None, niter=999, debug=False, **kwargs):
     """A "robust" fit with iterative rejection is performed to the xarray, yarray pairs
     Modified code originally from Ryan Cooke (PYPIT)
 
@@ -161,7 +260,7 @@ def iter_fit(xarray, yarray, func, order, weights=None, sigma=None, max_rej=None
         xfit = xarray[w]
         yfit = yarray[w]
         # Fit
-        dfit = func_fit(xfit,yfit,func,order,xmin=xmin,xmax=xmax)
+        dfit = func_fit(xfit,yfit,func,order,xmin=xmin,xmax=xmax, **kwargs)
         yrng = func_val(xarray, dfit) 
         # Reject
         sigmed = 1.4826*np.median(np.abs(yfit-yrng[w]))
@@ -204,6 +303,22 @@ def iter_fit(xarray, yarray, func, order, weights=None, sigma=None, max_rej=None
     # Final fit
     xfit = xarray[w]
     yfit = yarray[w]
-    fdict = func_fit(xfit,yfit,func,order,xmin=xmin,xmax=xmax)
+    fdict = func_fit(xfit,yfit,func,order,xmin=xmin,xmax=xmax,**kwargs)
     return fdict, mask
 
+def normalize(x,xmin,xmax):
+    '''Normalize an array
+
+    Parameters:
+    -----------
+    x: ndarray
+      Array to normalize
+    xmin: float
+      minimum value in the array (or the left limit for a legendre/chebyshev polynomial)
+    xmax: float
+      maximum value in the array (or the right limit for a legendre/chebyshev polynomial)
+
+    Returns:
+    --------
+    xnorm: ndarray
+    '''
