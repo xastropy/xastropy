@@ -56,4 +56,4 @@ def test_iter_fit():
     assert np.sum(mask) == 1
     x2 = np.linspace(0,np.pi,100)
     y2 = xafits.func_val(x2,dfit)
-    np.testing.assert_allclose(y2[50], 1.000155331836333)
+    np.testing.assert_allclose(y2[50], 0.9991193590298185)
