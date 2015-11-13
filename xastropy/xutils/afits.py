@@ -231,9 +231,9 @@ def iter_fit(xarray, yarray, func, order, weights=None, sigma=None, max_rej=None
 
     Returns:
     -------
-    return: mask, fit_dict
-       mask is an array of the masked values, 
+    return: fit_dict, mask
        fit_dict is a dict containing the fit 
+       mask is an array of the masked values, 
     """
     # Setup the initial mask
     if initialmask is None:

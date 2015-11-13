@@ -34,11 +34,13 @@ def plot_1d_arrays(*args,**kwargs):
       Outfil
     xlbl,ylbl= : string
       Labels for x,y axes
-    xrng,yrng= : List
-      Range of x,y limits
-    xtwo= : float 
+    xrng= list
+      Range of x limits
+    yrng= list
+      Range of y limits
+    xtwo= : ndarray
       x-values for a second array
-    ytwo= : float 
+    ytwo= : ndarray 
       y-values for a second array
     mtwo= : str
       marker for xtwo
