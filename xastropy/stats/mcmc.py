@@ -16,7 +16,6 @@ import numpy as np
 import os
 
 from xastropy.xutils import xdebug as xdb
-from xastropy.spec import abs_line, voigt
 
 from astropy.io import fits
 

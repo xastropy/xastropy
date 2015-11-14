@@ -33,6 +33,7 @@ from astropy import units as u
 from astropy.io import fits, ascii
 from astropy import constants as const
 
+from linetools.analysis import voigt as lav
 from linetools.lists.linelist import LineList
 from linetools.spectra.xspectrum1d import XSpectrum1D
 from linetools.spectra import convolve as lsc
@@ -42,7 +43,6 @@ from linetools.spectralline import AbsLine
 from xastropy.plotting import utils as xputils
 from xastropy.xguis import spec_widgets as xspw
 from xastropy.xguis import utils as xxgu
-from xastropy.spec import voigt as xsv
 
 from xastropy.xutils import xdebug as xdb
 
@@ -467,7 +467,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
         #QtCore.pyqtRemoveInputHook()
         #xdb.set_trace()
         #QtCore.pyqtRestoreInputHook()
-        self.model = xsv.voigt_model(self.spec.dispersion,gdlin, fwhm=self.fwhm)#,debug=True)
+        self.model = lav.voigt_from_abslines(self.spec.dispersion,gdlin, fwhm=self.fwhm)#,debug=True)
         
         #Define arrays for plotting residuals
         if self.plot_residuals:
@@ -541,7 +541,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
         #QtCore.pyqtRemoveInputHook()
         #xdb.set_trace()
         #QtCore.pyqtRestoreInputHook()
-        fitvoigt = xsv.single_voigt_model(logN=Nguess,b=bguess.value,
+        fitvoigt = lav.single_voigt_model(logN=Nguess,b=bguess.value,
                                 z=zguess, wrest=component.init_wrest.value,
                                 gamma=fit_line.data['gamma'].value, 
                                 f=fit_line.data['f'], fwhm=self.fwhm)

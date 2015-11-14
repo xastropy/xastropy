@@ -19,12 +19,12 @@ import numpy as np
 from astropy import units as u
 from astropy.io import ascii 
 
+from linetools.analysis import voigt as lav
 from linetools.lists.linelist import LineList
 
 from xastropy.igm.abs_sys.abs_survey import AbslineSurvey
 from xastropy.igm.abs_sys.abssys_utils import AbslineSystem, Abs_Sub_System
 from xastropy.igm.abs_sys.ionclms import Ionic_Clm_File, IonClms
-from xastropy.spec import voigt as xsv
 from xastropy.atomic import ionization as xatomi
 from xastropy.xutils import xdebug as xdb
 
@@ -230,8 +230,6 @@ class LLSSystem(AbslineSystem):
         Returns:
           Output model is passed back as a Spectrum 
         """
-        reload(xsv)
-        
         # ########
         # LLS first
 
@@ -250,7 +248,7 @@ class LLSSystem(AbslineSystem):
             self.fill_lls_lines()
 
         #xdb.set_trace()
-        tau_Lyman = xsv.voigt_model(spec.dispersion, self.lls_lines, flg_ret=2)
+        tau_Lyman = lav.voigt_from_abslines(spec.dispersion, self.lls_lines, ret='tau')
 
         # Combine
         tau_model = tau_LL + tau_Lyman
@@ -449,7 +447,6 @@ def tau_multi_lls(wave, all_lls):
     all_lls: List of LLS Class
     '''
     from xastropy.atomic import ionization as xai
-    from xastropy.spec import voigt as xsv
     #
     all_tau_model = np.zeros(len(wave))
     # Loop on LLS
@@ -461,7 +458,7 @@ def tau_multi_lls(wave, all_lls):
         tau_LL = (10.**lls.NHI / u.cm**2) * xai.photo_cross(1,1,energy)
 
         # Lyman
-        tau_Lyman = xsv.voigt_model(wave, lls.lls_lines, flg_ret=2)
+        tau_Lyman = lav.voigt_from_abslines(wave, lls.lls_lines, ret='tau')
         tau_model = tau_LL + tau_Lyman
 
         # Kludge around the limit

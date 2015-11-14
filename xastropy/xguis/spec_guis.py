@@ -44,7 +44,6 @@ from xastropy.xguis import utils as xxgu
 from xastropy.igm.abs_sys.lls_utils import LLSSystem
 from xastropy.igm.abs_sys import lls_utils as xialu
 from xastropy.atomic import ionization as xatomi
-from xastropy.spec import voigt as xsv
 from xastropy.spec import continuum as xspc
 
 xa_path = imp.find_module('xastropy')[1]

@@ -23,7 +23,6 @@ from astropy import constants as const
 
 
 from xastropy.xutils import xdebug as xdb
-from xastropy.spec import abs_line, voigt
 from xastropy.stats import mcmc
 from xastropy.igm import igm_utils as igmu
 from xastropy.atomic import ionization as xai
