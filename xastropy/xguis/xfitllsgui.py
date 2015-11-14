@@ -38,7 +38,6 @@ from linetools.spectra.xspectrum1d import XSpectrum1D
 from linetools.spectra import convolve as lsc
 import linetools.spectra.io as lsi
 from linetools.spectralline import AbsLine
-from linetools.analysis import voigt as lav
 
 from xastropy.xutils import xdebug as xdb
 from xastropy.xguis import spec_widgets as xspw
@@ -332,6 +331,8 @@ class XFitLLSGUI(QtGui.QMainWindow):
 
     def update_model(self):
         '''Update absorption model '''
+        from linetools.analysis import voigt as lav
+        
         if len(self.abssys_widg.all_abssys) == 0:
             self.lls_model = None
             self.spec_widg.model = None
