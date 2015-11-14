@@ -16,7 +16,6 @@ from __future__ import print_function, absolute_import, division, unicode_litera
 import numpy as np
 import os, imp
 from xastropy.xutils import xdebug as xdb
-from xastropy.spec import abs_line, voigt
 from xastropy.igm import tau_eff
 #from xastropy.igm.fN.model import fN_Model
 

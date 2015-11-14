@@ -38,6 +38,7 @@ from linetools.spectra.xspectrum1d import XSpectrum1D
 from linetools.spectra import convolve as lsc
 import linetools.spectra.io as lsi
 from linetools.spectralline import AbsLine
+from linetools.analysis import voigt as lav
 
 from xastropy.xutils import xdebug as xdb
 from xastropy.xguis import spec_widgets as xspw
@@ -45,7 +46,6 @@ from xastropy.xguis import utils as xxgu
 from xastropy.igm.abs_sys.lls_utils import LLSSystem
 from xastropy.igm.abs_sys import lls_utils as xialu
 from xastropy.atomic import ionization as xatomi
-from xastropy.spec import voigt as xsv
 from xastropy.spec import continuum as xspc
 
 xa_path = imp.find_module('xastropy')[1]
@@ -339,8 +339,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
 
         # Loop on forest lines
         for forest in self.all_forest:
-            tau_Lyman = xsv.voigt_model(wa1, 
-                forest.lines, flg_ret=2)
+            tau_Lyman = lav.voigt_from_abslines(wa1, forest.lines, ret='tau')
             all_tau_model += tau_Lyman
 
         # Flux and smooth
