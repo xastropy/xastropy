@@ -90,24 +90,27 @@ class XFitLLSGUI(QtGui.QMainWindow):
     '''
     def __init__(self, ispec, parent=None, lls_fit_file=None, 
         outfil=None, smooth=3., zqso=None, fN_gamma=None, template=None,
-        dw=0.1):
+        dw=0.1, skip_wveval=False):
         QtGui.QMainWindow.__init__(self, parent)
         '''
-        ispec = Spectrum1D or specfil
+        ispec : Spectrum1D or specfil
         lls_fit_file: str, optional
           Name of the LLS fit file to input
-        smooth: float, optional
+        smooth : float, optional
           Number of pixels to smooth on (FWHM)
-        zqso: float, optional
+        zqso : float, optional
           Redshift of the quasar.  If input, a Telfer continuum is used
-        fN_gamma: float, optional
+        fN_gamma : float, optional
           Redshift evolution of f(N) or IGM fiddled continuum
-        template: str, optional
+        template : str, optional
           Filename of a QSO template to use instead of the Telfer
           continuum. Only used if zqso is also given.
-        dw: float, optional
+        dw : float, optional
           Pixel width in Angstroms for the wavelength array used to
           generate optical depths. Default is 0.1.
+        skip_wveval : bool, optional
+          Skip rebinning of wavelengths in the Voigt profile generation.
+          This can speed up the code considerably, but use it wisely.
         '''
 
         # Build a widget combining several others
@@ -128,6 +131,10 @@ class XFitLLSGUI(QtGui.QMainWindow):
         self.all_forest = []
         self.flag_write = False
         self.dw = float(dw)
+        self.skip_wveval = skip_wveval
+        if skip_wveval:
+            warnings.warn("Skipping wavelength rebinning in Voigt.")
+            warnings.warn("Make sure you know what you are doing!")
 
         # Spectrum
         spec, spec_fil = xxgu.read_spec(ispec)
@@ -333,24 +340,28 @@ class XFitLLSGUI(QtGui.QMainWindow):
         wa = self.full_model.dispersion
         # Angstroms
         # should really make this a constant velocity width array instead.
-        wa1 = np.arange(wa[0].value, wa[-1].value, self.dw) * wa.unit
+        if not self.skip_wveval:
+            wa1 = np.arange(wa[0].value, wa[-1].value, self.dw) * wa.unit
+        else:
+            wa1 = wa
         all_tau_model = xialu.tau_multi_lls(wa1,
-            self.abssys_widg.all_abssys)
+            self.abssys_widg.all_abssys, skip_wveval=self.skip_wveval)
 
         # Loop on forest lines
         for forest in self.all_forest:
-            tau_Lyman = lav.voigt_from_abslines(wa1, forest.lines, ret='tau')
+            tau_Lyman = lav.voigt_from_abslines(wa1, forest.lines, 
+                ret='tau', skip_wveval=self.skip_wveval)
             all_tau_model += tau_Lyman
 
         # Flux and smooth
         flux = np.exp(-1. * all_tau_model)
         if self.smooth > 0:
             mult = np.median(np.diff(wa.value)) / self.dw
-            temp = lsc.convolve_psf(flux, self.smooth * mult)
-            self.lls_model = np.interp(wa.value, wa1.value, temp)
-        else:
+            flux = lsc.convolve_psf(flux, self.smooth * mult)
+        if not self.skip_wveval:
             self.lls_model = np.interp(wa.value, wa1.value, flux)
-
+        else:
+            self.lls_model = flux
 
         # Finish
         self.full_model.flux = self.lls_model * self.continuum.flux
