@@ -438,13 +438,19 @@ class LLSSurvey(AbslineSurvey):
 
         return lls
 
-def tau_multi_lls(wave, all_lls):
+def tau_multi_lls(wave, all_lls, **kwargs):
     '''Calculate opacities on an input observed wavelength grid
     Parameters:
     -----------
-    wave: Quantity array
+    wave : Quantity array
       Wavelengths
-    all_lls: List of LLS Class
+    all_lls : List of LLS Class
+    **kwargs : extra keywords go to lav.voigt_from_abslines
+
+    Returns:
+    --------
+    tau : ndarray
+      Optical depth values at input wavelengths
     '''
     from xastropy.atomic import ionization as xai
     #
@@ -458,7 +464,7 @@ def tau_multi_lls(wave, all_lls):
         tau_LL = (10.**lls.NHI / u.cm**2) * xai.photo_cross(1,1,energy)
 
         # Lyman
-        tau_Lyman = lav.voigt_from_abslines(wave, lls.lls_lines, ret='tau')
+        tau_Lyman = lav.voigt_from_abslines(wave, lls.lls_lines, ret='tau', **kwargs)
         tau_model = tau_LL + tau_Lyman
 
         # Kludge around the limit
