@@ -19,7 +19,6 @@ import numpy as np
 from astropy import units as u
 from astropy.io import ascii 
 
-from linetools.analysis import voigt as lav
 from linetools.lists.linelist import LineList
 
 from xastropy.igm.abs_sys.abs_survey import AbslineSurvey
@@ -230,6 +229,7 @@ class LLSSystem(AbslineSystem):
         Returns:
           Output model is passed back as a Spectrum 
         """
+        from linetools.analysis import voigt as lav
         # ########
         # LLS first
 
@@ -453,6 +453,7 @@ def tau_multi_lls(wave, all_lls, **kwargs):
       Optical depth values at input wavelengths
     '''
     from xastropy.atomic import ionization as xai
+    from linetools.analysis import voigt as lav
     #
     all_tau_model = np.zeros(len(wave))
     # Loop on LLS
