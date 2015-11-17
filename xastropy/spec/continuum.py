@@ -132,6 +132,8 @@ def wfc3_continuum(zqso=0., wave=None, smooth=3., NHI_max=17.5):
     ---------
     wfc3_continuum: XSpectrum1D 
        of the continuum
+    idx: int
+      Index of the WFC3 spectrum used    
     '''
     # Open
     wfc3_models_hdu = fits.open(os.getenv('DROPBOX_DIR')+'XQ-100/LLS/wfc3_conti_models.fits')
@@ -159,6 +161,6 @@ def wfc3_continuum(zqso=0., wave=None, smooth=3., NHI_max=17.5):
     # Rebin?
     if wave is not None:
         wfc_rebin = wfc_smooth.rebin(wave)
-        return wfc_rebin
+        return wfc_rebin, idx
     else:
-        return wfc_smooth
+        return wfc_smooth, idx

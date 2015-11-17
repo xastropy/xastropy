@@ -21,7 +21,6 @@ from astropy.io import ascii
 
 from xastropy.igm.abs_sys.abssys_utils import AbslineSystem, Abs_Sub_System
 from xastropy.igm.abs_sys.abs_survey import AbslineSurvey
-from xastropy.spec import abs_line, voigt
 from xastropy.atomic import ionization as xatomi
 from xastropy.xutils import xdebug as xdb
 
