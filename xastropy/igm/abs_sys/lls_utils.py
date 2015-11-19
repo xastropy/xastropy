@@ -339,7 +339,7 @@ class LLSSystem(AbslineSystem):
 
     # Output
     def __repr__(self):
-        return ('[{:s}: {:s} {:s}, z={:g}, NHI={:g}, tau={:g}, [M/H]={:g} dex]'.format(
+        return ('[{:s}: {:s} {:s}, zabs={:g}, NHI={:g}, tau_LL={:g}, [M/H]={:g} dex]'.format(
                 self.__class__.__name__,
                  self.coord.ra.to_string(unit=u.hour,sep=':',pad=True),
                  self.coord.dec.to_string(sep=':',pad=True,alwayssign=True),
@@ -392,7 +392,7 @@ class LLSSurvey(AbslineSurvey):
 
     # Default sample of LLS (HD-LLS, DR1)
     @classmethod
-    def default_sample(cls):
+    def load_HDLLS(cls):
         '''
         # Local
         sys.path.append(os.path.abspath(os.environ.get('LLSPAP')+
@@ -433,10 +433,14 @@ class LLSSurvey(AbslineSurvey):
                 code.write(f.read())
 
         # Read
-        lls = cls(summ_fits=summ_fil)
-        lls.fill_ions(jfile=ions_fil)
+        lls_survey = cls(summ_fits=summ_fil)
+        # Load ions
+        lls_survey.fill_ions(jfile=ions_fil)
+        # Set data path (may be None)
+        for lls in lls_survey._abs_sys:
+            lls.spec_path = os.getenv('HDLLS_DATA')
 
-        return lls
+        return lls_survey
 
 def tau_multi_lls(wave, all_lls, **kwargs):
     '''Calculate opacities on an input observed wavelength grid

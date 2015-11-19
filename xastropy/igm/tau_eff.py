@@ -289,10 +289,19 @@ def teff_obs(z):
     # Low-z
     if z<1.6:
         # D_A from Kirkman+07
+        print('Calculating tau_eff from Kirkman+07')
         #  No LLS, no metals [masked]
         #  Unclear in the paper, but I think the range is log NHI = 12-16
         DA = 0.016 * (1+z)**1.01
         teff = -1. * np.log(1.-DA)
+    elif (z>2.3) & (z<4.9):
+        # Becker+13
+        print('Calculating tau_eff from Becker+13')
+        tau0 = 0.751
+        beta = 2.90
+        C = -0.132
+        z0=3.5
+        teff = tau0 * ((1+z)/(1+z0))**beta + C
     else:
         raise ValueError('teff_obs: Not ready for z={:g}'.format(z))
 
