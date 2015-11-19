@@ -85,6 +85,7 @@ class AbslineSurvey(object):
 
     def from_sfits(self):
         '''Generate the Survey from a summary FITS file
+        Handles SPEC_FILES too.
         '''
         # Read
         systems = QTable.read(self.summ_fits)
@@ -111,7 +112,14 @@ class AbslineSurvey(object):
             for key in inputs.keys():
                 kwargs[key] = inputs[key][kk]
             # Instantiate
-            self._abs_sys.append(set_absclass(self.abs_type)(**kwargs))
+            abssys = set_absclass(self.abs_type)(**kwargs)
+            # spec_files
+            try:
+                abssys.spec_files += systems[kk]['SPEC_FILES'].tolist()
+            except KeyError:
+                pass
+            self._abs_sys.append(abssys)
+        # Specfiles
 
 
     def from_flist(self):
