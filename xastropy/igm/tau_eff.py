@@ -294,7 +294,13 @@ def teff_obs(z):
         #  Unclear in the paper, but I think the range is log NHI = 12-16
         DA = 0.016 * (1+z)**1.01
         teff = -1. * np.log(1.-DA)
-    elif (z>2.3) & (z<4.9):
+    elif (z>=1.6) & (z<2.3):
+        # D_A from Kirkman+05
+        print('Calculating tau_eff from Kirkman+05')
+        #  No LLS, no metals [masked]
+        DA = 0.0062 * (1+z)**2.75
+        teff = -1. * np.log(1.-DA)
+    elif (z>=2.3) & (z<4.9):
         # Becker+13
         print('Calculating tau_eff from Becker+13')
         tau0 = 0.751
