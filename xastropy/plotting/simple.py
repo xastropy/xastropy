@@ -189,7 +189,7 @@ def plot_hist(*args,**kwargs):
     #pdb.set_trace()
 
     # Clear
-    if not 'noclear' in kwargs:
+    if (not 'noclear' in kwargs) and (not 'ax' in kwargs):
         plt.clf()
 
     # Ax
@@ -232,7 +232,7 @@ def plot_hist(*args,**kwargs):
             fig.plot(args[0].flatten(),args[kk].flatten())
 
     # Finish
-    if not 'noshow' in kwargs:
+    if (not 'noshow' in kwargs) and (not 'ax' in kwargs):
         plt.show()
 
     return
