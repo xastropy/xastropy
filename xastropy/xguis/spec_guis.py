@@ -16,13 +16,13 @@ from __future__ import print_function, absolute_import, division, unicode_litera
 # Import libraries
 import numpy as np
 import os, sys, warnings, imp
-import matplotlib.pyplot as plt
 import glob
 
 from PyQt4 import QtGui
 from PyQt4 import QtCore
 
-from matplotlib import mpl
+from matplotlib import rcParams
+import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar
 # Matplotlib Figure object
@@ -74,7 +74,7 @@ class XSpecGui(QtGui.QMainWindow):
         spec,_ = xxgu.read_spec(ispec)
 
         # 
-        mpl.rcParams['agg.path.chunksize'] = 20000 # Needed to avoid carsh in large spectral files
+        rcParams['agg.path.chunksize'] = 20000 # Needed to avoid crash in large spectral files
         
         # Build a widget combining several others
         self.main_widget = QtGui.QWidget()
