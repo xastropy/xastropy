@@ -114,25 +114,27 @@ def get_telfer_spec(zqso=0., igm=False, fN_gamma=None, LL_flatten=True):
     # Return
     return telfer_spec
 
-def wfc3_continuum(zqso=0., wave=None, smooth=3., NHI_max=17.5):
+def wfc3_continuum(wfc3_indx=None, zqso=0., wave=None, smooth=3., NHI_max=17.5):
     '''Use the WFC3 data + models from O'Meara+13 to generate a continuum
 
-    Parameters:
-    -----------
-    zqso: float, optional
+    Parameters
+    ----------
+    wfc3_indx : int, optional
+      Index of WFC3 data to use
+    zqso : float, optional
       Redshift of the QSO
-    wave: Quantity array, optional
+    wave : Quantity array, optional
       Wavelengths to rebin on
-    smooth: float, optional
+    smooth : float, optional
       Number of pixels to smooth on
-    NHI_max: float, optional
+    NHI_max : float, optional
       Maximum NHI for the sightline
 
-    Returns:
-    ---------
-    wfc3_continuum: XSpectrum1D 
+    Returns
+    -------
+    wfc3_continuum : XSpectrum1D 
        of the continuum
-    idx: int
+    idx : int
       Index of the WFC3 spectrum used    
     '''
     # Open
@@ -143,14 +145,17 @@ def wfc3_continuum(zqso=0., wave=None, smooth=3., NHI_max=17.5):
     for ii in range(1,nwfc3-1):
         wfc_models.append( Table(wfc3_models_hdu[ii].data) )
     # Grab a random one
-    need_c = True
-    while(need_c):
-        idx = np.random.randint(0,nwfc3-1)
-        if wfc_models[idx]['TOTNHI'] > NHI_max:
-            continue
-        if wfc_models[idx]['QSO'] in ['J122836.05+510746.2', 'J122015.50+460802.4']:
-            continue # These QSOs are NG
-        need_c=False
+    if wfc3_indx is None:
+        need_c = True
+        while(need_c):
+            idx = np.random.randint(0,nwfc3-1)
+            if wfc_models[idx]['TOTNHI'] > NHI_max:
+                continue
+            if wfc_models[idx]['QSO'] in ['J122836.05+510746.2', 'J122015.50+460802.4']:
+                continue # These QSOs are NG
+            need_c=False
+    else:
+        idx = wfc3_indx
 
     # Generate spectrum
     wfc_spec = XSpectrum1D.from_tuple( (wfc_models[idx]['WREST'].flatten()*(1+zqso), 
