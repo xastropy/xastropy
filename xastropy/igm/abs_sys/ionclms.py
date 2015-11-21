@@ -21,9 +21,9 @@ from astropy import units as u
 from astropy.table import QTable, Table, Column
 
 from linetools.spectralline import AbsLine
+from linetools.analysis import absline as ltaa
 
 from xastropy.atomic import ionization as xai
-import xastropy as xa
 from xastropy.xutils import xdebug as xdb
 
 #class Ion_Clm(object):
@@ -143,7 +143,7 @@ class IonClms(object):
             else:
                 idx = np.where((newIC.Z==Zion[0]) & (newIC.ion==Zion[1]))[0][0]
                 # Clm
-                logN, siglogN = sum_logN(sdict,row)
+                logN, siglogN = ltaa.sum_logN(sdict,row)
                 newIC._data['clm'][idx] = logN
                 # Error
                 newIC._data['sig_clm'][idx] = siglogN
@@ -336,25 +336,4 @@ def fits_flag(idx):
         except:
             return 'Unknown'
 
-# Converts Flag to Instrument
-def sum_logN(obj1,obj2):
-    '''Add log columns and return value and errors
-    Parameters:
-    -----------
-    obj1: object
-      An object with tags appropriate for the analysis
-      Assumes 'clm' for column and 'sig_clm' for error for now
-    obj2: object
-      Another object with tags appropriate for the analysis
 
-    Returns:
-    --------
-    logN, siglogN
-    '''
-    # Calculate
-    logN = np.log10(np.sum(10.**np.array([obj1['clm'],obj2['clm']])))
-    siglogN = np.sqrt(
-        np.sum([(obj1['sig_clm']*(10.**obj1['clm']))**2,
-        (obj2['sig_clm']*(10.**obj2['clm']))**2]))/(10.**logN)
-    # Return
-    return logN, siglogN
