@@ -15,28 +15,28 @@ def data_path(filename):
 
 
 def test_init_ionclms_all():
-	# Init from all file
+    # Init from all file
     ioncs = IonClms(all_file=data_path('UM184.z2929_MAGE.all'))
 
     assert len(ioncs._data) == 14
 
 def test_ionclms_items():
-	# Init from all file
-	ioncs = IonClms(all_file=data_path('UM184.z2929_MAGE.all'))
+    # Init from all file
+    ioncs = IonClms(all_file=data_path('UM184.z2929_MAGE.all'))
 
-	np.testing.assert_allclose(ioncs['SiII']['clm'], 13.7)
-	np.testing.assert_allclose(ioncs[(14,2)]['clm'], 13.7)
+    np.testing.assert_allclose(ioncs['SiII']['logN'], 13.7)
+    np.testing.assert_allclose(ioncs[(14,2)]['logN'], 13.7)
 
 def test_ionclms_attr():
-	# Init from all file
-	ioncs = IonClms(all_file=data_path('UM184.z2929_MAGE.all'))
+    # Init from all file
+    ioncs = IonClms(all_file=data_path('UM184.z2929_MAGE.all'))
 
-	assert ioncs.Z[3] == 6
+    assert ioncs.Z[3] == 6
 
 def test_ionclms_sum():
-	ioncs1 = IonClms(all_file=data_path('UM184.z2929_MAGE.all'))
-	ioncs2 = IonClms(all_file=data_path('UM184.z2929_MAGE.all'))
-	# Sum
-	ioncs3 = ioncs1.sum(ioncs2)
-	np.testing.assert_allclose(ioncs3['SiII']['clm'], np.log10(2)+13.7)
+    ioncs1 = IonClms(all_file=data_path('UM184.z2929_MAGE.all'))
+    ioncs2 = IonClms(all_file=data_path('UM184.z2929_MAGE.all'))
+    # Sum
+    ioncs3 = ioncs1.sum(ioncs2)
+    np.testing.assert_allclose(ioncs3['SiII']['logN'], np.log10(2)+13.7)
 

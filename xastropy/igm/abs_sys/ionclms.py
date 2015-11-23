@@ -15,10 +15,10 @@ from __future__ import print_function, absolute_import, division, unicode_litera
 import numpy as np
 import copy
 
-from astropy.io import fits, ascii
+from astropy.io import ascii
 from astropy.units.quantity import Quantity
 from astropy import units as u
-from astropy.table import QTable, Table, Column
+from astropy.table import Table, Column
 
 from linetools.spectralline import AbsLine
 from linetools.analysis import absline as ltaa
@@ -108,7 +108,7 @@ class IonClms(object):
         # Read
         if verbose:
             print('Reading {:s}'.format(all_fil))
-        names=('Z', 'ion', 'clm', 'sig_clm', 'flg_clm', 'flg_inst') 
+        names=('Z', 'ion', 'logN', 'sig_logN', 'flg_clm', 'flg_inst')
         table = ascii.read(all_fil, format='no_header', names=names) 
 
         # Write
@@ -144,9 +144,9 @@ class IonClms(object):
                 idx = np.where((newIC.Z==Zion[0]) & (newIC.ion==Zion[1]))[0][0]
                 # Clm
                 logN, siglogN = ltaa.sum_logN(sdict,row)
-                newIC._data['clm'][idx] = logN
+                newIC._data['logN'][idx] = logN
                 # Error
-                newIC._data['sig_clm'][idx] = siglogN
+                newIC._data['sig_logN'][idx] = siglogN
                 '''
                 np.sqrt(
                     np.sum([(sdict['sig_clm']*(10.**sdict['clm']))**2,
@@ -249,16 +249,16 @@ class Ionic_Clm_File(object):
         for the given DLA. THe LINEDIC that is passed (when not None) is updated appropriately.
 
         Keys in the CLM dictionary are:
-		  INST - Instrument used
-		  FITS - a list of fits files
-		  ZABS - absorption redshift
-		  ION - .ION file location
-		  HI - THe HI column and error; [HI, HIerr]
-		  FIX - Any abundances that need fixing from the ION file
-		  VELS - Dictioanry of velocity limits, which is keyed by
-			FLAGS - Any measurment flags assosicated with VLIM
-			VLIM - velocity limits in km/s [vmin,vmax]
-			ELEM - ELement (from get_elem)
+          INST - Instrument used
+          FITS - a list of fits files
+          ZABS - absorption redshift
+          ION - .ION file location
+          HI - THe HI column and error; [HI, HIerr]
+          FIX - Any abundances that need fixing from the ION file
+          VELS - Dictioanry of velocity limits, which is keyed by
+            FLAGS - Any measurment flags assosicated with VLIM
+            VLIM - velocity limits in km/s [vmin,vmax]
+            ELEM - ELement (from get_elem)
 
         See get_elem for properties of LINEDIC
         """
