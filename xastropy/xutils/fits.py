@@ -55,12 +55,12 @@ def table_to_fits(itable, outfil, compress=False, comment=None):
     ''' Write an astropy Table as a FITS binary table
     ---
     Parameters
-    ---------
-    table: astropy.Table
-    outfil: string
-    compress: bool (False)
+    ----------
+    table : astropy.Table
+    outfil : string
+    compress : bool (False)
        gzip compress?
-    comment: string 
+    comment : string 
        Comment to insert into the header
     '''
 
@@ -81,6 +81,8 @@ def write_quick_fits(arr_list, outfil, clobber=True):
     arr_list: list of ndarray
     outfil: str
     '''
+    if not isinstance(arr_list,list):
+        raise IOError('Arrays must be in a list, even single ones')
     hdulist = None
     for arr in arr_list:
         if hdulist is None:

@@ -36,11 +36,11 @@ from xastropy.atomic import ionization as xai
 class AbslineSystem(object):
     """An absorption line system
 
-    Attributes:
-        abs_type: str
-        name: str
+    Attributes
+        abs_type : str
+        name : str
             Name of the system
-        coord: SkyCoord
+        coord : SkyCoord
             RA/Dec of the sightline
         zabs : float
           Absorption redshift
@@ -48,15 +48,15 @@ class AbslineSystem(object):
           Emission redshift of background source
         vlim : Quantity array (2) 
           Velocity limits of the system
-        NHI:  float
+        NHI :  float
           Log10 of the HI column density
-        sigNHI:  np.array(2)
+        sigNHI :  np.array(2)
           Log10 error of the HI column density (-/+)
-        MH:  float
+        MH :  float
           Metallicity (log10)
-        RA:  Quantity
+        RA :  Quantity
           RA of the System (deg)
-        Dec:  Quantity
+        Dec :  Quantity
           Dec of the System (deg)
     """
 
@@ -102,6 +102,10 @@ class AbslineSystem(object):
         self.linelist = linelist
         self.lines = []  # List of SpectraLine classes
         self.absid_file = None
+
+        # Spectra
+        self.spec_files = [] # List of spectra on the b/g source
+        self.spec_path = '' # Path to spectra
 
         # Kinematics
         self.kin = {}
