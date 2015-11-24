@@ -114,7 +114,7 @@ def get_telfer_spec(zqso=0., igm=False, fN_gamma=None, LL_flatten=True):
     # Return
     return telfer_spec
 
-def wfc3_continuum(wfc3_indx=None, zqso=0., wave=None, smooth=3., NHI_max=17.5):
+def wfc3_continuum(wfc3_indx=None, zqso=0., wave=None, smooth=3., NHI_max=17.5, rstate=None):
     '''Use the WFC3 data + models from O'Meara+13 to generate a continuum
 
     Parameters
@@ -137,6 +137,9 @@ def wfc3_continuum(wfc3_indx=None, zqso=0., wave=None, smooth=3., NHI_max=17.5):
     idx : int
       Index of the WFC3 spectrum used    
     '''
+    # Random number
+    if rstate is None:
+        rstate = np.random.RandomState()
     # Open
     wfc3_models_hdu = fits.open(os.getenv('DROPBOX_DIR')+'XQ-100/LLS/wfc3_conti_models.fits')
     nwfc3 = len(wfc3_models_hdu)-1
@@ -148,7 +151,7 @@ def wfc3_continuum(wfc3_indx=None, zqso=0., wave=None, smooth=3., NHI_max=17.5):
     if wfc3_indx is None:
         need_c = True
         while(need_c):
-            idx = np.random.randint(0,nwfc3-1)
+            idx = rstate.randint(0,nwfc3-1)
             if wfc_models[idx]['TOTNHI'] > NHI_max:
                 continue
             if wfc_models[idx]['QSO'] in ['J122836.05+510746.2', 'J122015.50+460802.4']:
