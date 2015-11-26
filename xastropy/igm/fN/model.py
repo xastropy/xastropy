@@ -522,11 +522,11 @@ def default_model(recalc=False, pckl_fil=None, use_mcmc=False, write=False):
       Tested against XIDL code by JXP on 09 Nov 2014
 
     Parameters:
-    recalc: boolean (False)
+    recalc : boolean (False)
       Recalucate the default model
-    use_mcmc: boolean (False)
+    use_mcmc : boolean (False)
       Use the MCMC chain to generate the model
-    write: boolean (False)
+    write : boolean (False)
       Write out the model
     """
     if pckl_fil==None:
