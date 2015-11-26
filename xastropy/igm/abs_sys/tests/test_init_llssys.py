@@ -17,9 +17,10 @@ def data_path(filename):
 
 def test_simple_init():
 	# Init 
-    lls = LLSSystem(NHI=17.9)
+    lls = LLSSystem((0.*u.deg, 0.*u.deg), 2.0, 17.9)
     #
     np.testing.assert_allclose(lls.NHI, 17.9)
+    np.testing.assert_allclose(lls.tau_LL, 5.03537353413629)
 
 def test_dat_init():
     # JXP .dat files
@@ -28,7 +29,7 @@ def test_dat_init():
         return
     # Read
     datfil = 'Data/UM184.z2929.dat'
-    lls = LLSSystem(dat_file=datfil, tree=os.getenv('LLSTREE'))
+    lls = LLSSystem.from_datfile(datfil, tree=os.getenv('LLSTREE'))
     #    
     np.testing.assert_allclose(lls.zabs, 2.93012)
 
@@ -39,7 +40,7 @@ def test_parse_ion():
         return
     # Read
     datfil = 'Data/UM184.z2929.dat'
-    lls = LLSSystem(dat_file=datfil, tree=os.getenv('LLSTREE'))
+    lls = LLSSystem.from_datfile(datfil, tree=os.getenv('LLSTREE'))
     #    
     lls.get_ions()
     assert len(lls.lines) == 24

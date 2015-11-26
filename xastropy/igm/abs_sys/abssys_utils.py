@@ -160,85 +160,6 @@ class AbslineSystem(object):
         else:
             return False
              
-    # Read a .dat file
-    def parse_dat_file(self,dat_file,verbose=False,flg_out=None):
-        ''' Parse an ASCII ".dat" file from JXP format 'database'
-        Parameters
-        flg_out: int
-          1: Return the dictionary
-        '''
-        # Define
-        datdict = OrderedDict()
-        # Open
-        f=open(dat_file,'r')
-        for line in f:
-            tmp=line.split('! ')
-            #tmp=line.split(' ! ')
-            tkey=tmp[1].strip()
-            key=tkey
-            #key=tkey.replace(' ','')
-            val=tmp[0].strip()
-            datdict[key]=val
-        f.close()
-        #pdb.set_trace()
-
-        self.datdict = datdict
-
-        #  #########
-        # Pull attributes
-
-        # RA/DEC
-        try:
-            ras,decs = (datdict['RA (2000)'], datdict['DEC (2000)'])
-            #print(datdict['RA(2000)'], datdict['DEC(2000)'])
-            #pdb.set_trace()
-        except:
-            ras, decs = ('00 00 00', '+00 00 00')
-        self.coord = SkyCoord(ras, decs, 'icrs', unit=(u.hour, u.deg))
-
-        # zabs
-        try: 
-            self.zabs = float(datdict['zabs'])
-        except: self.zabs=0.
-
-        # Name
-        self.name = ('J'+
-                    self.coord.ra.to_string(unit=u.hour,sep='',pad=True)+
-                    self.coord.dec.to_string(sep='',pad=True,alwayssign=True)+
-                    '_z{:0.3f}'.format(self.zabs))
-
-        # NHI
-        try: 
-            self.NHI = float(datdict['NHI']) # DLA format
-        except:
-            try:
-                self.NHI = float(datdict['NHI tot']) # LLS format
-            except: self.NHI=0.
-
-        # NHIsig
-        try: 
-            key_sigNHI = datdict['sig(NHI)'] # DLA format
-        except:
-            try:
-                key_sigNHI = datdict['NHI sig'] # LLS format
-            except:
-                key_sigNHI='0.0 0.0'
-        self.sigNHI = np.array(map(float,key_sigNHI.split()))
-
-        # Abund file
-        try: 
-            key_clmfil = datdict['Abund file'] # DLA format
-        except:
-            key_clmfil=''
-        self.clm_fil = key_clmfil.strip()
-        #xdb.set_trace()
-
-        # Finish
-        if verbose: print(datdict)
-        if flg_out != None:
-            if (flg_out % 2) == 1: ret_val = [datdict]
-            else: ret_val = [0]
-            return ret_val
 
     # Write a .dat file
     def write_dat_file(self):
@@ -465,9 +386,96 @@ class Abs_Sub_System(AbslineSystem):
         """"Return a string representing the type of vehicle this is."""
         return 'SubSystem'
 
+########### Misc Methods #######################
+# Read a .dat file
+def read_dat_file(dat_file,verbose=False):
+    """ Read an ASCII ".dat" file from JXP format 'database'
 
+    Parameters
+    ----------
+    dat_file : str
+     filename
 
+    Returns
+    -------
+    dat_dict : OrderedDict
+      A dict containing the info in the .dat file
+    """
+    # Define
+    datdict = OrderedDict()
+    # Open
+    f=open(dat_file,'r')
+    for line in f:
+        tmp=line.split('! ')
+        tkey=tmp[1].strip()
+        key=tkey
+        val=tmp[0].strip()
+        datdict[key]=val
+    f.close()
 
+    return datdict
+
+def parse_datdict(datdict):
+    """ Parse a datdict
+
+    Parameters
+    ----------
+    datdict : OrderedDict
+      dict from .dat file
+
+    Returns
+    -------
+    tuple of coord, zabs, name, NHI, sigNHI, clmfil
+    """
+    # RA/DEC
+    try:
+        ras,decs = (datdict['RA (2000)'], datdict['DEC (2000)'])
+        #print(datdict['RA(2000)'], datdict['DEC(2000)'])
+        #pdb.set_trace()
+    except:
+        ras, decs = ('00 00 00', '+00 00 00')
+    coord = SkyCoord(ras, decs, 'icrs', unit=(u.hour, u.deg))
+
+    # zabs
+    try:
+        zabs = float(datdict['zabs'])
+    except:
+        zabs=0.
+
+    # Name
+    name = ('J'+
+                 coord.ra.to_string(unit=u.hour,sep='',pad=True)+
+                 coord.dec.to_string(sep='',pad=True,alwayssign=True)+
+                 '_z{:0.3f}'.format(zabs))
+
+    # NHI
+    try:
+        NHI = float(datdict['NHI']) # DLA format
+    except:
+        try:
+            NHI = float(datdict['NHI tot']) # LLS format
+        except: NHI=0.
+
+    # NHIsig
+    try:
+        key_sigNHI = datdict['sig(NHI)'] # DLA format
+    except:
+        try:
+            key_sigNHI = datdict['NHI sig'] # LLS format
+        except:
+            key_sigNHI='0.0 0.0'
+    sigNHI = np.array(map(float,key_sigNHI.split()))
+
+    # Abund file
+    try:
+        key_clmfil = datdict['Abund file'] # DLA format
+    except:
+        key_clmfil=''
+    clm_fil = key_clmfil.strip()
+    #xdb.set_trace()
+
+    # Return
+    return coord, zabs, name, NHI, sigNHI, clm_fil
 
 
     
@@ -495,4 +503,6 @@ if __name__ == '__main__':
     #xdb.set_trace()
     
     print('abssys_utils: All done testing..')
-        
+
+
+

@@ -13,16 +13,18 @@
 
 from __future__ import print_function, absolute_import, division, unicode_literals
 
-import os, copy, sys, imp, glob
+import os, copy, imp, glob
 import numpy as np
 
 from astropy import units as u
-from astropy.io import ascii 
+from astropy.coordinates import SkyCoord
 
 from linetools.lists.linelist import LineList
+from linetools.isgm.abssystem import AbsSystem
 
 from xastropy.igm.abs_sys.abs_survey import AbslineSurvey
-from xastropy.igm.abs_sys.abssys_utils import AbslineSystem, Abs_Sub_System
+from xastropy.igm.abs_sys.abssys_utils import Abs_Sub_System
+from xastropy.igm.abs_sys import abssys_utils as xabsu
 from xastropy.igm.abs_sys.ionclms import Ionic_Clm_File, IonClms
 from xastropy.atomic import ionization as xatomi
 from xastropy.xutils import xdebug as xdb
@@ -33,7 +35,7 @@ xa_path = imp.find_module('xastropy')[1]
 #class LLS_Survey(Absline_Survey):
 
 # Class for LLS Absorption Lines 
-class LLSSystem(AbslineSystem):
+class LLSSystem(AbsSystem):
     """An LLS absorption system
 
     Attributes:
@@ -50,23 +52,64 @@ class LLSSystem(AbslineSystem):
         # Return
         return lls
 
-    def __init__(self, dat_file=None, tree=None, **kwargs):
+    @classmethod
+    def from_datfile(cls, dat_file, tree=None, **kwargs):
+        """ Read from dat_file
+
+        Parameters
+        ----------
+        dat_file : str
+          dat file
+        tree : str, optional
+          Path to data files
+        kwargs :
+          Passed to __init__
+        """
+        if tree is None:
+            tree = ''
+        # Read datfile
+        datdict = xabsu.read_dat_file(tree+dat_file)
+        # Parse
+        coord, zabs, name, NHI, sigNHI, clm_fil = xabsu.parse_datdict(datdict)
         # Generate with type
-        AbslineSystem.__init__(self,'LLS', **kwargs)
-        # Over-ride tree?
-        if tree != None:
-            self.tree = tree
-        else:
-            self.tree = ''
-        # Parse .dat file
-        if dat_file != None:
-            self.parse_dat_file(self.tree+dat_file)
-            self.dat_file = self.tree+dat_file
+        slf = cls(coord, zabs, NHI, **kwargs)
+
+        # Fill files
+        slf.tree = tree
+        slf.dat_file = slf.tree+dat_file
+        return slf
+
+    def __init__(self, radec, zabs, NHI, vlim=None, **kwargs):
+        """Standard init
+
+        Note that NHI is required but vlim is not
+
+        Parameters
+        ----------
+        radec : tuple or coordinate
+            RA/Dec of the sightline or astropy.coordinate
+        zabs : float
+          Absorption redshift
+        NHI : float
+          log10 of HI column density
+        vlim : Quantity array (2), optional
+          Velocity limits of the system
+          Defaulted to +/- 500 km/s (see Prochaska et al. 2016 HDLLS)
+        **kwargs : keywords
+          passed to AbsSystem.__init__
+
+        """
+        if vlim is None:
+            vlim = [-500.,500.]*u.km/u.s
+        # Generate with type
+        AbsSystem.__init__(self, 'LLS', radec, zabs, vlim, NHI=NHI, **kwargs)
 
         # Set tau_LL
         self.tau_LL = (10.**self.NHI)*6.3391597e-18 # Should replace with photocross
-        self.ions = None
-        self.zpeak = None
+
+        # Other
+        self.zpeak = None  # Optical depth weighted redshift
+        self.MH = 0.
 
 
     # Modify standard dat parsing
@@ -140,11 +183,12 @@ class LLSSystem(AbslineSystem):
     # Fill up the ions
     def get_ions(self, idict=None, closest=False):
         """Parse the ions for each Subsystem
+
         And put them together for the full system
         Fills .ions with a IonsClm Class
 
-        Parameters:
-        -----------
+        Parameters
+        ----------
         closest : bool, optional
           Take the closest line to input wavelength? [False]
         idict : dict, optional
