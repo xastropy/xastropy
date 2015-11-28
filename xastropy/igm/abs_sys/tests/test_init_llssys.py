@@ -4,7 +4,6 @@
 
 import numpy as np
 import os, pdb
-import pytest
 from astropy import units as u
 
 from xastropy.igm.abs_sys.lls_utils import LLSSystem

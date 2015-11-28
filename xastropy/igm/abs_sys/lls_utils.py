@@ -15,17 +15,18 @@ from __future__ import print_function, absolute_import, division, unicode_litera
 
 import os, copy, imp, glob
 import numpy as np
+import warnings
 
 from astropy import units as u
-from astropy.coordinates import SkyCoord
 
 from linetools.lists.linelist import LineList
-from linetools.isgm.abssystem import AbsSystem
+from linetools.isgm.abssystem import AbsSystem, AbsSubSystem
+from linetools.isgm import utils as ltiu
 
 from xastropy.igm.abs_sys.abs_survey import AbslineSurvey
 from xastropy.igm.abs_sys.abssys_utils import Abs_Sub_System
 from xastropy.igm.abs_sys import abssys_utils as xabsu
-from xastropy.igm.abs_sys.ionclms import Ionic_Clm_File, IonClms
+from xastropy.igm.abs_sys import ionclms as xiai
 from xastropy.atomic import ionization as xatomi
 from xastropy.xutils import xdebug as xdb
 
@@ -54,7 +55,7 @@ class LLSSystem(AbsSystem):
 
     @classmethod
     def from_datfile(cls, dat_file, tree=None, **kwargs):
-        """ Read from dat_file
+        """ Read from dat_file (historical JXP format)
 
         Parameters
         ----------
@@ -77,6 +78,12 @@ class LLSSystem(AbsSystem):
         # Fill files
         slf.tree = tree
         slf.dat_file = slf.tree+dat_file
+
+        # Parse datdict
+        #   Includes Sub systems
+        slf._datdict = datdict
+        slf.parse_dat_file()
+
         return slf
 
     def __init__(self, radec, zabs, NHI, vlim=None, **kwargs):
@@ -111,18 +118,21 @@ class LLSSystem(AbsSystem):
         self.zpeak = None  # Optical depth weighted redshift
         self.MH = 0.
 
+        # Subsystems
+        self.nsub = 0
+        self.subsys = {}
 
     # Modify standard dat parsing
     def mk_subsys(self,nsub):
         '''Generate subsystems from Parent
+        DEPRECATED
         Parameters:
         ----------
         nsub: int
           Number to generate
         '''
+        assert False # DEPRECATED
         lbls= map(chr, range(65, 91))
-        self.nsub = nsub
-        self.subsys = {}
         for i in range(self.nsub):
             self.subsys[lbls[i]] = Abs_Sub_System('LLS')
             self.subsys[lbls[i]].name = self.name+lbls[i]
@@ -131,20 +141,27 @@ class LLSSystem(AbsSystem):
             self.subsys[lbls[i]].linelist = self.linelist
 
     # Modify standard dat parsing
-    def parse_dat_file(self,dat_file):
-        # Standard Call
-        out_list = AbslineSystem.parse_dat_file(self,dat_file,flg_out=1)
+    def parse_dat_file(self,vlim=[-300.,300]*u.km/u.s):
+        """ Parse the datdict read from the .dat file
+
+        Parameters
+        ----------
+        datdict : OrderedDict
+          info from the .dat file
+        vlim : Quantity array (2), optional
+          Velocity limits of the subsystems
+          Should be pulled from the .clm files
+        """
 
         # LLS keys
-        self.bgsrc = self.datdict['QSO name']
-        self.zem = float(self.datdict['QSO zem'])  # Was zqso
-        self.MH = float(self.datdict['[M/H] ave'])
-        self.nsub = int(self.datdict['N subsys'])
-        self.cldyfil = self.datdict['Cloudy Grid File']
+        self.bgsrc = self._datdict['QSO name']
+        self.zem = float(self._datdict['QSO zem'])  # Was zqso
+        self.MH = float(self._datdict['[M/H] ave'])
+        self.nsub = int(self._datdict['N subsys'])
+        self.cldyfil = self._datdict['Cloudy Grid File']
 
         # LLS Subsystems
         if self.nsub > 0:
-            self.subsys = {}
             lbls= map(chr, range(65, 91))
             # Dict
             keys = (['zabs','NHI','NHIsig','NH','NHsig','log x','sigx','b','bsig','Abund file',
@@ -159,33 +176,33 @@ class LLSSystem(AbsSystem):
             # Loop on subsystems
             for i in range(self.nsub):
                 # Generate
-                self.subsys[lbls[i]] = Abs_Sub_System('LLS')
-                self.subsys[lbls[i]].name = self.name+lbls[i]
-                self.subsys[lbls[i]].coord = self.coord
-                self.subsys[lbls[i]].tree = self.tree
-                self.subsys[lbls[i]].linelist = self.linelist
-                # Fill in
+                zabs = float(self._datdict[lbls[i]+ ' zabs'])
+                self.subsys[lbls[i]] = AbsSubSystem(self,zabs,vlim,lbls[i])
+                self.subsys[lbls[i]]._datdict = {}
+                # Fill in dict
                 for ii,key in enumerate(keys):
                     try:
-                        tmpc = self.datdict[lbls[i]+' '+key]
+                        tmpc = self._datdict[lbls[i]+' '+key]
                     except:
                         raise ValueError('lls_utils: Key "{:s}" not found in {:s}'
-                                         .format(lbls[i]+key,dat_file))
+                                         .format(lbls[i]+key,self.dat_file))
                     else:  # Convert
                         val = null_dict[key]
                         #pdb.set_trace()
-                        if val.__class__ == np.ndarray:  
-                            setattr(self.subsys[lbls[i]], att[ii],
-                                    np.array(map(float,tmpc.split())) )
+                        if val.__class__ == np.ndarray:
+                            self.subsys[lbls[i]]._datdict[att[ii]] = np.array(map(float,tmpc.split()))
                         else: # Single value
-                            setattr(self.subsys[lbls[i]], att[ii], (map(type(val),[tmpc]))[0] )
+                            self.subsys[lbls[i]]._datdict[att[ii]] = (map(type(val),[tmpc]))[0]
+                # Set a few special ones as attributes
+                self.subsys[lbls[i]].NHI = self.subsys[lbls[i]]._datdict['NHI']
+                self.subsys[lbls[i]].sig_NHI = self.subsys[lbls[i]]._datdict['NHIsig']
 
     # Fill up the ions
-    def get_ions(self, idict=None, closest=False):
+    def get_ions(self, use_clmfile=False, idict=None, closest=False):
         """Parse the ions for each Subsystem
 
         And put them together for the full system
-        Fills .ions with a IonsClm Class
+        Fills ._ionclms with a QTable
 
         Parameters
         ----------
@@ -193,45 +210,56 @@ class LLSSystem(AbsSystem):
           Take the closest line to input wavelength? [False]
         idict : dict, optional
           dict containing the IonClms info
+        use_clmfile : bool, optional
+          Parse ions from a .clm file (JXP historical)
         """
+        reload(xiai)
+        reload(ltiu)
         if idict is not None:
             # Not setup for SubSystems
+            xdb.set_trace() # NEEDS UPDATING
             self._ionclms = IonClms(idict=idict)
-        else:
+        elif use_clmfile:
             # Subsystems
             if self.nsub > 0:  # This speeds things up (but is rarely used)
-                if self.linelist is None:
-                    self.linelist = LineList('ISM')
-            lbls= map(chr, range(65, 91))
-            for ii in range(self.nsub):
-                clm_fil = self.tree+self.subsys[lbls[ii]].clm_file
-                # Parse .clm and .all files
-                self.subsys[lbls[ii]].clm_analy = Ionic_Clm_File(clm_fil, self.linelist)
-                ion_fil = self.tree+self.subsys[lbls[ii]].clm_analy.ion_fil 
-                all_fil = ion_fil.split('.ion')[0]+'.all'
-                self.all_fil=all_fil #MF: useful to have
-                self.subsys[lbls[ii]]._ionclms = IonClms(all_fil)
-                # Linelist (for speed)
-                if self.subsys[lbls[ii]].linelist is None:
-                    self.subsys[lbls[ii]].linelist = self.linelist
-                self.subsys[lbls[ii]].linelist.closest = closest
-                # Parse .ion file
-                self.subsys[lbls[ii]].read_ion_file(ion_fil)
+                linelist = LineList('ISM')
+            for lbl in self.subsys.keys():
+                clm_fil = self.tree+self.subsys[lbl]._datdict['clm_file']
+                # Parse .clm file
+                self.subsys[lbl]._clmdict = xiai.read_clmfile(clm_fil,linelist=linelist)
+                # Build components from lines
+                abslines = []
+                for wrest in self.subsys[lbl]._clmdict['lines']:
+                    self.subsys[lbl]._clmdict['lines'][wrest].attrib['coord'] = self.coord
+                    abslines.append(self.subsys[lbl]._clmdict['lines'][wrest])
+                components = ltiu.build_components_from_abslines(abslines)
+                # Read .ion file and fill in components
+                ion_fil = self.tree+self.subsys[lbl]._clmdict['ion_fil']
+                self.subsys[lbl]._indiv_ionclms = xiai.read_ion_file(ion_fil,components=components)
+                # Parse .all file
+                all_file = ion_fil.split('.ion')[0]+'.all'
+                self.subsys[lbl].all_file=all_file #MF: useful to have
+                _ = xiai.read_all_file(all_file,components=components)
+                # Build table
+                self.subsys[lbl]._ionclms = ltiu.iontable_from_components(components)
+                # Add to AbsSystem
+                for comp in components:
+                    self.add_component(comp)
 
             # Combine
             if self.nsub == 1:
                 self._ionclms = self.subsys['A']._ionclms
-                self.clm_analy = self.subsys['A'].clm_analy
-                self.lines = self.subsys['A'].lines
+                self._clmdict = self.subsys['A']._clmdict
                 #xdb.set_trace()
             elif self.nsub == 0:
                 raise ValueError('lls_utils.get_ions: Cannot have 0 subsystems..')
             else:
                 self._ionclms = self.subsys['A']._ionclms
-                self.clm_analy = self.subsys['A'].clm_analy
-                self.lines = self.subsys['A'].lines
-                print('lls_utils.get_ions: Need to update multiple subsystems!! Taking A.')
-                
+                self._clmdict = self.subsys['A']._clmdict
+                warnings.warn('lls_utils.get_ions: Need to update multiple subsystems!! Taking A.')
+        else:
+            raise ValueError("Need an option in get_ions")
+
 
     # #############
     def fill_lls_lines(self, bval=20.*u.km/u.s):
@@ -253,7 +281,7 @@ class LLSSystem(AbsSystem):
         for lline in HIlines._data:
             aline = AbsLine(lline['wrest'],linelist=HIlines)
             # Attributes
-            aline.attrib['N'] = self.NHI
+            aline.attrib['N'] = 10**self.NHI / u.cm**2
             aline.attrib['b'] = bval
             aline.attrib['z'] = self.zabs
             # Could set RA and DEC too
