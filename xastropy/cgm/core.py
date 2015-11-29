@@ -129,8 +129,6 @@ class CGMAbsSurvey(object):
     # Initialize with a .dat file
     def __init__(self, tree=None, survey=''):
 
-        from xastropy.igm.abs_sys.abs_survey import AbslineSurvey
-
         # Name of survey
         self.survey = ''
         self.ref = ''
