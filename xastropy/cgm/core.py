@@ -13,23 +13,14 @@
 from __future__ import print_function, absolute_import, division, unicode_literals
 
 import numpy as np
-import os, imp
-from astropy.io import fits, ascii
-from astropy import units as u 
-from astropy.coordinates import SkyCoord
-#from astropy import constants as const
+from astropy import units as u
 
 from xastropy.igm.abs_sys.abssys_utils import AbslineSystem
-from xastropy.igm.abs_sys import abs_survey as xaa
-from xastropy.igm.abs_sys.abs_survey import AbslineSurvey
 from xastropy.galaxy.core import Galaxy
 from xastropy.obs import radec as xra
 
-from xastropy.atomic.elements import ELEMENTS
 from xastropy.xutils import xdebug as xdb
 from xastropy.xutils import arrays as xu_array
-
-from astropy.utils.misc import isiterable
 
 # Path for xastropy
 #xa_path = imp.find_module('xastropy')[1]
@@ -137,8 +128,6 @@ class CGMAbsSurvey(object):
     """
     # Initialize with a .dat file
     def __init__(self, tree=None, survey=''):
-
-        from xastropy.igm.abs_sys.abs_survey import AbslineSurvey
 
         # Name of survey
         self.survey = ''

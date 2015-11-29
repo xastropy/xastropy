@@ -8,7 +8,7 @@ import pytest
 from astropy import units as u
 from astropy.coordinates import SkyCoord
 
-from xastropy.igm.abs_sys.abs_survey import GenericAbsSurvey
+from xastropy.igm.abs_sys.abssurvey import GenericAbsSurvey
 from xastropy.igm.abs_sys.abssys_utils import GenericAbsSystem
 
 

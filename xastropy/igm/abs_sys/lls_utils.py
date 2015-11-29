@@ -1,29 +1,22 @@
-"""
-#;+ 
-#; NAME:
-#; lls_utils
-#;    Version 1.0
-#;
-#; PURPOSE:
-#;    Module for Lyman Limit Systems
-#;   27-Oct-2014 by JXP
-#;-
-#;------------------------------------------------------------------------------
+""" Subclasses for LLS AbsSystem and AbsSurvey
 """
 
 from __future__ import print_function, absolute_import, division, unicode_literals
 
-import os, copy, sys, imp, glob
+import os, copy, imp, glob
 import numpy as np
+import warnings
 
 from astropy import units as u
-from astropy.io import ascii 
+from astropy.table import Table, Column
 
 from linetools.lists.linelist import LineList
+from linetools.isgm.abssystem import AbsSystem, AbsSubSystem
+from linetools.isgm import utils as ltiu
 
-from xastropy.igm.abs_sys.abs_survey import AbslineSurvey
-from xastropy.igm.abs_sys.abssys_utils import AbslineSystem, Abs_Sub_System
-from xastropy.igm.abs_sys.ionclms import Ionic_Clm_File, IonClms
+from xastropy.igm.abs_sys.abssurvey import AbslineSurvey
+from xastropy.igm.abs_sys import abssys_utils as xabsu
+from xastropy.igm.abs_sys import ionclms as xiai
 from xastropy.atomic import ionization as xatomi
 from xastropy.xutils import xdebug as xdb
 
@@ -33,10 +26,12 @@ xa_path = imp.find_module('xastropy')[1]
 #class LLS_Survey(Absline_Survey):
 
 # Class for LLS Absorption Lines 
-class LLSSystem(AbslineSystem):
-    """An LLS absorption system
+class LLSSystem(AbsSystem):
+    """
+    Class for an LLS absorption system
 
-    Attributes:
+    Attributes
+    ----------
         tau_ll: Opacity at the Lyman limit
     """
     # Create instance with a AbsID file
@@ -50,58 +45,128 @@ class LLSSystem(AbslineSystem):
         # Return
         return lls
 
-    def __init__(self, dat_file=None, tree=None, **kwargs):
+    @classmethod
+    def from_datfile(cls, dat_file, tree=None, **kwargs):
+        """ Read from dat_file (historical JXP format)
+
+        Parameters
+        ----------
+        dat_file : str
+          dat file
+        tree : str, optional
+          Path to data files
+        kwargs :
+          Passed to __init__
+        """
+        if tree is None:
+            tree = ''
+        # Read datfile
+        datdict = xabsu.read_dat_file(tree+dat_file)
+        # Parse
+        coord, zabs, name, NHI, sigNHI, clm_fil = xabsu.parse_datdict(datdict)
+        kwargs['NHI'] = NHI
+        kwargs['sig_NHI'] = sigNHI
         # Generate with type
-        AbslineSystem.__init__(self,'LLS', **kwargs)
-        # Over-ride tree?
-        if tree != None:
-            self.tree = tree
+        vlim = None
+        slf = cls(coord, zabs, vlim, **kwargs)
+
+        # Fill files
+        slf.tree = tree
+        slf.dat_file = slf.tree+dat_file
+
+        # Parse datdict
+        #   Includes Sub systems
+        slf._datdict = datdict
+        slf.parse_dat_file()
+
+        return slf
+
+    def __init__(self, radec, zabs, vlim, **kwargs):
+        """Standard init
+
+        NHI keyword is required
+
+        Parameters
+        ----------
+        radec : tuple or coordinate
+            RA/Dec of the sightline or astropy.coordinate
+        zabs : float
+          Absorption redshift
+        vlim : Quantity array (2)
+          Velocity limits of the system
+          Defaulted to +/- 500 km/s if None (see Prochaska et al. 2016 HDLLS)
+        NHI= : float, required despite being a keyword
+          log10 of HI column density
+        **kwargs : keywords
+          passed to AbsSystem.__init__
+
+        """
+        # NHI
+        try:
+            NHI = kwargs['NHI']
+        except KeyError:
+            raise ValueError("NHI must be specified for LLSSystem")
         else:
-            self.tree = ''
-        # Parse .dat file
-        if dat_file != None:
-            self.parse_dat_file(self.tree+dat_file)
-            self.dat_file = self.tree+dat_file
+            kwargs.pop('NHI')
+        # vlim
+        if vlim is None:
+            vlim = [-500.,500.]*u.km/u.s
+        # Generate with type
+        AbsSystem.__init__(self, 'LLS', radec, zabs, vlim, NHI=NHI, **kwargs)
 
         # Set tau_LL
         self.tau_LL = (10.**self.NHI)*6.3391597e-18 # Should replace with photocross
-        self.ions = None
-        self.zpeak = None
 
+        # Other
+        self.zpeak = None  # Optical depth weighted redshift
+        self.MH = 0.
 
+        # Subsystems
+        self.nsub = 0
+        self.subsys = {}
+
+    """
     # Modify standard dat parsing
     def mk_subsys(self,nsub):
         '''Generate subsystems from Parent
+        DEPRECATED
         Parameters:
         ----------
         nsub: int
           Number to generate
         '''
+        assert False # DEPRECATED
         lbls= map(chr, range(65, 91))
-        self.nsub = nsub
-        self.subsys = {}
         for i in range(self.nsub):
             self.subsys[lbls[i]] = Abs_Sub_System('LLS')
             self.subsys[lbls[i]].name = self.name+lbls[i]
             self.subsys[lbls[i]].coord = self.coord
             self.subsys[lbls[i]].zem = self.zem
             self.subsys[lbls[i]].linelist = self.linelist
+    """
 
     # Modify standard dat parsing
-    def parse_dat_file(self,dat_file):
-        # Standard Call
-        out_list = AbslineSystem.parse_dat_file(self,dat_file,flg_out=1)
+    def parse_dat_file(self,vlim=[-300.,300]*u.km/u.s):
+        """ Parse the datdict read from the .dat file
+
+        Parameters
+        ----------
+        datdict : OrderedDict
+          info from the .dat file
+        vlim : Quantity array (2), optional
+          Velocity limits of the subsystems
+          Should be pulled from the .clm files
+        """
 
         # LLS keys
-        self.bgsrc = self.datdict['QSO name']
-        self.zem = float(self.datdict['QSO zem'])  # Was zqso
-        self.MH = float(self.datdict['[M/H] ave'])
-        self.nsub = int(self.datdict['N subsys'])
-        self.cldyfil = self.datdict['Cloudy Grid File']
+        self.bgsrc = self._datdict['QSO name']
+        self.zem = float(self._datdict['QSO zem'])  # Was zqso
+        self.MH = float(self._datdict['[M/H] ave'])
+        self.nsub = int(self._datdict['N subsys'])
+        self.cldyfil = self._datdict['Cloudy Grid File']
 
         # LLS Subsystems
         if self.nsub > 0:
-            self.subsys = {}
             lbls= map(chr, range(65, 91))
             # Dict
             keys = (['zabs','NHI','NHIsig','NH','NHsig','log x','sigx','b','bsig','Abund file',
@@ -116,78 +181,125 @@ class LLSSystem(AbslineSystem):
             # Loop on subsystems
             for i in range(self.nsub):
                 # Generate
-                self.subsys[lbls[i]] = Abs_Sub_System('LLS')
-                self.subsys[lbls[i]].name = self.name+lbls[i]
-                self.subsys[lbls[i]].coord = self.coord
-                self.subsys[lbls[i]].tree = self.tree
-                self.subsys[lbls[i]].linelist = self.linelist
-                # Fill in
+                zabs = float(self._datdict[lbls[i]+ ' zabs'])
+                self.subsys[lbls[i]] = AbsSubSystem(self,zabs,vlim,lbls[i])
+                self.subsys[lbls[i]]._datdict = {}
+                # Fill in dict
                 for ii,key in enumerate(keys):
                     try:
-                        tmpc = self.datdict[lbls[i]+' '+key]
+                        tmpc = self._datdict[lbls[i]+' '+key]
                     except:
                         raise ValueError('lls_utils: Key "{:s}" not found in {:s}'
-                                         .format(lbls[i]+key,dat_file))
+                                         .format(lbls[i]+key,self.dat_file))
                     else:  # Convert
                         val = null_dict[key]
                         #pdb.set_trace()
-                        if val.__class__ == np.ndarray:  
-                            setattr(self.subsys[lbls[i]], att[ii],
-                                    np.array(map(float,tmpc.split())) )
+                        if val.__class__ == np.ndarray:
+                            self.subsys[lbls[i]]._datdict[att[ii]] = np.array(map(float,tmpc.split()))
                         else: # Single value
-                            setattr(self.subsys[lbls[i]], att[ii], (map(type(val),[tmpc]))[0] )
+                            self.subsys[lbls[i]]._datdict[att[ii]] = (map(type(val),[tmpc]))[0]
+                # Set a few special ones as attributes
+                self.subsys[lbls[i]].NHI = self.subsys[lbls[i]]._datdict['NHI']
+                self.subsys[lbls[i]].sig_NHI = self.subsys[lbls[i]]._datdict['NHIsig']
 
     # Fill up the ions
-    def get_ions(self, idict=None, closest=False):
+    def get_ions(self, use_clmfile=False, idict=None, closest=False, update_zvlim=True):
         """Parse the ions for each Subsystem
-        And put them together for the full system
-        Fills .ions with a IonsClm Class
 
-        Parameters:
-        -----------
+        And put them together for the full system
+        Fills ._ionclms with a QTable
+
+        Parameters
+        ----------
         closest : bool, optional
           Take the closest line to input wavelength? [False]
         idict : dict, optional
           dict containing the IonClms info
+        use_clmfile : bool, optional
+          Parse ions from a .clm file (JXP historical)
+        update_zvlim : bool, optional
+          Update zvlim from lines in .clm (as applicable)
         """
+        reload(ltiu)
+        from linetools.abund import ions as ltai
         if idict is not None:
-            # Not setup for SubSystems
-            self._ionclms = IonClms(idict=idict)
-        else:
+            # Manipulate for astropy Table
+            #  Could probably use add_row or dict instantiation
+            table = None
+            for ion in idict.keys():
+                Zion = ltai.name_ion(ion)
+                if table is None:
+                    tkeys = idict[ion].keys()
+                    lst = [[idict[ion][tkey]] for tkey in tkeys]
+                    table = Table(lst, names=tkeys)
+                    # Extra columns
+                    if 'Z' not in tkeys:
+                        table.add_column(Column([Zion[0]],name='Z'))
+                        table.add_column(Column([Zion[1]],name='ion'))
+                else:
+                    tdict = idict[ion]
+                    if 'Z' not in tkeys:
+                        tdict['Z'] = Zion[0]
+                        tdict['ion'] = Zion[1]
+                    # Add
+                    table.add_row(tdict)
+            # Finish
+            try:  # Historical keys
+                table.rename_column('clm','logN')
+            except:
+                pass
+            else:
+                table.rename_column('sig_clm','sig_logN')
+                table.rename_column('flg_clm','flag_N')
+            self._ionclms = table
+        elif use_clmfile:
             # Subsystems
             if self.nsub > 0:  # This speeds things up (but is rarely used)
-                if self.linelist is None:
-                    self.linelist = LineList('ISM')
-            lbls= map(chr, range(65, 91))
-            for ii in range(self.nsub):
-                clm_fil = self.tree+self.subsys[lbls[ii]].clm_file
-                # Parse .clm and .all files
-                self.subsys[lbls[ii]].clm_analy = Ionic_Clm_File(clm_fil, self.linelist)
-                ion_fil = self.tree+self.subsys[lbls[ii]].clm_analy.ion_fil 
-                all_fil = ion_fil.split('.ion')[0]+'.all'
-                self.all_fil=all_fil #MF: useful to have
-                self.subsys[lbls[ii]]._ionclms = IonClms(all_fil)
-                # Linelist (for speed)
-                if self.subsys[lbls[ii]].linelist is None:
-                    self.subsys[lbls[ii]].linelist = self.linelist
-                self.subsys[lbls[ii]].linelist.closest = closest
-                # Parse .ion file
-                self.subsys[lbls[ii]].read_ion_file(ion_fil)
+                linelist = LineList('ISM')
+            for lbl in self.subsys.keys():
+                clm_fil = self.tree+self.subsys[lbl]._datdict['clm_file']
+                # Parse .clm file
+                self.subsys[lbl]._clmdict = xiai.read_clmfile(clm_fil,linelist=linelist)
+                # Build components from lines
+                abslines = []
+                vmin,vmax = 9999., -9999.
+                for wrest in self.subsys[lbl]._clmdict['lines']:
+                    vmin = min(vmin, self.subsys[lbl]._clmdict['lines'][wrest].analy['vlim'][0].value)
+                    vmax = max(vmax, self.subsys[lbl]._clmdict['lines'][wrest].analy['vlim'][1].value)
+                    self.subsys[lbl]._clmdict['lines'][wrest].attrib['coord'] = self.coord
+                    abslines.append(self.subsys[lbl]._clmdict['lines'][wrest])
+                components = ltiu.build_components_from_abslines(abslines)
+                # Update z, vlim
+                if update_zvlim:
+                    self.subsys[lbl].zabs = self.subsys[lbl]._clmdict['zsys']
+                    self.subsys[lbl].vlim = [vmin,vmax]*u.km/u.s
+                # Read .ion file and fill in components
+                ion_fil = self.tree+self.subsys[lbl]._clmdict['ion_fil']
+                self.subsys[lbl]._indiv_ionclms = xiai.read_ion_file(ion_fil,components=components)
+                # Parse .all file
+                all_file = ion_fil.split('.ion')[0]+'.all'
+                self.subsys[lbl].all_file=all_file #MF: useful to have
+                _ = xiai.read_all_file(all_file,components=components)
+                # Build table
+                self.subsys[lbl]._ionclms = ltiu.iontable_from_components(components,ztbl=self.subsys[lbl].zabs)
+                # Add to AbsSystem
+                for comp in components:
+                    self.add_component(comp)
 
             # Combine
             if self.nsub == 1:
                 self._ionclms = self.subsys['A']._ionclms
-                self.clm_analy = self.subsys['A'].clm_analy
-                self.lines = self.subsys['A'].lines
+                self._clmdict = self.subsys['A']._clmdict
                 #xdb.set_trace()
             elif self.nsub == 0:
                 raise ValueError('lls_utils.get_ions: Cannot have 0 subsystems..')
             else:
                 self._ionclms = self.subsys['A']._ionclms
-                self.clm_analy = self.subsys['A'].clm_analy
-                self.lines = self.subsys['A'].lines
-                print('lls_utils.get_ions: Need to update multiple subsystems!! Taking A.')
-                
+                self._clmdict = self.subsys['A']._clmdict
+                warnings.warn('lls_utils.get_ions: Need to update multiple subsystems!! Taking A.')
+        else:
+            raise ValueError("Need an option in get_ions")
+
 
     # #############
     def fill_lls_lines(self, bval=20.*u.km/u.s):
@@ -209,7 +321,7 @@ class LLSSystem(AbslineSystem):
         for lline in HIlines._data:
             aline = AbsLine(lline['wrest'],linelist=HIlines)
             # Attributes
-            aline.attrib['N'] = self.NHI
+            aline.attrib['N'] = 10**self.NHI / u.cm**2
             aline.attrib['b'] = bval
             aline.attrib['z'] = self.zabs
             # Could set RA and DEC too
@@ -354,46 +466,15 @@ class LLSSystem(AbslineSystem):
 # #######################################################################
 # Class for LLS Survey
 class LLSSurvey(AbslineSurvey):
-    """An LLS Survey class
+    """
+    An LLS Survey class
 
     Attributes:
         
     """
-    # Initialize with a .dat file
-    def __init__(self, **kwargs): 
-        # Generate with type
-        AbslineSurvey.__init__(self, 'LLS', **kwargs)
-
-    # Cut on NHI
-    def cut_nhi_quality(self, sig_cut=0.4):
-        """
-        Cut the LLS on NHI quality.
-        Could put this in Absline_Survey
-
-        Parameters:
-          sig_cut: float (0.4) 
-            Limit to include as quality
-
-        Returns:
-          gdNHI, bdNHI
-            Indices for those LLS that are good/bad
-            gdNHI is a numpy array of indices
-            bdNHI is a boolean array
-        """
-        # Cut
-        gdNHI = np.where( (self.sigNHI[:,0] < sig_cut)
-                        & (self.sigNHI[:,1] < sig_cut))[0] 
-        # Mask
-        bdNHI = (self.NHI == self.NHI)
-        bdNHI[gdNHI] = False
-
-        # Return
-        return gdNHI, bdNHI
-
-    # Default sample of LLS (HD-LLS, DR1)
     @classmethod
     def load_HDLLS(cls):
-        '''
+        """ Default sample of LLS (HD-LLS, DR1)
         # Local
         sys.path.append(os.path.abspath(os.environ.get('LLSPAP')+
                                         "/Optical/Data/Analysis/py"))
@@ -406,7 +487,7 @@ class LLSSurvey(AbslineSurvey):
 
         # Return
         return lls
-        '''
+        """
         import urllib2
         # Pull from Internet (as necessary)
         summ_fil = glob.glob(xa_path+"/data/LLS/HD-LLS_DR1.fits")
@@ -433,7 +514,7 @@ class LLSSurvey(AbslineSurvey):
                 code.write(f.read())
 
         # Read
-        lls_survey = cls(summ_fits=summ_fil)
+        lls_survey = cls.from_sfits(summ_fil)
         # Load ions
         lls_survey.fill_ions(jfile=ions_fil)
         # Set data path (may be None)
@@ -441,6 +522,43 @@ class LLSSurvey(AbslineSurvey):
             lls.spec_path = os.getenv('HDLLS_DATA')
 
         return lls_survey
+
+    """
+    @classmethod
+    def from_flist(cls, flist, tree=None, **kwargs):
+        xdb.set_trace()
+        slf = AbslineSurvey.from_flist(self,'LLS', flist, tree=tree, **kwargs)
+        return slf
+    """
+
+    def __init__(self, **kwargs):
+        # Generate with type
+        AbslineSurvey.__init__(self, 'LLS', **kwargs)
+
+    def cut_nhi_quality(self, sig_cut=0.4):
+        """
+        Cut the LLS on NHI quality.
+        Could put this in Absline_Survey
+
+        Parameters:
+          sig_cut: float (0.4)
+            Limit to include as quality
+
+        Returns:
+          gdNHI, bdNHI
+            Indices for those LLS that are good/bad
+            gdNHI is a numpy array of indices
+            bdNHI is a boolean array
+        """
+        # Cut
+        gdNHI = np.where( (self.sigNHI[:,0] < sig_cut)
+                        & (self.sigNHI[:,1] < sig_cut))[0]
+        # Mask
+        bdNHI = (self.NHI == self.NHI)
+        bdNHI[gdNHI] = False
+
+        # Return
+        return gdNHI, bdNHI
 
 def tau_multi_lls(wave, all_lls, **kwargs):
     '''Calculate opacities on an input observed wavelength grid

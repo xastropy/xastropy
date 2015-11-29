@@ -26,7 +26,7 @@ def test_read_hdlls_dr1():
     else:
         assert True
         return
-    lls = LLSSurvey(summ_fits=summ_fil)
+    lls = LLSSurvey.from_sfits(summ_fil)
     assert lls.nsys == 157
 
     # Read ions
@@ -38,7 +38,7 @@ def test_read_hdlls_dr1():
         return
     lls.fill_ions(jfile=ions_fil)
     CII_clms = lls.ions((6,2))
-    gdCII = np.where(CII_clms['flg_clm']>0)[0]
+    gdCII = np.where(CII_clms['flag_N']>0)[0]
     assert len(gdCII) == 103
 
 def test_dat_list():
@@ -49,7 +49,7 @@ def test_dat_list():
         assert True
         return
     # Load
-    lls = LLSSurvey(flist='Lists/lls_metals.lst', tree=os.getenv('LLSTREE'))
+    lls = LLSSurvey.from_flist('Lists/lls_metals.lst', tree=os.getenv('LLSTREE'))
     # tests
     np.testing.assert_allclose(lls.NHI[0], 19.25)
     assert lls.nsys == 165
