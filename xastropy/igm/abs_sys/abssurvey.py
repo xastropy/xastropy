@@ -1,21 +1,11 @@
-"""
-#;+ 
-#; NAME:
-#; abssys_utils
-#;    Version 1.0
-#;
-#; PURPOSE:
-#;    Module for Absorption Systems
-#;   23-Oct-2014 by JXP
-#;-
-#;------------------------------------------------------------------------------
+""" Class for and AbslineSurvey
 """
 
 from __future__ import print_function, absolute_import, division, unicode_literals
 
 import numpy as np
 import imp, json, copy
-from abc import ABCMeta, abstractmethod
+from abc import ABCMeta
 
 from astropy.io import ascii 
 from astropy import units as u
@@ -33,67 +23,66 @@ xa_path = imp.find_module('xastropy')[1]
 ###################### ######################
 # Class for Absorption Line Survey
 class AbslineSurvey(object):
-    """A survey of absorption line systems. Each system may be a
-    collection of Absline_System's
+    """
+    Class for a survey of absorption line systems.
 
-    Attributes:
-        nsys: An integer representing the number of absorption systems
-        abs_type: Type of Absorption system (DLA, LLS)
-        ref: Reference to the Survey
+    Attributes
+    ----------
+        nsys  : int
+          An integer representing the number of absorption systems
+        abs_type : str
+          Type of Absorption system (DLA, LLS)
+        ref : str
+          Reference(s) to the Survey
     """
 
     __metaclass__ = ABCMeta
 
-    # Init
-    def __init__(self, abs_type, flist=None, summ_fits=None, tree='', ref=''):
-        # Expecting a list of files describing the absorption systems
-        """  Initiator
+    @classmethod
+    def from_flist(cls, flist, tree=None, **kwargs):
+        """ Read from list of .dat files (historical JXP format)
 
         Parameters
         ----------
-        abs_type : str
-          Type of Abs Line System, e.g.  MgII, DLA, LLS
-        flist : str, optional
-          ASCII file giving a list of systems (usually .dat files)
-        summ_fits : str, optional
-          FITS file for generating the Survey
-        mask : Boolean array
-          Mask for the systems
-        ref : string
-          Reference(s) for the survey
+        flist : str
+          ASCII file including list of .dat files
+        tree : str, optional
+          Path to .dat files
+        kwargs :
+          Passed to __init__
         """
-        self.flist = flist
-        self.tree = tree
-        self.abs_type = abs_type
-        self.ref = ref
-        self._abs_sys = []
-        self.summ_fits = summ_fits
-        self.mask = None
+        if tree is None:
+            tree = ''
+        # Load up (if possible)
+        data = ascii.read(tree+flist, data_start=0,
+                          guess=False,format='no_header')
+        slf = cls(nsys=len(data),**kwargs)
+        slf.tree = tree
+        slf.flist = flist
 
-        # Load
-        if flist is not None:
-            self.from_flist()
-        elif summ_fits is not None:
-            self.from_sfits()
-        else:
-            self.nsys = 0 
+        # Load up
+        slf.dat_files = list(data['col1'])
+        print('Read {:d} files from {:s} in the tree {:s}'.format(
+            slf.nsys, slf.flist, slf.tree))
+        # Generate AbsSys list
+        for dat_file in slf.dat_files:
+            slf._abs_sys.append(set_absclass(slf.abs_type).from_datfile(dat_file,tree=slf.tree))
 
-        # Mask
-        if self.mask is None:
-            if self.nsys > 0:
-                self.mask = np.array([True]*self.nsys) 
+        return slf
 
-    def from_sfits(self):
-        '''Generate the Survey from a summary FITS file
+    @classmethod
+    def from_sfits(cls, summ_fits, **kwargs):
+        """Generate the Survey from a summary FITS file
+
         Handles SPEC_FILES too.
-        '''
+        """
         # Read
-        systems = QTable.read(self.summ_fits)
-        self.nsys = len(systems)
+        systems = QTable.read(summ_fits)
+        slf = cls(nsys=len(systems),**kwargs)
         # Dict
         kdict = dict(NHI=['NHI','logNHI'],
-            sigNHI=['sig(logNHI)'],
-            name=['Name'], 
+            sig_NHI=['sig(logNHI)'],
+            name=['Name'],
             vlim=['vlim'],
             zabs=['Z_LLS'],
             zem=['Z_QSO'],
@@ -105,46 +94,65 @@ class AbslineSurvey(object):
             vals, tag = lsio.get_table_column(kdict[key],[systems],idx=0)
             if vals is not None:
                 inputs[key] = vals
+        # vlim
+        if not 'vlim' in inputs.keys():
+            default_vlim = [-500,500.]*u.km/u.s
+            inputs['vlim'] = [default_vlim]*slf.nsys
         # Generate
-        for kk,row in enumerate(systems):
+        for kk in range(slf.nsys):
             # Generate keywords
             kwargs = {}
+            args = {}
             for key in inputs.keys():
-                kwargs[key] = inputs[key][kk]
+                if key in ['vlim','zabs','RA','Dec']:
+                    args[key] = inputs[key][kk]
+                else:
+                    kwargs[key] = inputs[key][kk]
             # Instantiate
-            abssys = set_absclass(self.abs_type)(**kwargs)
+            abssys = set_absclass(slf.abs_type)((args['RA'],args['Dec']), args['zabs'], args['vlim'], **kwargs)
             # spec_files
             try:
                 abssys.spec_files += systems[kk]['SPEC_FILES'].tolist()
-            except KeyError:
+            except (KeyError,AttributeError):
                 pass
-            self._abs_sys.append(abssys)
-        # Specfiles
+            slf._abs_sys.append(abssys)
+        # Return
+        return slf
+
+    def __init__(self, abs_type, nsys=0, ref=''):
+        # Expecting a list of files describing the absorption systems
+        """  Initiator
+
+        Parameters
+        ----------
+        abs_type : str
+          Type of AbsSystem in the Survey, e.g.  MgII, DLA, LLS
+        nsys : int, optional
+          Number of AbsSystem in the Survey
+        ref : string, optional
+          Reference(s) for the survey
+        """
+        self.abs_type = abs_type
+        self.ref = ref
+        self._abs_sys = []
+        self.mask = None
+        self.nsys = nsys
+
+        # Mask
+        self.init_mask()
+
+        # Init
+        self.flist = None
+
+    def init_mask(self):
+        """ Initialize the mask for abs_sys
+        """
+        if self.nsys > 0:
+            self.mask = np.array([True]*self.nsys)
+
+    #def from_sfits(self):
 
 
-    def from_flist(self):
-        '''Generate the Survey from a file list.  
-        Typically .dat files of JXP format
-        '''
-        # Load up (if possible)
-        data = ascii.read(self.tree+self.flist, data_start=0, 
-            guess=False,format='no_header')
-
-        self.dat_files = list(data['col1'])
-        self.nsys = len(self.dat_files)
-        print('Read {:d} files from {:s} in the tree {:s}'.format(
-            self.nsys, self.flist, self.tree))
-        # Generate AbsSys list
-        for dat_file in self.dat_files:
-            self._abs_sys.append(set_absclass(self.abs_type)(dat_file=dat_file,tree=self.tree))
-            '''
-            if self.abs_type == 'LLS':
-                self._abs_sys.append(set(dat_file=dat_file,tree=tree))
-            elif self.abs_type == 'DLA':
-                self._abs_sys.append(DLA_System(dat_file=dat_file,tree=tree))
-            else: # Generic
-                self._abs_sys.append(GenericAbsSystem(abs_type,dat_file=tree+dat_file))
-            '''
 
     # Get abs_sys (with mask)
     def abs_sys(self):
@@ -153,6 +161,19 @@ class AbslineSurvey(object):
 
     # Get attributes
     def __getattr__(self, k):
+        """ Generate an array of attribute 'k' from the AbsSystems
+
+        Mask is applied
+
+        Parameters
+        ----------
+        k : str
+          Attribute
+
+        Returns
+        -------
+        numpy array
+        """
         try:
             lst = [getattr(abs_sys,k) for abs_sys in self._abs_sys]
         except ValueError:
@@ -163,14 +184,13 @@ class AbslineSurvey(object):
 
     # Get ions
     def fill_ions(self,jfile=None): # This may be overloaded!
-        '''
-        Loop on systems to fill in ions
+        """ Loop on systems to fill in ions
 
         Parameters:
         -----------
         jfile: str, optional
           JSON file containing the information
-        '''
+        """
         if jfile is not None:
             # Load
             with open(jfile) as data_file:    
@@ -188,7 +208,7 @@ class AbslineSurvey(object):
 
     # Get ions
     def ions(self,iZion, skip_null=False):
-        '''
+        """
         Generate a Table of columns and so on
         Restrict to those systems where flg_clm > 0
 
@@ -202,78 +222,48 @@ class AbslineSurvey(object):
         Returns
         ----------
         Table of values for the Survey
-        '''
-        from astropy.table import Table
-        keys = [u'name',] + self.abs_sys()[0]._ionclms._data.keys()
-        t = copy.deepcopy(self.abs_sys()[0]._ionclms._data[0:1])
+        """
+        keys = [u'name',] + self.abs_sys()[0]._ionclms.keys()
+        t = copy.deepcopy(self.abs_sys()[0]._ionclms[0:1])
         t.add_column(Column(['dum'],name='name',dtype='<U32'))
-        #key_dtype= ('<U32',) + self.abs_sys()[0]._ionclms.data.key_dtype
-        #key_dtype= ('<U32',) + self.abs_sys()[0]._ionclms.data.dtype
-        #t = Table(names=keys, dtype=key_dtype)
         t = t[keys]
 
         # Loop on systems (Masked)
         for abs_sys in self.abs_sys():
-            ## Mask?
-            #if not self.mask[self.abs_sys.index(abs_sys)]: 
-            #    continue
             # Grab
-            try:
-                idict = abs_sys._ionclms[iZion]
-            except KeyError:
+            mt = (abs_sys._ionclms['Z'] == iZion[0]) & (abs_sys._ionclms['ion'] == iZion[1])
+            if np.sum(mt) == 1:
+                irow = abs_sys._ionclms[mt]
+                # Cut on flg_clm
+                if irow['flag_N'] > 0:
+                    row = [abs_sys.name] + [irow[key] for key in keys[1:]]
+                    t.add_row( row )   # This could be slow
+                else:
+                    if skip_null is False:
+                        row = [abs_sys.name] + [0 for key in keys[1:]]
+                        t.add_row( row )
+            elif np.sum(mt) == 0:
                 if skip_null is False:
                     row = [abs_sys.name] + [0 for key in keys[1:]]
-                    t.add_row( row )   
+                    t.add_row( row )
                 continue
-            # Cut on flg_clm
-            if idict['flg_clm'] > 0:
-                row = [abs_sys.name] + [idict[key] for key in keys[1:]]
-                t.add_row( row )   # This could be slow
             else:
-                if skip_null is False:
-                    row = [abs_sys.name] + [0 for key in keys[1:]]
-                    t.add_row( row )   
+                raise ValueError('Multiple entries...')
+
         # Return
         return t[1:]
 
-        '''
-        # Loop on systems (Masked)
-        for abs_sys in self.abs_sys():
-            ## Mask?
-            #if not self.mask[self.abs_sys.index(abs_sys)]: 
-            #    continue
-            # Grab
-            try:
-                itab = abs_sys._ionclms[iZion]
-            except KeyError:
-                if skip_null is False:
-                    row = [abs_sys.name] + [0 for key in keys[1:]]
-                    t.add_row( row )   
-                continue
-            # Cut on flg_clm
-            if itab['flg_clm'] > 0:
-                row = [abs_sys.name] + [idict[key] for key in keys[1:]]
-                t.add_row( row )   # This could be slow
-            else:
-                if skip_null is False:
-                    row = [abs_sys.name] + [0 for key in keys[1:]]
-                    t.add_row( row )   
-        # Return
-        return t[1:]  # Slice dummy row
-        '''
-
     # Mask
     def upd_mask(self, msk, increment=False):
-        '''
-        Update the Mask for the abs_sys
+        """ Update the Mask for the abs_sys
 
         Parameters
         ----------
         msk : array (usually Boolean)
            Mask of systems 
-        increment : Boolean (False)
+        increment : bool, optional
            Increment the mask (i.e. keep False as False)
-        '''
+        """
         if len(msk) == len(self._abs_sys):  # Boolean mask
             if increment is False:
                 self.mask = msk
@@ -282,7 +272,6 @@ class AbslineSurvey(object):
         else:
             raise ValueError('abs_survey: Needs developing!')
 
-    # Printing
     def __repr__(self):
         if self.flist is not None:
             return '[AbslineSurvey: {:s} {:s}, nsys={:d}, type={:s}, ref={:s}]'.format(
@@ -300,7 +289,7 @@ class GenericAbsSurvey(AbslineSurvey):
 
 # Set AbsClass
 def set_absclass(abstype):
-    '''Translate abstype into Class
+    """Translate abstype into Class
     Parameters:
     ----------
     abstype: str
@@ -309,7 +298,7 @@ def set_absclass(abstype):
     Returns:
     --------
     Class name
-    '''
+    """
     from xastropy.igm.abs_sys.lls_utils import LLSSystem
     from xastropy.igm.abs_sys.dla_utils import DLASystem
     from xastropy.igm.abs_sys.abssys_utils import GenericAbsSystem

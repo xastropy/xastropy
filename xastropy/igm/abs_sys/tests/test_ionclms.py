@@ -33,10 +33,12 @@ def test_ionclms_attr():
 
     assert ioncs.Z[3] == 6
 
+"""
+DEPRECATED
 def test_ionclms_sum():
     ioncs1 = IonClms(all_file=data_path('UM184.z2929_MAGE.all'))
     ioncs2 = IonClms(all_file=data_path('UM184.z2929_MAGE.all'))
     # Sum
     ioncs3 = ioncs1.sum(ioncs2)
     np.testing.assert_allclose(ioncs3['SiII']['logN'], np.log10(2)+13.7)
-
+"""

@@ -16,7 +16,7 @@ def data_path(filename):
 
 def test_simple_init():
 	# Init 
-    lls = LLSSystem((0.*u.deg, 0.*u.deg), 2.0, 17.9)
+    lls = LLSSystem((0.*u.deg, 0.*u.deg), 2.0, None, NHI=17.9)
     #
     np.testing.assert_allclose(lls.NHI, 17.9)
     np.testing.assert_allclose(lls.tau_LL, 5.03537353413629)
@@ -41,5 +41,5 @@ def test_parse_ion():
     datfil = 'Data/UM184.z2929.dat'
     lls = LLSSystem.from_datfile(datfil, tree=os.getenv('LLSTREE'))
     #    
-    lls.get_ions()
-    assert len(lls.lines) == 24
+    lls.get_ions(use_clmfile=True)
+    assert len(lls._ionclms) == 13
