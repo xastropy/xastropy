@@ -342,6 +342,7 @@ def read_all_file(all_file,components=None,verbose=False):
     components : list, optional
       List of AbsComponent objects
     """
+    assert False # USE LINETOOLS
     # Read
     if verbose:
         print('Reading {:s}'.format(all_file))
@@ -481,6 +482,7 @@ def read_ion_file(ion_fil,lines=None,components=None,linelist=None,toler=0.05*u.
     toler : Quantity, optional
       Tolerance for matching wrest
     """
+    assert False # USE LINETOOLS
     # Read
     names=('wrest', 'logN', 'sig_logN', 'flag_N', 'flg_inst')
     table = ascii.read(ion_fil, format='no_header', names=names)

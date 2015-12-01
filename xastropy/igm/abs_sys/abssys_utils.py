@@ -401,6 +401,7 @@ def read_dat_file(dat_file,verbose=False):
     dat_dict : OrderedDict
       A dict containing the info in the .dat file
     """
+    assert False  # NOW IN LINETOOLS
     # Define
     datdict = OrderedDict()
     # Open
