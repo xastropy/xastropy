@@ -135,7 +135,7 @@ def photo_cross(Z, ion, E, datfil=None, silent=False):
     -------
     sigma : Cross-section (cm^2)
     """
-
+    assert False  # USE LINETOOLS
     # Read data
     if datfil == None:
         datfil = xa_path+'/data/atomic/verner96_photoion_table1.dat'
