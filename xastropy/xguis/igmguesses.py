@@ -9,6 +9,8 @@
 #;      Likely only useful for lowz-IGM
 #;   14-Aug-2015 by JXP
 #;-
+#;- NT: New version using linetools' AbsComponent
+#;-
 #;------------------------------------------------------------------------------
 """
 from __future__ import print_function, absolute_import, division, unicode_literals
@@ -38,6 +40,7 @@ from linetools.lists.linelist import LineList
 from linetools.spectra.xspectrum1d import XSpectrum1D
 from linetools.spectra import convolve as lsc
 from linetools.spectralline import AbsLine
+from linetools.isgm.abscomponent import AbsComponent
 
 #from xastropy.atomic import ionization as xatomi
 from xastropy.plotting import utils as xputils
@@ -62,7 +65,7 @@ class IGMGuessesGui(QtGui.QMainWindow):
         srch_id=True, outfil=None, fwhm=None, zqso=None,
         plot_residuals=True,n_max_tuple=None, min_strength=0.):
         QtGui.QMainWindow.__init__(self, parent)
-        '''
+        """
         spec = Spectrum1D
         previous_file: str, optional
             Name of the previous guesses file
@@ -81,7 +84,7 @@ class IGMGuessesGui(QtGui.QMainWindow):
             HI Lya transition assuming solar abundance.
 
 
-        '''
+        """
         # TODO
         # 1. Fix convolve window size
             # 2. Avoid sorting of wavelengths
@@ -603,7 +606,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
                 self.subxy_state = 'Out'
 
         ## NAVIGATING
-        if event.key in self.psdict['nav']: 
+        if event.key in self.psdict['nav']:
             flg = xxgu.navigate(self.psdict,event)
         if event.key == '-':
             self.idx_line = max(0, self.idx_line-self.sub_xy[0]*self.sub_xy[1]) # Min=0
@@ -611,7 +614,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
                 print('Edge of list')
         if event.key == '=':
             self.idx_line = min(len(self.llist['show_line'])-self.sub_xy[0]*self.sub_xy[1],
-                                self.idx_line + self.sub_xy[0]*self.sub_xy[1]) 
+                                self.idx_line + self.sub_xy[0]*self.sub_xy[1])
             if self.idx_line == sv_idx:
                 print('Edge of list')
 
@@ -629,19 +632,19 @@ class IGGVelPlotWidget(QtGui.QWidget):
             if self.parent.fiddle_widg.component is None:
                 print('Need to generate a component first!')
                 return
-            if event.key == 'N': 
+            if event.key == 'N':
                 self.parent.fiddle_widg.component.attrib['N'] += 0.05
-            elif event.key == 'n': 
+            elif event.key == 'n':
                 self.parent.fiddle_widg.component.attrib['N'] -= 0.05
-            elif event.key == 'v': 
+            elif event.key == 'v':
                 self.parent.fiddle_widg.component.attrib['b'] -= 2*u.km/u.s
-            elif event.key == 'V': 
+            elif event.key == 'V':
                 self.parent.fiddle_widg.component.attrib['b'] += 2*u.km/u.s
-            elif event.key == '<': 
+            elif event.key == '<':
                 self.parent.fiddle_widg.component.attrib['z'] -= 2e-5 #should be a fraction of pixel size
-            elif event.key == '>': 
+            elif event.key == '>':
                 self.parent.fiddle_widg.component.attrib['z'] += 2e-5
-    
+
             elif event.key == 'R': # Refit
                 self.fit_component(self.parent.fiddle_widg.component)
             # Updates (this captures them all and redraws)
@@ -649,7 +652,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
         ## Grab/Delete a component
         if event.key in ['D','S','d']:
             # Delete selected component
-            if event.key == 'd': 
+            if event.key == 'd':
                 self.parent.delete_component(self.parent.fiddle_widg.component)
                 return
             #
@@ -677,7 +680,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
             #self.abs_sys.zabs = newz
             # Drawing
             self.psdict['xmnx'] = self.vmnx.value
-        if event.key == '^': 
+        if event.key == '^':
             zgui = xxgu.AnsBox('Enter redshift:',float)
             zgui.exec_()
             self.z = zgui.value
@@ -712,9 +715,9 @@ class IGGVelPlotWidget(QtGui.QWidget):
         ## Velocity limits
         unit = u.km/u.s
         if event.key in ['1','2']:
-            if event.key == '1': 
+            if event.key == '1':
                 self.vmin = event.xdata*unit
-            if event.key == '2': 
+            if event.key == '2':
                 #QtCore.pyqtRemoveInputHook()
                 #xdb.set_trace()
                 #QtCore.pyqtRestoreInputHook()
@@ -730,7 +733,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
                 self.flag_add = True
                 self.wrest = wrest
             else:
-                self.avmnx = np.array([np.minimum(self.vtmp,event.xdata), 
+                self.avmnx = np.array([np.minimum(self.vtmp,event.xdata),
                     np.maximum(self.vtmp,event.xdata)])*unit
                 self.add_component(wrest)
                 # Reset
@@ -738,7 +741,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
                 self.wrest = 0.
 
         # Fiddle with analysis mask        
-        if event.key in ['x','X']:  
+        if event.key in ['x','X']:
             # x = Delete mask
             # X = Add to mask
             if self.flag_mask is False:
@@ -764,12 +767,12 @@ class IGGVelPlotWidget(QtGui.QWidget):
         # Labels
         if event.key == 'L': # Toggle ID lines
             self.flag_idlbl = ~self.flag_idlbl
-            
+
         # AODM plot
         if event.key == ':':  # 
             # Grab good lines
             from xastropy.xguis import spec_guis as xsgui
-            gdl = [iline.wrest for iline in self.abs_sys.lines 
+            gdl = [iline.wrest for iline in self.abs_sys.lines
                 if iline.analy['do_analysis'] > 0]
             # Launch AODM
             if len(gdl) > 0:
@@ -785,7 +788,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
         #if wrest is not None: # Single window
         #    flg = 3
         if event.key in ['c','C','k','K','W','!', '@', '=', '-', 'X', ' ','R']: # Redraw all
-            flg = 1 
+            flg = 1
         if event.key in ['Y']:
             rescale = False
         if event.key in ['c','C','k','K', 'R', '(']:
@@ -1222,26 +1225,37 @@ class ComponentListWidget(QtGui.QWidget):
         #self.on_list_change()
 
 
-class Component(object):
+class Component(AbsComponent):
     def __init__(self, z, wrest, vlim=[-300.,300]*u.km/u.s,
         linelist=None):
+
         # Init
         self.init_wrest = wrest
-        self.zcomp = z
-        self.vlim = vlim
+        self.linelist = linelist
+        self.lines = []
+        self.init_lines()
+
+        # Generate with type
+        radec = (0*u.deg,0*u.deg)
+        Zion = (self.lines[0].data['Z'],self.lines[0].data['ion'])
+        Ej = self.lines[0].data['Ej']
+        AbsComponent.__init__(self,radec, Zion, z, vlim, Ej, comment='None')
+
+        # Init cont.
         self.attrib = {'N': 0., 'Nsig': 0., 'flagN': 0, # Column
                        'b': 0.*u.km/u.s, 'bsig': 0.*u.km/u.s,  # Doppler
                        'z': self.zcomp, 'zsig': 0.,
                        'Quality': 'None'}
-        self.comment = 'None'
-        #
-        self.linelist = linelist
-        self.lines = []
-        self.init_lines()
-        #
+
+        # Sync
+        self.sync_lines()
+
+        # Use different naming convention here
         self.name = 'z{:.5f}_{:s}'.format(
             self.zcomp,self.lines[0].data['name'].split(' ')[0])
-        #
+
+
+
     def init_lines(self):
         '''Fill up the component lines
         '''
@@ -1259,8 +1273,7 @@ class Component(object):
             self.lines.append(AbsLine(trans['wrest'],
                 linelist=self.linelist))
 
-        # Sync
-        self.sync_lines()
+
 
     def sync_lines(self):
         '''Synchronize attributes of the lines
