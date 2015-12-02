@@ -1236,7 +1236,7 @@ class Component(AbsComponent):
         self.init_lines()
 
         # Generate with type
-        radec = (0,0)
+        radec = (0*u.deg,0*u.deg)
         Zion = (self.lines[0].data['Z'],self.lines[0].data['ion'])
         Ej = self.lines[0].data['Ej']
         AbsComponent.__init__(self,radec, Zion, z, vlim, Ej, comment='None')
@@ -1247,12 +1247,14 @@ class Component(AbsComponent):
                        'z': self.zcomp, 'zsig': 0.,
                        'Quality': 'None'}
 
+        # Sync
+        self.sync_lines()
+
         # Use different naming convention here
         self.name = 'z{:.5f}_{:s}'.format(
             self.zcomp,self.lines[0].data['name'].split(' ')[0])
 
-        # Sync
-        self.sync_lines()
+
 
     def init_lines(self):
         '''Fill up the component lines
