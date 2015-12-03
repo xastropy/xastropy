@@ -451,24 +451,25 @@ class ExamineSpecWidget(QtGui.QWidget):
                 ii=-1
                 for abs_sys in self.abs_sys:
                     ii+=1
-                    kwrest = np.array([line.wrest.value for line in abs_sys.lines])
-                    wvobs = kwrest * (abs_sys.zabs+1) * u.AA
-                    gdwv = np.where( ((wvobs.value+5) > self.psdict['xmnx'][0]) &  # Buffer for region
-                                    ((wvobs.value-5) < self.psdict['xmnx'][1]))[0]
+                    lines = abs_sys.list_of_abslines()
                     #QtCore.pyqtRemoveInputHook()
                     #xdb.set_trace()
                     #QtCore.pyqtRestoreInputHook()
-                    #for kk in range(len(gdwv)): 
+                    wrest = Quantity([line.wrest for line in lines])
+                    wvobs = wrest * (abs_sys.zabs+1)
+                    gdwv = np.where( ((wvobs.value+5) > self.psdict['xmnx'][0]) &  # Buffer for region
+                                    ((wvobs.value-5) < self.psdict['xmnx'][1]))[0]
+                    #for kk in range(len(gdwv)):
                     for jj in gdwv:
-                        if abs_sys.lines[jj].analy['do_analysis'] == 0:
+                        if lines[jj].analy['do_analysis'] == 0:
                             continue
                         # Paint spectrum red
-                        wvlim = wvobs[jj]*(1 + abs_sys.lines[jj].analy['vlim']/const.c.to('km/s'))
+                        wvlim = wvobs[jj]*(1 + lines[jj].analy['vlim']/const.c.to('km/s'))
                         pix = np.where( (self.spec.dispersion > wvlim[0]) & (self.spec.dispersion < wvlim[1]))[0]
                         self.ax.plot(self.spec.dispersion[pix], self.spec.flux[pix], '-',drawstyle='steps-mid',
                                      color=clrs[ii])
                         # Label
-                        lbl = abs_sys.lines[jj].analy['name']+' z={:g}'.format(abs_sys.zabs)
+                        lbl = lines[jj].analy['name']+' z={:g}'.format(abs_sys.zabs)
                         self.ax.text(wvobs[jj].value, ylbl, lbl, color=clrs[ii], rotation=90., size='x-small')
             # Analysis? EW, Column
             if self.adict['flg'] == 1:
