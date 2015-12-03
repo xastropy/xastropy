@@ -495,7 +495,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
         '''Add a Lya/Lyb forest line
         '''
         from xastropy.igm.abs_sys.abssys_utils import GenericAbsSystem
-        forest = GenericAbsSystem((0.*u.deg,0.*u.deg), z, None)
+        forest = GenericAbsSystem((0.*u.deg,0.*u.deg), z, [-300.,300.]*u.km/u.s)
         # NHI
         NHI_dict = {'6':12.,'7':13.,'8':14.,'9':15.}
         forest.NHI=NHI_dict[inp]
@@ -516,7 +516,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
         '''Generate a new LLS
         '''
         #
-        new_sys = LLSSystem((0*u.deg,0*u.deg),z,None,NHI=NHI)
+        new_sys = LLSSystem((0*u.deg,0*u.deg),z,[-300.,300]*u.km/u.s,NHI=NHI)
         new_sys.bval = bval # This is not standard, but for convenience
         new_sys.comment = comment
         new_sys.fill_lls_lines(bval=bval, do_analysis=0)
@@ -555,7 +555,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
 
         #print('NHI={:g}'.format(NHI))
         z = x/(911.7)-1
-        plls = LLSSystem((0*u.deg,0*u.deg),z,None,NHI=NHI)
+        plls = LLSSystem((0*u.deg,0*u.deg),z,[-300.,300]*u.km/u.s,NHI=NHI)
         plls.bval = 20*u.km/u.s
         plls.fill_lls_lines(bval=20*u.km/u.s, do_analysis=0)
 
