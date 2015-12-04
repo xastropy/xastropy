@@ -146,9 +146,12 @@ class XFitLLSGUI(QtGui.QMainWindow):
         # Grab the pieces and tie together
         self.abssys_widg = xspw.AbsSysWidget([],only_one=True,
             no_buttons=True, linelist=self.llist[self.llist['List']])
+
+        vlines = [(912 * (1 + zqso) if zqso is not None else None)]
         self.spec_widg = xspw.ExamineSpecWidget(spec,status=self.statusBar,
                                                 llist=self.llist, key_events=False,
-                                                abs_sys=self.abssys_widg.abs_sys)
+                                                abs_sys=self.abssys_widg.abs_sys,
+                                                vlines=vlines, plotzero=1)
         # Initialize continuum (and LLS if from a file)
         if lls_fit_file is not None:
             self.init_LLS(lls_fit_file,spec)
@@ -261,6 +264,8 @@ class XFitLLSGUI(QtGui.QMainWindow):
         # Point MainWindow
         self.setCentralWidget(self.main_widget)
 
+        self.spec_widg.setFixedWidth(900)
+
     def on_list_change(self):
         self.update_boxes()
 
@@ -284,8 +289,11 @@ class XFitLLSGUI(QtGui.QMainWindow):
             self.Cwidget.box.text())
         # Update the lines
         for iline in self.abssys_widg.all_abssys[idx].lls_lines:
+            #QtCore.pyqtRemoveInputHook()
+            #import pdb; pdb.set_trace()
+            #QtCore.pyqtRestoreInputHook()
             iline.attrib['z'] = self.abssys_widg.all_abssys[idx].zabs 
-            iline.attrib['N'] = self.abssys_widg.all_abssys[idx].NHI
+            iline.attrib['N'] = 10**self.abssys_widg.all_abssys[idx].NHI * u.cm**-2
             iline.attrib['b'] = self.abssys_widg.all_abssys[idx].bval
         # Update the rest
         self.update_model()
@@ -338,7 +346,10 @@ class XFitLLSGUI(QtGui.QMainWindow):
         else:
             wa1 = wa
         all_tau_model = ltlls.tau_multi_lls(wa1,
-            self.abssys_widg.all_abssys, skip_wveval=self.skip_wveval)
+           self.abssys_widg.all_abssys, skip_wveval=self.skip_wveval)
+        #QtCore.pyqtRemoveInputHook()
+        #import pdb; pdb.set_trace()
+        #QtCore.pyqtRestoreInputHook()
 
         # Loop on forest lines
         for forest in self.all_forest:
@@ -364,6 +375,8 @@ class XFitLLSGUI(QtGui.QMainWindow):
                 self.spec_widg.spec.sig*1.5)))[0] 
         # Model
         self.spec_widg.model = self.full_model
+
+
 
     def get_sngl_sel_sys(self):
         '''Grab selected system
@@ -444,7 +457,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
                 #QtCore.pyqtRestoreInputHook()
                 for iline in self.abssys_widg.all_abssys[idx].lls_lines:
                     iline.attrib['z'] = self.abssys_widg.all_abssys[idx].zabs 
-                    iline.attrib['N'] = self.abssys_widg.all_abssys[idx].NHI
+                    iline.attrib['N'] = 10**self.abssys_widg.all_abssys[idx].NHI * u.cm**-2
                     iline.attrib['b'] = self.abssys_widg.all_abssys[idx].bval
             # Update the model
             self.update_model()
@@ -504,7 +517,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
             aline = AbsLine(name,
                 linelist=self.llist[self.llist['List']])
             # Attributes
-            aline.attrib['N'] = forest.NHI
+            aline.attrib['N'] = 10**forest.NHI * u.cm**-2
             aline.attrib['b'] = 20.*u.km/u.s
             aline.attrib['z'] = forest.zabs
             # Append
@@ -512,7 +525,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
         # Append to forest lines
         self.all_forest.append(forest)
 
-    def add_LLS(self,z,NHI=17.3,bval=20.*u.km/u.s,comment='None', model=True):
+    def add_LLS(self,z, NHI=17.3,bval=20.*u.km/u.s,comment='None', model=True):
         '''Generate a new LLS
         '''
         #

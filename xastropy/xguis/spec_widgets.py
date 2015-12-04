@@ -69,7 +69,7 @@ class ExamineSpecWidget(QtGui.QWidget):
     '''
     def __init__(self, ispec, parent=None, status=None, llist=None,
                  abs_sys=None, norm=True, second_file=None, zsys=None,
-                 key_events=True):
+                 key_events=True, vlines=None, plotzero=False):
         '''
         spec = Spectrum1D
         '''
@@ -79,6 +79,12 @@ class ExamineSpecWidget(QtGui.QWidget):
         spec, spec_fil = xxgu.read_spec(ispec)
         self.orig_spec = spec # For smoothing
         self.spec = self.orig_spec 
+
+        self.vlines = []
+        if vlines is not None:
+            self.vlines.extend(vlines)
+
+        self.plotzero = plotzero
 
         # Other bits (modified by other widgets)
         self.continuum = None
@@ -486,6 +492,12 @@ class ExamineSpecWidget(QtGui.QWidget):
         # Reset window limits
         self.ax.set_xlim(self.psdict['xmnx'])
         self.ax.set_ylim(self.psdict['ymnx'])
+
+        if self.plotzero:
+            self.ax.axhline(0, lw=0.3, color='k')
+
+        for line in self.vlines:
+            self.ax.axvline(line, color='k', ls=':')
 
         # Draw
         if not no_draw:
