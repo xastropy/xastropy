@@ -513,8 +513,8 @@ class XFitLLSGUI(QtGui.QMainWindow):
         self.all_forest.append(forest)
 
     def add_LLS(self,z,NHI=17.3,bval=20.*u.km/u.s,comment='None', model=True):
-        '''Generate a new LLS
-        '''
+        """Generate a new LLS
+        """
         #
         new_sys = LLSSystem((0*u.deg,0*u.deg),z,[-300.,300]*u.km/u.s,NHI=NHI)
         new_sys.bval = bval # This is not standard, but for convenience
