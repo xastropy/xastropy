@@ -30,8 +30,9 @@ from linetools.spectra.xspectrum1d import XSpectrum1D
 from linetools.spectra import convolve as lsc
 import linetools.spectra.io as lsi
 from linetools.spectralline import AbsLine
-from linetools.isgm.lls import LLSSystem
-from linetools.isgm import lls as ltlls
+
+from pyigm.abssys.lls import LLSSystem
+from pyigm.abssys import lls as igmlls
 
 from xastropy.xutils import xdebug as xdb
 from xastropy.xguis import spec_widgets as xspw
@@ -289,9 +290,6 @@ class XFitLLSGUI(QtGui.QMainWindow):
             self.Cwidget.box.text())
         # Update the lines
         for iline in self.abssys_widg.all_abssys[idx].lls_lines:
-            #QtCore.pyqtRemoveInputHook()
-            #import pdb; pdb.set_trace()
-            #QtCore.pyqtRestoreInputHook()
             iline.attrib['z'] = self.abssys_widg.all_abssys[idx].zabs 
             iline.attrib['N'] = 10**self.abssys_widg.all_abssys[idx].NHI * u.cm**-2
             iline.attrib['b'] = self.abssys_widg.all_abssys[idx].bval
@@ -345,7 +343,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
             wa1 = np.arange(wa[0].value, wa[-1].value, self.dw) * wa.unit
         else:
             wa1 = wa
-        all_tau_model = ltlls.tau_multi_lls(wa1,
+        all_tau_model = igmlls.tau_multi_lls(wa1,
            self.abssys_widg.all_abssys, skip_wveval=self.skip_wveval)
         #QtCore.pyqtRemoveInputHook()
         #import pdb; pdb.set_trace()
@@ -525,9 +523,9 @@ class XFitLLSGUI(QtGui.QMainWindow):
         # Append to forest lines
         self.all_forest.append(forest)
 
-    def add_LLS(self,z, NHI=17.3,bval=20.*u.km/u.s,comment='None', model=True):
-        '''Generate a new LLS
-        '''
+    def add_LLS(self,z, NHI=17.3,bval=20.*u.km/u.s, comment='None', model=True):
+        """Generate a new LLS
+        """
         #
         new_sys = LLSSystem((0*u.deg,0*u.deg),z,[-300.,300]*u.km/u.s,NHI=NHI)
         new_sys.bval = bval # This is not standard, but for convenience
@@ -574,7 +572,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
 
         # wrest, Tau model, flux
         wrest = spec.dispersion/(1+plls.zabs)
-        tau = ltlls.tau_multi_lls(spec.dispersion,[plls])
+        tau = igmlls.tau_multi_lls(spec.dispersion,[plls])
         emtau = np.exp(-1. * tau)
         lls_flux = lsc.convolve_psf(emtau, 3.)
 #xdb.xplot(wrest, lls_flux)
