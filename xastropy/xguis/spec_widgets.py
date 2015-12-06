@@ -43,7 +43,7 @@ from xastropy.xguis import utils as xxgu
 from xastropy import xutils 
 from xastropy.plotting import utils as xputils
 from xastropy.igm.abs_sys import abssys_utils as xiaa
-from xastropy.igm.abs_sys.lls_utils import LLSSystem
+from pyigm.abssys.lls import LLSSystem
 from xastropy.xguis import utils as xguiu
 
 xa_path = imp.find_module('xastropy')[1]
