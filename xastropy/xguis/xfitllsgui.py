@@ -265,7 +265,8 @@ class XFitLLSGUI(QtGui.QMainWindow):
         # Point MainWindow
         self.setCentralWidget(self.main_widget)
 
-        self.spec_widg.setFixedWidth(900)
+        #self.spec_widg.setFixedWidth(900)
+        self.spec_widg.setMinimumWidth(900)
 
     def on_list_change(self):
         self.update_boxes()
@@ -462,6 +463,11 @@ class XFitLLSGUI(QtGui.QMainWindow):
         elif event.key in ['6','7','8','9']: # Add forest line
             self.add_forest(event.key,event.xdata/1215.6701 - 1.)
             self.update_model()
+        elif event.key == 'Q':
+            # set an attribute to tell calling script to abort
+            print("Setting the quit attribute, the calling script should "
+                  "abort after you close the GUI")
+            self.script_quit = True
         else:
             self.spec_widg.on_key(event)
 
