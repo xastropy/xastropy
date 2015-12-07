@@ -146,11 +146,13 @@ class ExamineSpecWidget(QtGui.QWidget):
     # Setup the spectrum plotting info
     def init_spec(self):
         #xy min/max
-        xmin = np.min(self.spec.dispersion).value
-        xmax = np.max(self.spec.dispersion).value
-        ymed = np.median(self.spec.flux).value
-        ymin = 0. - 0.1*ymed
-        ymax = ymed * 1.5
+        xmin = np.min(self.spec.dispersion.value)
+        xmax = np.max(self.spec.dispersion.value)
+        from linetools.spectra.plotting import get_flux_plotrange
+        ymin, ymax = get_flux_plotrange(self.spec.flux.value, mult_pos=1)
+        # ymed = np.median(self.spec.flux.value)
+        # ymin = 0. - 0.1*ymed
+        # ymax = ymed * 1.5
         #
         #QtCore.pyqtRemoveInputHook()
         #xdb.set_trace()
