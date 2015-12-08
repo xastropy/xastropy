@@ -43,7 +43,7 @@ from xastropy.xguis import utils as xxgu
 from xastropy import xutils 
 from xastropy.plotting import utils as xputils
 from xastropy.igm.abs_sys import abssys_utils as xiaa
-from xastropy.igm.abs_sys.lls_utils import LLSSystem
+from pyigm.abssys.lls import LLSSystem
 from xastropy.xguis import utils as xguiu
 
 xa_path = imp.find_module('xastropy')[1]
@@ -69,7 +69,7 @@ class ExamineSpecWidget(QtGui.QWidget):
     '''
     def __init__(self, ispec, parent=None, status=None, llist=None,
                  abs_sys=None, norm=True, second_file=None, zsys=None,
-                 key_events=True):
+                 key_events=True, vlines=None, plotzero=False):
         '''
         spec = Spectrum1D
         '''
@@ -80,9 +80,16 @@ class ExamineSpecWidget(QtGui.QWidget):
         self.orig_spec = spec # For smoothing
         self.spec = self.orig_spec 
 
+        self.vlines = []
+        if vlines is not None:
+            self.vlines.extend(vlines)
+
+        self.plotzero = plotzero
+
         # Other bits (modified by other widgets)
         self.continuum = None
         self.model = None
+        self.bad_model = None  # Discrepant pixels in model
         self.use_event = 1
 
         # Abs Systems
@@ -102,7 +109,7 @@ class ExamineSpecWidget(QtGui.QWidget):
 
         # Line List?
         if llist is None:
-            self.llist = {'Plot': False, 'List': 'None', 'z': 0.}
+            self.llist = {'Plot': False, 'List': 'None', 'z': 0., 'Lists': []}
         else:
             self.llist = llist
 
@@ -139,11 +146,13 @@ class ExamineSpecWidget(QtGui.QWidget):
     # Setup the spectrum plotting info
     def init_spec(self):
         #xy min/max
-        xmin = np.min(self.spec.dispersion).value
-        xmax = np.max(self.spec.dispersion).value
-        ymed = np.median(self.spec.flux).value
-        ymin = 0. - 0.1*ymed
-        ymax = ymed * 1.5
+        xmin = np.min(self.spec.dispersion.value)
+        xmax = np.max(self.spec.dispersion.value)
+        from linetools.spectra.plotting import get_flux_plotrange
+        ymin, ymax = get_flux_plotrange(self.spec.flux.value, mult_pos=1)
+        # ymed = np.median(self.spec.flux.value)
+        # ymin = 0. - 0.1*ymed
+        # ymax = ymed * 1.5
         #
         #QtCore.pyqtRemoveInputHook()
         #xdb.set_trace()
@@ -421,6 +430,11 @@ class ExamineSpecWidget(QtGui.QWidget):
             if self.model is not None:
                 self.ax.plot(self.model.dispersion, self.model.flux, 
                     color='cyan')
+                if self.bad_model is not None:
+                    self.ax.scatter(self.model.dispersion[self.bad_model], 
+                        self.model.flux[self.bad_model],  marker='o',
+                        color='red', s=3.)
+
 
             # Spectral lines?
             if self.llist['Plot'] is True:
@@ -445,24 +459,25 @@ class ExamineSpecWidget(QtGui.QWidget):
                 ii=-1
                 for abs_sys in self.abs_sys:
                     ii+=1
-                    kwrest = np.array([line.wrest.value for line in abs_sys.lines])
-                    wvobs = kwrest * (abs_sys.zabs+1) * u.AA
-                    gdwv = np.where( ((wvobs.value+5) > self.psdict['xmnx'][0]) &  # Buffer for region
-                                    ((wvobs.value-5) < self.psdict['xmnx'][1]))[0]
+                    lines = abs_sys.list_of_abslines()
                     #QtCore.pyqtRemoveInputHook()
                     #xdb.set_trace()
                     #QtCore.pyqtRestoreInputHook()
-                    #for kk in range(len(gdwv)): 
+                    wrest = Quantity([line.wrest for line in lines])
+                    wvobs = wrest * (abs_sys.zabs+1)
+                    gdwv = np.where( ((wvobs.value+5) > self.psdict['xmnx'][0]) &  # Buffer for region
+                                    ((wvobs.value-5) < self.psdict['xmnx'][1]))[0]
+                    #for kk in range(len(gdwv)):
                     for jj in gdwv:
-                        if abs_sys.lines[jj].analy['do_analysis'] == 0:
+                        if lines[jj].analy['do_analysis'] == 0:
                             continue
                         # Paint spectrum red
-                        wvlim = wvobs[jj]*(1 + abs_sys.lines[jj].analy['vlim']/const.c.to('km/s'))
+                        wvlim = wvobs[jj]*(1 + lines[jj].analy['vlim']/const.c.to('km/s'))
                         pix = np.where( (self.spec.dispersion > wvlim[0]) & (self.spec.dispersion < wvlim[1]))[0]
                         self.ax.plot(self.spec.dispersion[pix], self.spec.flux[pix], '-',drawstyle='steps-mid',
                                      color=clrs[ii])
                         # Label
-                        lbl = abs_sys.lines[jj].analy['name']+' z={:g}'.format(abs_sys.zabs)
+                        lbl = lines[jj].analy['name']+' z={:g}'.format(abs_sys.zabs)
                         self.ax.text(wvobs[jj].value, ylbl, lbl, color=clrs[ii], rotation=90., size='x-small')
             # Analysis? EW, Column
             if self.adict['flg'] == 1:
@@ -479,6 +494,12 @@ class ExamineSpecWidget(QtGui.QWidget):
         # Reset window limits
         self.ax.set_xlim(self.psdict['xmnx'])
         self.ax.set_ylim(self.psdict['ymnx'])
+
+        if self.plotzero:
+            self.ax.axhline(0, lw=0.3, color='k')
+
+        for line in self.vlines:
+            self.ax.axvline(line, color='k', ls=':')
 
         # Draw
         if not no_draw:
@@ -545,6 +566,7 @@ class PlotLinesWidget(QtGui.QWidget):
             self.llist['Plot'] = False
             self.llist['z'] = 0.
             self.llist['List'] = 'None'
+            self.llist['Lists'] = []
         else: # Fill it all up and select
             self.llist = init_llist
             if not init_llist['List'] in self.lists:

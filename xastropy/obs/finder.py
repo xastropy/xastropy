@@ -53,6 +53,7 @@ import numpy as np
 from astropy.io import fits, ascii
 from astropy import units as astrou
 from astropy.table import QTable, Column
+from astropy.coordinates import SkyCoord
 
 import matplotlib
 
@@ -118,10 +119,11 @@ def get_coord(targ_file, radec=None):
 
 #### ###############################
 #  Main driver
-#  finder.main(['TST', '10:31:38.87', '+25:59:02.3'], radec=1)
+#  finder.main(['TST', '10:31:38.87', '+25:59:02.3'])
 #  imsize is in arcmin
-def main(inp, survey='2r', radec=None, deci=None, fpath=None,
-         EPOCH=0., DSS=None, BW=False, imsize=5., show_spec=False):
+def main(inp, survey='2r', radec=None, deci=None, fpath=None, show_circ=True,
+         EPOCH=0., DSS=None, BW=False, imsize=5.*astrou.arcmin, show_spec=False,
+         OUT_TYPE='PDF'):
     '''
     Parameters:
     ---------
@@ -130,6 +132,7 @@ def main(inp, survey='2r', radec=None, deci=None, fpath=None,
        'ra_dec_list.txt' -- ASCII file with columns of Name,RA,DEC and RA,DEC are string or float (deg)
         ['NAME_OF_TARG', '10:31:38.87', '+25:59:02.3']
         ['NAME_OF_TARG', 124.24*u.deg, -23.244*u.deg]
+        ['NAME_OF_TARG', SkyCoord]
     radec: integer (0) [DEPRECATED!]
        Flag indicating type of input
        0 = ASCII file with columns of Name,RA,DEC and RA,DEC are string or float (deg)
@@ -137,10 +140,14 @@ def main(inp, survey='2r', radec=None, deci=None, fpath=None,
        2 = ['Name', ra_deg, dec_deg]
     BW: bool (False)
        B&W image?
+    show_circ: bool (True)
+       Show a yellow circle on the target
     show_spec: bool (False)
        Try to grab and show an SDSS spectrum 
-    imsize: float
-       Image size in arcmin
+    imsize: Quantity, optional
+       Image size 
+    OUT_TYPE: str, optional  
+       File type -- 'PDF', 'PNG'
     '''
     reload(x_r)
     reload(xgs)
@@ -150,6 +157,10 @@ def main(inp, survey='2r', radec=None, deci=None, fpath=None,
     # Init
     if fpath is None:
         fpath = './'
+    try:
+        imsize=imsize.to('arcmin').value
+    except AttributeError:
+        raise AttributeError('finder: Input imsize needs to be an Angle')
     cradius = imsize / 50. 
 
     # Read in the Target list
@@ -165,6 +176,9 @@ def main(inp, survey='2r', radec=None, deci=None, fpath=None,
         elif isinstance(inp[1],float):
             ira_tab['RA'] = inp[1] * astrou.deg
             ira_tab['DEC'] = inp[2]* astrou.deg
+        elif isinstance(inp[1],SkyCoord):
+            ira_tab['RA'] = inp[1].ra.deg
+            ira_tab['DEC'] = inp[1].dec.deg
         else: # Should check it is a Quantity
             ira_tab['RA'] = inp[1]
             ira_tab['DEC'] = inp[2]
@@ -208,7 +222,10 @@ def main(inp, survey='2r', radec=None, deci=None, fpath=None,
 
         # Outfil
         nm = "".join(obj['Name'].split()) 
-        outfil = fpath+ nm + '.pdf'
+        if OUT_TYPE=='PNG':
+            outfil = fpath+ nm + '.png'
+        else:
+            outfil = fpath+ nm + '.pdf'
         print(outfil)
 
         # Grab the Image
@@ -258,8 +275,9 @@ def main(inp, survey='2r', radec=None, deci=None, fpath=None,
         #import pdb; pdb.set_trace()
 
         # Circle
-        circle=plt.Circle((0,0),cradius,color='y', fill=False)
-        plt.gca().add_artist(circle)
+        if show_circ:
+            circle=plt.Circle((0,0),cradius,color='y', fill=False)
+            plt.gca().add_artist(circle)
 
         # Spectrum??
         if show_spec:
@@ -272,6 +290,7 @@ def main(inp, survey='2r', radec=None, deci=None, fpath=None,
         else:
             plt.savefig(outfil)
         print 'finder: Wrote '+outfil
+        plt.close()
         #xdb.set_trace()
 
     print 'finder: All done.'
@@ -286,8 +305,8 @@ if __name__ == "__main__":
     
     # 
     if (flg_fig % 2**1) >= 2**0:
-        main(['TST', '10:31:38.87', '+25:59:02.3'], radec=1)
+        main(['TST', '10:31:38.87', '+25:59:02.3'])
 
     # 
     if (flg_fig % 2**2) >= 2**1:
-        main(['TST2', '16:11:51.946', '+49:45:32.0'], radec=1, show_spec=True)
+        main(['TST2', '16:11:51.946', '+49:45:32.0'], show_spec=True)

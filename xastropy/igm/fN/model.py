@@ -23,7 +23,6 @@ from astropy import constants as const
 
 
 from xastropy.xutils import xdebug as xdb
-from xastropy.spec import abs_line, voigt
 from xastropy.stats import mcmc
 from xastropy.igm import igm_utils as igmu
 from xastropy.atomic import ionization as xai
@@ -32,7 +31,7 @@ from xastropy.atomic import ionization as xai
 xa_path = imp.find_module('xastropy')[1]
 
 class fN_Model(object):
-    """A Class for fN models
+    """A Class for f(N,X) models
 
     Attributes:
        fN_mtype: string
@@ -49,7 +48,7 @@ class fN_Model(object):
        zpivot: float (2.4)
           Pivot for redshift evolution
        gamma: float (1.5)
-          Power law for dN/dX
+          Power law for dN/dX, not dN/dz
     """
 
     # Initialize with type
@@ -145,7 +144,7 @@ class fN_Model(object):
             z = np.array([z])
 
         # Brute force (should be good to ~0.5%)
-        lgNHI = NHI_min + (NHI_max-NHI_min)*np.arange(neval)/(neval-1.)
+        lgNHI = np.linspace(NHI_min,NHI_max,neval)#NHI_min + (NHI_max-NHI_min)*np.arange(neval)/(neval-1.)
         dlgN = lgNHI[1]-lgNHI[0]
 
         # Evaluate f(N,X)
@@ -251,7 +250,7 @@ class fN_Model(object):
     ##
     # Evaluate
     def eval(self, NHI, z, vel_array=None, cosmo=None):
-        """ Evaluate the model at a set of NHI values
+        """ Evaluate the f(N,X) model at a set of NHI values
 
         Parameters:
         NHI: array
@@ -523,11 +522,11 @@ def default_model(recalc=False, pckl_fil=None, use_mcmc=False, write=False):
       Tested against XIDL code by JXP on 09 Nov 2014
 
     Parameters:
-    recalc: boolean (False)
+    recalc : boolean (False)
       Recalucate the default model
-    use_mcmc: boolean (False)
+    use_mcmc : boolean (False)
       Use the MCMC chain to generate the model
-    write: boolean (False)
+    write : boolean (False)
       Write out the model
     """
     if pckl_fil==None:

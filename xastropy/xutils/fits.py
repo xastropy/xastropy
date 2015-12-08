@@ -55,12 +55,12 @@ def table_to_fits(itable, outfil, compress=False, comment=None):
     ''' Write an astropy Table as a FITS binary table
     ---
     Parameters
-    ---------
-    table: astropy.Table
-    outfil: string
-    compress: bool (False)
+    ----------
+    table : astropy.Table
+    outfil : string
+    compress : bool (False)
        gzip compress?
-    comment: string 
+    comment : string 
        Comment to insert into the header
     '''
 
@@ -73,3 +73,24 @@ def table_to_fits(itable, outfil, compress=False, comment=None):
     # Compress?
     if compress:
         subprocess.call(["gzip", "-f", outfil])
+
+def write_quick_fits(arr_list, outfil, clobber=True):
+    ''' Write a list of arrays to a FITS file
+    Parameters
+    ---------
+    arr_list: list of ndarray
+    outfil: str
+    '''
+    if not isinstance(arr_list,list):
+        raise IOError('Arrays must be in a list, even single ones')
+    hdulist = None
+    for arr in arr_list:
+        if hdulist is None:
+            hdulist = fits.HDUList([fits.PrimaryHDU(arr)])
+        else:
+            hdulist.append(fits.ImageHDU(arr))
+    # Write
+    hdulist.writeto(outfil, clobber=clobber)
+    print('Wrote: {:s}'.format(outfil))
+
+

@@ -20,7 +20,7 @@ import matplotlib.pyplot as plt
 
 #def plot_1d_arrays -- Plot a series of arrays (as many as you want!!)
 #def plot_hist -- Plot a simple histogram 
-
+# def add_subplot_axes -- Add a subplot to a given axis
 #### ###############################
 #  Simplest quick plot
 #   Plot a series of arrays (as many as you want!!)
@@ -34,14 +34,19 @@ def plot_1d_arrays(*args,**kwargs):
       Outfil
     xlbl,ylbl= : string
       Labels for x,y axes
-    xrng,yrng= : List
-      Range of x,y limits
-    xtwo= : float 
+    xrng= list
+      Range of x limits
+    yrng= list
+      Range of y limits
+    xtwo= : ndarray
       x-values for a second array
-    ytwo= : float 
+    ytwo= : ndarray 
       y-values for a second array
+    mtwo= : str
+      marker for xtwo
     scatter= : Bool
       True for a scatter plot
+    NOTE: Any extra parameters are fed as kwargs to plt.plot()
     """
     # Error checking
     if len(args) == 0:
@@ -76,6 +81,12 @@ def plot_1d_arrays(*args,**kwargs):
         plt_dict['ytwo'] = kwargs['ytwo']
         kwargs.pop('ytwo')
         plt_dict['flg_two'] = 1
+        # mtwo
+        if 'mtwo' in kwargs:
+            plt_dict['mtwo']=kwargs['mtwo']
+            kwargs.pop('mtwo')
+        else:
+            plt_dict['mtwo']=''
     else:
         plt_dict['flg_two'] = 0
 
@@ -101,7 +112,7 @@ def plot_1d_arrays(*args,**kwargs):
     plt.clf()
     # Plot it right up
     if len(args) == 1:
-        plt.plot(args[0].flatten())
+        plt.plot(args[0].flatten(), **kwargs)
     else: 
         for kk in range(1,len(args)):
             if plt_dict['flg_scatt'] == 0:
@@ -110,7 +121,7 @@ def plot_1d_arrays(*args,**kwargs):
                 plt.scatter(args[0].flatten(),args[kk].flatten(), **kwargs)
 
     if plt_dict['flg_two'] == 1:
-        plt.plot(plt_dict['xtwo'], plt_dict['ytwo'])
+        plt.plot(plt_dict['xtwo'], plt_dict['ytwo'], plt_dict['mtwo'], **kwargs)
 
     # Limits
     if plt_dict['xrng'] is not None:
@@ -128,9 +139,8 @@ def plot_1d_arrays(*args,**kwargs):
     if plt_dict['outfil'] is not None:
         plt.savefig(plt_dict['outfil']) 
         print('Wrote figure to {:s}'.format(plt_dict['outfil']))
-
-    # Show
-    plt.show()
+    else: # Show
+        plt.show()
 
     return
     
@@ -150,6 +160,8 @@ def plot_hist(*args,**kwargs):
       Set keyword to True to not show to screen
     noclear : boolean (False) 
       Set keyword to True to not clear the figure
+    xmnx : tuple, optional
+      (xmin, xmax) for plotting
     """
     # Error checking
     if len(args) == 0:
@@ -177,7 +189,7 @@ def plot_hist(*args,**kwargs):
     #pdb.set_trace()
 
     # Clear
-    if not 'noclear' in kwargs:
+    if (not 'noclear' in kwargs) and (not 'ax' in kwargs):
         plt.clf()
 
     # Ax
@@ -212,13 +224,15 @@ def plot_hist(*args,**kwargs):
                 ax.set_xlabel(kwargs['xlabel'])
             except: 
                 ax.xlabel(kwargs['xlabel'])
+        if 'xmnx' in kwargs:
+            ax.set_xlim(kwargs['xmnx'])
     else: 
         pdb.set_trace() # Not ready for this yet
         for kk in range(1,len(args)):
             fig.plot(args[0].flatten(),args[kk].flatten())
 
     # Finish
-    if not 'noshow' in kwargs:
+    if (not 'noshow' in kwargs) and (not 'ax' in kwargs):
         plt.show()
 
     return
@@ -263,6 +277,31 @@ def add_subplot_axes(ax, rect, axisbg='w'):
     # Return
     return subax
 
+#### ###############################
+#Inset (stolen from http://stackoverflow.com/questions/
+    #    17458580/embedding-small-plots-inside-subplots-in-matplotlib )
+def dark_bkgd(matplt):
+    '''Set up matplotlib for a dark background'''
+    matplt.rcParams['lines.color']= 'white'
+    matplt.rcParams['patch.edgecolor']= 'white'
+
+    matplt.rcParams['text.color']= 'white'
+
+    matplt.rcParams['axes.facecolor']= 'black'
+    matplt.rcParams['axes.edgecolor']= 'white'
+    matplt.rcParams['axes.labelcolor']= 'white'
+
+    matplt.rcParams['xtick.color']= 'white'
+    matplt.rcParams['ytick.color']= 'white'
+
+    matplt.rcParams['grid.color']= 'white'
+
+    matplt.rcParams['figure.facecolor']= 'black'
+    matplt.rcParams['figure.edgecolor']= 'black'
+
+    matplt.rcParams['savefig.facecolor']= 'black'
+    matplt.rcParams['savefig.edgecolor']= 'black'
+    return
 
 ## #################################    
 ## #################################    

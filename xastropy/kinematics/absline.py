@@ -25,7 +25,7 @@ from xastropy import spec as xspec
 
 ########################## ##########################
 ########################## ##########################
-class Kin_Abs(object):
+class KinAbs(object):
     """ Class for kinematics on an absorption line
 
     Attributes
@@ -65,7 +65,7 @@ class Kin_Abs(object):
            raise KeyError 
 
     ########################## ##########################
-    def mk_pix_stau(self, spec, kbin=22., debug=False, **kwargs):
+    def mk_pix_stau(self, spec, kbin=22.*u.km/u.s, debug=False, **kwargs):
         """ Generate the smoothed tau array for kinematic tests
     
         Parameters
@@ -114,7 +114,7 @@ class Kin_Abs(object):
         tau[sat] = np.log(2./spec.sig[pix[sat]])
 
         # Smooth
-        nbin = np.round(kbin/dv)
+        nbin = (np.round(kbin/dv)).value
         kernel = Box1DKernel(nbin, mode='center')
         stau = convolve(tau, kernel, boundary='fill', fill_value=0.)
         if debug is True:
@@ -175,7 +175,7 @@ class Kin_Abs(object):
 
     ########################## ##########################
     def cgm_kin(self, spec, per=0.05, debug=False, cov_thresh=0.5,
-                dv_zeropk=15., do_orig_kin=False, get_stau=False, **kwargs):
+                dv_zeropk=15.*u.km/u.s, do_orig_kin=False, get_stau=False, **kwargs):
         """ Some new tests, invented in the context of CGM studies.
         Some are thanks to John Forbes.
 
