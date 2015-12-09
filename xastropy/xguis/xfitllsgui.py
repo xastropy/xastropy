@@ -321,10 +321,16 @@ class XFitLLSGUI(QtGui.QMainWindow):
                 self.abssys_widg.all_abssys[idx].comment))
 
     def update_conti(self):
-        '''Update continuum '''
-        self.continuum.flux = (self.base_continuum * self.conti_dict['Norm'] * 
-            (self.continuum.dispersion.value/
-                self.conti_dict['piv_wv'])**self.conti_dict['tilt'])
+        """Update continuum
+        """
+        cflux = self.base_continuum * self.conti_dict['Norm']
+        # Double tilt
+        if 'piv_wv2' in self.conti_dict.keys():
+            pass
+            #lowwv = self.contiuum
+        else:
+            self.continuum.flux = (cflux * (self.continuum.dispersion.value/
+                    self.conti_dict['piv_wv'])**self.conti_dict['tilt'])
         if self.lls_model is not None:
             self.full_model.flux = self.lls_model * self.continuum.flux
 
