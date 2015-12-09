@@ -359,8 +359,11 @@ class XFitLLSGUI(QtGui.QMainWindow):
         # Flux and smooth
         flux = np.exp(-1. * all_tau_model)
         if self.smooth > 0:
-            mult = np.median(np.diff(wa.value)) / self.dw
-            flux = lsc.convolve_psf(flux, self.smooth * mult)
+            if not self.skip_wveval:
+                mult = np.median(np.diff(wa.value)) / self.dw
+                flux = lsc.convolve_psf(flux, self.smooth * mult)
+            else:
+                flux = lsc.convolve_psf(flux, self.smooth)
         if not self.skip_wveval:
             self.lls_model = np.interp(wa.value, wa1.value, flux)
         else:
