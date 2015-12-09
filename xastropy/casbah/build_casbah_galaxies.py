@@ -56,6 +56,34 @@ def build_spectra(field,path='./'):
     '''
     # MMT
 
+def build_imaging(field,path='./'):
+    '''Top-level program to build images
+
+    Parameters:
+    -----------
+    field: tuple
+      (Name, ra, dec)
+    '''
+    import shutil
+    # DEIMOS mask image
+    targ_file = xcasbahu.get_filename(field,'TARGETS')
+    targets = Table.read(targ_file,delimiter='|',
+        format='ascii.fixed_width', 
+        fill_values=[('--','0','MASK_NAME')])
+    deimos_targ = np.where(targets['INSTR'] == 'DEIMOS')[0]
+    if len(deimos_targ) > 0:
+        # Search for LBT image
+        msk_img = targets[deimos_targ]['TARG_IMG'][0]
+        img_fil = glob.glob(field[0]+'/IMG/LBT/'+msk_img+'*')
+        if len(img_fil) == 1:
+            # Copy
+            path = os.getenv('CASBAH_GALAXIES')
+            shutil.copy2(img_fil[0], path+'/'+field[0]+'/')
+            print('Copied {:s}'.format(img_fil[0]))
+        else:
+            raise ValueError('Need to provide the image! {:s}'.format(
+                field[0]+'/IMG/LBT/'+msk_img))
+
 def build_targets(field,path='./'):
     '''Top-level program to build target info 
 
@@ -69,7 +97,6 @@ def build_targets(field,path='./'):
 
     # DEIMOS
     deimos_sex, deimos_masks, deimos_obs, deimos_targs = deimos_targets(field)
-
 
     # COLLATE
     all_masks = deimos_masks + mmt_masks
@@ -215,7 +242,7 @@ def parse_sex_file(field,targ_yaml_file):
 
 
 def deimos_targets(field,path=None):
-    '''Generate files related to DEIMOS deimos_targets
+    """Generate files related to DEIMOS deimos_targets
 
     Parameters:
     -----------
@@ -224,7 +251,7 @@ def deimos_targets(field,path=None):
 
     Returns:
     ----------
-    '''
+    """
     if path is None:
         path = '/Galx_Spectra/DEIMOS/'
 
@@ -493,15 +520,14 @@ def mmt_targets(field,path=None):
                 raise ValueError('Multiple matches?!')
             targ_mask['MASK_NAME'][mtt[0]] = mask_nm
         all_obs.append(obs_tab)
+    # Add columns to targs
+    for tt,cname in enumerate(cnames):
+        mask = np.array([False]*len(targs))
+        bad = np.where(np.array(targ_mask[cname])==msk_val[tt])[0]
+        if len(bad)>0:
+            mask[bad]=True
+        #
+        clm = MaskedColumn(targ_mask[cname],name=cname, mask=mask)
+        targs.add_column(clm)
     # Finish
-    mask = np.array([False]*len(targs))
-    bad = np.where(np.array(targ_mask['names'])=='--')[0]
-    if len(bad)>0:
-        mask[bad]=True
-    #
-    clm = MaskedColumn(targ_mask['names'],name='MASK_NAME',
-        mask=mask)
-    targs.add_column(clm)
-
-
     return all_masks, all_obs, targs

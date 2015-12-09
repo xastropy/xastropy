@@ -23,29 +23,35 @@ from xastropy.obs import radec as xra
 from xastropy.xutils import xdebug as xdb
 
 def get_filename(field, ftype):
-	'''Generate a CASBAH file given field and type
+    '''Generate a CASBAH file given field and type
 
-	Parameters:
-	-----------
-	field: tuple
-	  (Name, ra, dec)
-	ftype: str
-	  Type of filename desired
-	'''
-	if ftype == 'MULTI_OBJ':
-		path = os.getenv('CASBAH_GALAXIES')
-		filename = path+'/'+field[0]+'/'+field[0]+'_MULTI_OBJ.ascii'
-	elif ftype == 'TARGETS':
-		path = os.getenv('CASBAH_GALAXIES')
-		filename = path+'/'+field[0]+'/'+field[0]+'_targets.ascii'
-	elif ftype == 'SDSS':
-		path = os.getenv('CASBAH_GALAXIES')
-		filename = path+'/'+field[0]+'/'+field[0]+'_SDSS.fits'
-	elif ftype == 'HECTOSPEC':
-		path = os.getenv('CASBAH_GALAXIES')
-		filename = path+'/'+field[0]+'/'+field[0]+'_HECTOSPEC.fits'
-	else:
-		raise ValueError('Not ready for this ftype: {:s}'.format(ftype))
-	# Return
-	return filename
+    Parameters:
+    -----------
+    field: tuple
+      (Name, ra, dec)
+    ftype: str
+      Type of filename desired
+    '''
+    if ftype == 'MULTI_OBJ':
+        path = os.getenv('CASBAH_GALAXIES')
+        filename = path+'/'+field[0]+'/'+field[0]+'_MULTI_OBJ.ascii'
+    elif ftype == 'TARGETS':
+        path = os.getenv('CASBAH_GALAXIES')
+        filename = path+'/'+field[0]+'/'+field[0]+'_targets.ascii'
+    elif ftype == 'SDSS':
+        path = os.getenv('CASBAH_GALAXIES')
+        filename = path+'/'+field[0]+'/'+field[0]+'_SDSS.fits'
+    elif ftype == 'HECTOSPEC':
+        path = os.getenv('CASBAH_GALAXIES')
+        filename = path+'/'+field[0]+'/'+field[0]+'_HECTOSPEC.fits'
+    elif ftype == 'DEIMOS_TARG_FIG':
+        path = os.getenv('CASBAH_GALAXIES')
+        filename = path+'/'+field[0]+'/'+field[0]+'_deimostarg.pdf'
+    elif ftype == 'HECTO_TARG_FIG':
+        path = os.getenv('CASBAH_GALAXIES')
+        filename = path+'/'+field[0]+'/'+field[0]+'_hectotarg.pdf'
+    else:
+        raise ValueError('Not ready for this ftype: {:s}'.format(ftype))
+    # Return
+    return filename
 
