@@ -159,7 +159,8 @@ class XFitLLSGUI(QtGui.QMainWindow):
         else:
             self.conti_dict = xspc.init_conti_dict(
                 Norm=float(np.median(spec.flux.value)),
-                piv_wv=np.median(spec.dispersion.value),
+                piv_wv=1215.*(1+zqso),
+                #piv_wv2=915.*(1+zqso),
                 igm='True')
         if self.base_continuum is None:
             if zqso is not None:
@@ -178,6 +179,8 @@ class XFitLLSGUI(QtGui.QMainWindow):
                 self.continuum = tspec.rebin(spec.dispersion)
                 # Reset pivot wave
                 self.conti_dict['piv_wv'] = 915.*(1+zqso)
+                #self.conti_dict['piv_wv'] = 1215.*(1+zqso)
+                #self.conti_dict['piv_wv2'] = 915.*(1+zqso)
             else:
                 self.zqso = None
                 self.continuum = XSpectrum1D.from_tuple((
@@ -326,8 +329,11 @@ class XFitLLSGUI(QtGui.QMainWindow):
         cflux = self.base_continuum * self.conti_dict['Norm']
         # Double tilt
         if 'piv_wv2' in self.conti_dict.keys():
-            pass
-            #lowwv = self.contiuum
+            lowwv = self.continuum.dispersion.value < self.conti_dict['piv_wv2']
+            self.continuum.flux[lowwv] = (cflux[lowwv] * (self.continuum.dispersion.value[lowwv]/
+                                            self.conti_dict['piv_wv2'])**self.conti_dict['tilt2'])
+            self.continuum.flux[~lowwv] = (cflux[~lowwv] * (self.continuum.dispersion.value[~lowwv]/
+                                            self.conti_dict['piv_wv'])**self.conti_dict['tilt'])
         else:
             self.continuum.flux = (cflux * (self.continuum.dispersion.value/
                     self.conti_dict['piv_wv'])**self.conti_dict['tilt'])
@@ -405,7 +411,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
             return idx
 
     def on_key(self,event):
-        if event.key in ['C','1','2']: # Set continuum level
+        if event.key in ['C','1','2','!','@']: # Set continuum level
             if event.key == 'C':
                 imin = np.argmin(np.abs(
                     self.continuum.dispersion.value-event.xdata))
@@ -416,6 +422,10 @@ class XFitLLSGUI(QtGui.QMainWindow):
                 self.conti_dict['tilt'] += 0.1
             elif event.key == '2':
                 self.conti_dict['tilt'] -= 0.1
+            elif event.key == '!':
+                self.conti_dict['tilt2'] += 0.1
+            elif event.key == '@':
+                self.conti_dict['tilt2'] -= 0.1
             self.update_conti()
         elif event.key == 'A': # New LLS
             # Generate
@@ -450,7 +460,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
             elif event.key == 'D': # Delete system
                 self.abssys_widg.remove_item(idx)
                 idx = None
-            elif event.key == '@': # Toggle metal-lines
+            elif event.key == '$': # Toggle metal-lines
                 self.llist['Plot'] = not self.llist['Plot']
                 #QtCore.pyqtRemoveInputHook()
                 #xdb.set_trace()
