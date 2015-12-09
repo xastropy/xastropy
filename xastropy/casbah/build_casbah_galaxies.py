@@ -242,7 +242,7 @@ def parse_sex_file(field,targ_yaml_file):
 
 
 def deimos_targets(field,path=None):
-    '''Generate files related to DEIMOS deimos_targets
+    """Generate files related to DEIMOS deimos_targets
 
     Parameters:
     -----------
@@ -251,7 +251,7 @@ def deimos_targets(field,path=None):
 
     Returns:
     ----------
-    '''
+    """
     if path is None:
         path = '/Galx_Spectra/DEIMOS/'
 
