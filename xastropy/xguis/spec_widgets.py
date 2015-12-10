@@ -149,7 +149,7 @@ class ExamineSpecWidget(QtGui.QWidget):
         xmin = np.min(self.spec.dispersion.value)
         xmax = np.max(self.spec.dispersion.value)
         from linetools.spectra.plotting import get_flux_plotrange
-        ymin, ymax = get_flux_plotrange(self.spec.flux.value, mult_pos=1)
+        ymin, ymax = get_flux_plotrange(self.spec.flux.value)#, mult_pos=1)
         # ymed = np.median(self.spec.flux.value)
         # ymin = 0. - 0.1*ymed
         # ymax = ymed * 1.5
