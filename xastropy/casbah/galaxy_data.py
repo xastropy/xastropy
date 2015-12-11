@@ -14,19 +14,16 @@ from __future__ import print_function, absolute_import, division, unicode_litera
 
 import numpy as np
 import os, imp
-from astropy.io import fits, ascii
+from astropy.io import fits
 from astropy import units as u 
 from astropy.table.table import Table
-#from astropy import constants as const
 
 from xastropy.xutils import xdebug as xdb
 
-########################## ##########################
-########################## ##########################
+
 def galaxy_attrib():
     """ List of properties expected to be stored for CASBAH galaxies
 
-    JXP on 01 Dec 2015
     """
     attrib = [ (str('RA'), float),                 # RA (J2000)
                (str('DEC'), float),                # DEC (J2000)
@@ -37,41 +34,38 @@ def galaxy_attrib():
                (str('TELESCOPE'), '|S80'),            # Telescope(s) used
                (str('INSTRUMENT'), '|S80')            # Instrument(s) used
                ]
-
-    #tmp = np.recarray( (1,), dtype=attrib)
-    #tmp['TELESCOPE'] = 'BLAHHH'
-    #xdb.set_trace()
-
+    # Return
     return attrib
 
 
-
-########################## ##########################
-########################## ##########################
 def grab_sdss_spectra(radec, radius=0.1*u.deg, outfil=None,
     debug=False, maxsep=None, timeout=600., zmin=None):
     """ Grab SDSS spectra
-    radec: tuple
+
+    Parameters
+    ----------
+    radec : tuple
       RA, DEC in deg
-    radius: float, optional (0.1*u.deg)
+    radius : float, optional (0.1*u.deg)
       Search radius -- Astroquery actually makes a box, not a circle
-    timeout: float, optional
+    timeout : float, optional
       Timeout limit for connection with SDSS
-    outfil: str ('tmp.fits')
+    outfil : str ('tmp.fits')
       Name of output file for FITS table
-    maxsep: float (None) :: Mpc
+    maxsep : float (None) :: Mpc
       Maximum separation to include 
-    zmin: float (None) 
+    zmin : float (None)
       Minimum redshift to include
 
-    JXP on 01 Jan 2015
+    Returns
+    -------
+    tbl : Table
+
     """
     from astroquery.sdss import SDSS
     from astropy import coordinates as coords
     from astropy.cosmology import Planck13 as cosmo 
     from astropy.coordinates import SkyCoord
-
-
 
     cC = coords.SkyCoord(ra=radec[0], dec=radec[1])
 
