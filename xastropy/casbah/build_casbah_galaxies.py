@@ -28,22 +28,27 @@ from xastropy.obs import radec as xra
 from xastropy.xutils import xdebug as xdb
 
 # SDSS
-def build_sdss(radius=2.0*u.deg):    
-    ''' Grab SDSS photometry and spectra for those fields in the footprint
-    Includes BOSS data.
-    '''
-    fields = [('PG1407+265',212.34957*u.deg,26.30585*u.deg)]
+def build_sdss(field, radius=2.0*u.deg):
+    """ Grab SDSS photometry and spectra for those fields in the footprint
 
-    for field in fields:
-        # Directory
-        if not os.path.exists(field[0]):
-            os.makedirs(field[0])
-        # Grab SDSS data + write to folder
-        sdss_fil = xcasbahu.get_filename(field,'SDSS')
-        print('CASBAH_SDSS: Building {:s}'.format(sdss_fil))
-        print('CASBAH_SDSS: Be patient..')
-        xcgd.grab_sdss_spectra( (field[1],field[2]), 
-            radius=radius, outfil=sdss_fil, maxsep=20., zmin=500./3e5)
+    Includes BOSS data.
+
+    Parameters
+    ----------
+    field : tuple
+      (name, ra_deg, dec_deg)
+    radius : Angle or Quantity, optional
+    """
+
+    # Directory
+    if not os.path.exists(field[0]):
+        os.makedirs(field[0])
+    # Grab SDSS data + write to folder
+    sdss_fil = xcasbahu.get_filename(field,'SDSS')
+    print('CASBAH_SDSS: Building {:s}'.format(sdss_fil))
+    print('CASBAH_SDSS: Be patient..')
+    xcgd.grab_sdss_spectra( (field[1],field[2]),
+        radius=radius, outfil=sdss_fil, maxsep=20., zmin=500./3e5)
         #outfig = os.environ.get('DROPBOX_DIR')+'/CASBAH/Galaxies/SDSS/PG1407+265_SDSS.pdf'
 
 def build_spectra(field,path='./'):
