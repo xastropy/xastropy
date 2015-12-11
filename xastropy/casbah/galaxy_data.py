@@ -39,7 +39,7 @@ def galaxy_attrib():
 
 
 def grab_sdss_spectra(radec, radius=0.1*u.deg, outfil=None,
-    debug=False, maxsep=None, timeout=600., zmin=None):
+                      debug=False, maxsep=None, timeout=600., zmin=None):
     """ Grab SDSS spectra
 
     Parameters
