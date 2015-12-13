@@ -343,18 +343,20 @@ def set_llist(llist,in_dict=None, sort=True):
     return in_dict
 
 # Read spectrum, pass back it and spec_file name
-def read_spec(ispec):
-    '''Parse spectrum out of the input
+def read_spec(ispec, exten=None):
+    """Parse spectrum out of the input
     Parameters:
     -----------
     ispec: Spectrum1D, str, list of files (ordered blue to red), 
        or tuple of arrays
+    exten : int, optional
+      FITS extension
 
     Returns:
     -----------
     spec: XSpectrum1D 
     spec_file: str
-    '''
+    """
     from specutils.spectrum1d import Spectrum1D
     from astropy.nddata import StdDevUncertainty
     from linetools.spectra import xspectrum1d as lsx 
@@ -363,7 +365,7 @@ def read_spec(ispec):
     #
     if isinstance(ispec,basestring):
         spec_fil = ispec
-        spec = lsx.XSpectrum1D.from_file(spec_fil)
+        spec = lsx.XSpectrum1D.from_file(spec_fil, exten=exten)
     elif isinstance(ispec,Spectrum1D):
         spec = ispec 
         spec_fil = spec.filename # Grab from Spectrum1D 
@@ -373,7 +375,7 @@ def read_spec(ispec):
     elif isinstance(ispec,list): # Multiple file names
         # Loop on the files
         for kk,ispecf in enumerate(ispec):
-            jspec = lsx.XSpectrum1D.from_file(ispecf)
+            jspec = lsx.XSpectrum1D.from_file(ispecf, exten=exten)
             if kk == 0:
                 spec = jspec
                 xper1 = xsb.perc(spec.flux, per=0.9)
@@ -387,7 +389,7 @@ def read_spec(ispec):
             spec_fil = ispec[0]
             spec.filename=spec_fil
     else:
-        raise ValueError('Bad input to read_spec')
+        raise ValueError('Bad input to read_spec: {:s}'.format(type(ispec)))
 
     # Return
     return spec, spec_fil
