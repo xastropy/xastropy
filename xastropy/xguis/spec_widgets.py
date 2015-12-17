@@ -296,7 +296,7 @@ class ExamineSpecWidget(QtGui.QWidget):
                         aline.measure_restew()
                         mssg = 'Using '+ aline.__repr__()
                         mssg = mssg + ' ::  Rest EW = {:g} +/- {:g}'.format(
-                            aline.attrib['EW'].to(mAA), aline.attrib['sigEW'].to(mAA))
+                            aline.attrib['EW'].to(mAA), aline.attrib['sig_EW'].to(mAA))
                 # Display values
                 try:
                     self.statusBar().showMessage(mssg)
