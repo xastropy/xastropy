@@ -69,14 +69,14 @@ class ExamineSpecWidget(QtGui.QWidget):
     '''
     def __init__(self, ispec, parent=None, status=None, llist=None,
                  abs_sys=None, norm=True, second_file=None, zsys=None,
-                 key_events=True, vlines=None, plotzero=False):
+                 key_events=True, vlines=None, plotzero=False, exten=None):
         '''
         spec = Spectrum1D
         '''
         super(ExamineSpecWidget, self).__init__(parent)
 
         # Spectrum
-        spec, spec_fil = xxgu.read_spec(ispec)
+        spec, spec_fil = xxgu.read_spec(ispec, exten=exten)
         self.orig_spec = spec # For smoothing
         self.spec = self.orig_spec 
 
@@ -296,7 +296,7 @@ class ExamineSpecWidget(QtGui.QWidget):
                         aline.measure_restew()
                         mssg = 'Using '+ aline.__repr__()
                         mssg = mssg + ' ::  Rest EW = {:g} +/- {:g}'.format(
-                            aline.attrib['EW'].to(mAA), aline.attrib['sigEW'].to(mAA))
+                            aline.attrib['EW'].to(mAA), aline.attrib['sig_EW'].to(mAA))
                 # Display values
                 try:
                     self.statusBar().showMessage(mssg)

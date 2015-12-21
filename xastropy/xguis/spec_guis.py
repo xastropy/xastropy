@@ -44,7 +44,7 @@ class XSpecGui(QtGui.QMainWindow):
         12-Dec-2014 by JXP v1.0
         27-Mar-2015 by JXP v2.0 :: EW, column, better zooming + panning
     '''
-    def __init__(self, ispec, parent=None, zsys=None, norm=None):
+    def __init__(self, ispec, parent=None, zsys=None, norm=None, exten=None):
         QtGui.QMainWindow.__init__(self, parent)
         '''
         Parameters
@@ -56,7 +56,10 @@ class XSpecGui(QtGui.QMainWindow):
         #reload(xxgu)
         #reload(xspw)
         # INIT
-        spec,_ = xxgu.read_spec(ispec)
+        spec,_ = xxgu.read_spec(ispec, exten=exten)
+        #QtCore.pyqtRemoveInputHook()
+        #xdb.set_trace()
+        #QtCore.pyqtRestoreInputHook()
 
         # 
         rcParams['agg.path.chunksize'] = 20000 # Needed to avoid crash in large spectral files
@@ -74,7 +77,7 @@ class XSpecGui(QtGui.QMainWindow):
         # Hook the spec widget to Plot Line
         self.spec_widg = xspw.ExamineSpecWidget(spec,status=self.statusBar,
                                                 llist=self.pltline_widg.llist,
-                                                zsys=zsys, norm=norm)
+                                                zsys=zsys, norm=norm, exten=exten)
         self.pltline_widg.spec_widg = self.spec_widg
 
         self.spec_widg.canvas.mpl_connect('button_press_event', self.on_click)
@@ -485,6 +488,7 @@ def run_xspec(*args, **kwargs):
     parser.add_argument("-zsys", type=float, help="System Redshift")
     parser.add_argument("--un_norm", help="Spectrum is NOT normalized",
                         action="store_true")
+    parser.add_argument("-exten", type=int, help="FITS extension")
 
     if len(args) == 0:
         pargs = parser.parse_args()
@@ -498,11 +502,17 @@ def run_xspec(*args, **kwargs):
         else: # String parsing 
             largs = ['1'] + [iargs for iargs in args]
             pargs = parser.parse_args(largs)
-    
+
     # Normalized?
     norm=True
     if pargs.un_norm:
         norm=False
+
+    # Extension
+    try:
+        exten = pargs.exten
+    except AttributeError:
+        exten = 0
 
     # Second spectral file?
     try:
@@ -511,7 +521,7 @@ def run_xspec(*args, **kwargs):
         zsys=None
 
     app = QtGui.QApplication(sys.argv)
-    gui = XSpecGui(pargs.file, zsys=zsys, norm=norm)
+    gui = XSpecGui(pargs.file, zsys=zsys, norm=norm, exten=exten)
     gui.show()
     app.exec_()
 
