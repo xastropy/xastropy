@@ -25,16 +25,22 @@ except ImportError:
 
 from bokeh.io import output_notebook, show
 from bokeh.plotting import figure
+from bokeh.models import Range1d
 
 
-def plot_spec_notebook(spec, title=None):
+def plot_spec_notebook(spec, title=None, xmnx=None, ymnx=None):
     """ Simple spectrum plot in a Notebook
 
+    Parameters
+    ----------
     spec : XSpectrum1D
     title : str, optional
+    xmnx : list or tuple or ndarray
+      xmin, xmax values
+    ymnx : list or tuple or ndarray
+      ymin, ymax values
 
     """
-    # Lya
     p = figure(plot_width=900, plot_height=500, title=title)
     # Data
     p.line(spec.dispersion.value, spec.flux.value, color='black', line_width=2)
@@ -42,6 +48,12 @@ def plot_spec_notebook(spec, title=None):
     # Labels
     p.xaxis.axis_label = "Wavelength"
     p.yaxis.axis_label = "Flux"
+    # Axes
+    if xmnx is not None:
+        p.set(x_range=Range1d(xmnx[0], xmnx[1]))
+    if ymnx is not None:
+        p.set(y_range=Range1d(ymnx[0], ymnx[1]))
+    # Show
     show(p)
 
 
