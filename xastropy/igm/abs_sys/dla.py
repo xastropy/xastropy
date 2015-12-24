@@ -24,13 +24,14 @@ def neeleman13():
     dlasurvey = DLASurvey.from_flist('Lists/Neeleman13.lst',
                                      tree=os.environ.get('DLA'))
     dlasurvey.ref = 'Neeleman+13'
-    # Summary file
-    mk_summary(dlasurvey, prefix, outpath+prefix+'_DLA.fits',
-               htmlfil=outpath+prefix+'_DLA.html')
     #
     dlasurvey.fill_ions(use_Nfile=True)
     mk_json_ions(dlasurvey, prefix, outpath+prefix+'_DLA_ions.json')
 
+    # Summary file and spectra
+    mk_summary(dlasurvey, prefix, outpath+prefix+'_DLA.fits',
+               specpath=outpath+'/Spectra/',
+               htmlfil=outpath+prefix+'_DLA.html')
 
 ##
 def fits_idx(idx):
@@ -66,7 +67,7 @@ def survey_name(prefix, idla):
 
 
 ####
-def mk_1dspec(idla, name=None, clobber=False):
+def mk_1dspec(idla, outpath=None, name=None, clobber=False):
     """ Collate and rename the spectra
     Parameters
     ----------
@@ -76,16 +77,18 @@ def mk_1dspec(idla, name=None, clobber=False):
 
     """
     #
-    outpath = 'Spectra/'
+    if outpath is None:
+        outpath = 'Spectra/'
     if name is None:
         raise ValueError('Not setup for this')
 
     # Spectra files
-    spec_dict = idla.clm_analy.fits_files
+    spec_dict = idla._clmdict['fits_files']
     all_spec = []
     for key in spec_dict.keys():
         instr= fits_idx(key)
         if instr == 'XX':
+            xdb.set_trace()
             if 'PROGETTI' in spec_dict[key]:
                 instr = 'MAGE'
             elif 'HIRES' in spec_dict[key]:
@@ -107,7 +110,7 @@ def mk_1dspec(idla, name=None, clobber=False):
     return all_spec
 
 ####
-def mk_summary(dlas, prefix, outfil, htmlfil=None):
+def mk_summary(dlas, prefix, outfil, specpath=None, htmlfil=None):
     """ Loops through the DLA list and generates a Table
 
     Also pushes the 1D spectra into the folder
@@ -152,11 +155,10 @@ def mk_summary(dlas, prefix, outfil, htmlfil=None):
     # Add to Table
     dla_table.add_columns([czabs, cNHI, csigNHI])
 
-    """
     # Spectra files
     all_sfiles = []
-    for jj,ills in enumerate(lls.abs_sys()):
-        sub_spec = mk_1dspec(ills, name=cjname[jj])
+    for jj,ills in enumerate(dlas._abs_sys):
+        sub_spec = mk_1dspec(ills, name=cjname[jj], outpath=specpath)
         # Pad
         while len(sub_spec) < 5:
             sub_spec.append(str('NULL'))
@@ -164,8 +166,7 @@ def mk_summary(dlas, prefix, outfil, htmlfil=None):
         all_sfiles.append(sub_spec)
 
     cspec = Column(np.array(all_sfiles), name='SPEC_FILES')
-    lls_table.add_column( cspec )
-    """
+    dla_table.add_column( cspec )
 
     # Sort
     dla_table.sort('RA')
