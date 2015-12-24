@@ -29,7 +29,7 @@ def neeleman13():
                htmlfil=outpath+prefix+'_DLA.html')
     #
     dlasurvey.fill_ions(use_Nfile=True)
-    mk_json_ions(dlasurvey, prefix, prefix+'_ions.json')
+    mk_json_ions(dlasurvey, prefix, outpath+prefix+'_DLA_ions.json')
 
 
 ##
