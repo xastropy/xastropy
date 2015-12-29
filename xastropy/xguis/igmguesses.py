@@ -51,7 +51,7 @@ from xastropy.xutils import xdebug as xdb
 
 xa_path = imp.find_module('xastropy')[1]
 
-
+c_mks = const.c.to('km/s')
 
 #class IGMGuessesGui(QtGui.QMainWindow):
 
@@ -284,6 +284,7 @@ class IGMGuessesGui(QtGui.QMainWindow):
                 zcomp=igmg_dict['cmps'][key]['zcomp'],
                 vlim=igmg_dict['cmps'][key]['vlim']*u.km/u.s,
                 no_fit_mask=True)
+
             # Name
             self.velplot_widg.current_comp.name = key
             # Set N,b,z
@@ -897,7 +898,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
                 # Velocity
                 wvobs = (1+self.z) * wrest
                 wvmnx = wvobs*(1 + np.array(self.psdict['xmnx'])/3e5)
-                velo = (self.spec.dispersion/wvobs - 1.)*const.c.to('km/s')
+                velo = (self.spec.dispersion/wvobs - 1.) * c_mks
                 
                 # Plot
                 self.ax.plot(velo, self.spec.flux, '-',color=color,drawstyle='steps-mid',lw=0.5)
@@ -956,7 +957,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
                         #QtCore.pyqtRemoveInputHook()
                         #xdb.set_trace()
                         #QtCore.pyqtRestoreInputHook()
-                        dvz = const.c.to('km/s')*(self.z-comp.zcomp)/(1+self.z)
+                        dvz = c_mks * (self.z - comp.zcomp) / (1 + self.z)
                         if dvz.value < np.max(np.abs(self.psdict['xmnx'])):
                             if comp is self.parent.fiddle_widg.component:
                                 lw = 1.5
@@ -1262,7 +1263,6 @@ class Component(AbsComponent):
         if self.linelist is None:
             self.linelist = LineList('Strong')
         # Get the lines
-
         all_trans = self.linelist.all_transitions(self.init_wrest)
         #QtCore.pyqtRemoveInputHook()
         #xdb.set_trace()
@@ -1272,7 +1272,6 @@ class Component(AbsComponent):
         for trans in all_trans:
             self.lines.append(AbsLine(trans['wrest'],
                 linelist=self.linelist))
-
 
 
     def sync_lines(self):
