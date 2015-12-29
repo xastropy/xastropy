@@ -1290,14 +1290,12 @@ def run_gui(*args, **kwargs):
     '''
 
     import argparse
-    from specutils import Spectrum1D
 
     parser = argparse.ArgumentParser(description='Parser for XFitLLSGUI')
     parser.add_argument("in_file", type=str, help="Spectral file")
     parser.add_argument("-out_file", type=str, help="Output Guesses file")
     parser.add_argument("-fwhm", type=float, help="FWHM smoothing (pixels)")
     parser.add_argument("-previous_file", type=str, help="Input Guesses file")
-    parser.add_argument("-zqso", type=float, help="Use Telfer template with zqso")
     parser.add_argument("-n_max_tuple", type=int, help="Maximum number of transitions per ion species to display")
     parser.add_argument("-min_strength", type=float, help="Minimum strength for transitions to be considered; choose values (0,14.7)")
 
@@ -1305,15 +1303,8 @@ def run_gui(*args, **kwargs):
     if len(args) == 0:
         pargs = parser.parse_args()
     else: # better know what you are doing!
-        if isinstance(args[0],(Spectrum1D,tuple)):
-            app = QtGui.QApplication(sys.argv)
-            gui = XFitLLSGUI(args[0], **kwargs)
-            gui.show()
-            app.exec_()
-            return
-        else: # String parsing 
-            largs = ['1'] + [iargs for iargs in args]
-            pargs = parser.parse_args(largs)
+        largs = ['1'] + [iargs for iargs in args]
+        pargs = parser.parse_args(largs)
 
     # Output file
     try:
@@ -1363,7 +1354,6 @@ def run_gui(*args, **kwargs):
 if __name__ == "__main__":
     import sys, os
     from linetools.spectra import io as lsi
-    from xastropy.igm import abs_sys as xiabs
 
     if len(sys.argv) == 1: # TESTING
 
