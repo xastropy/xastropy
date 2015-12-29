@@ -208,6 +208,9 @@ def mk_json_ions(dlas, prefix, outfil):
                 continue
             # Get name
             new_key = ltai.ion_name(Zion)
+            # Fine structure?
+            if row['Ej'] > 0.:
+                new_key = new_key+'*'
             new_dict[new_key] = dict(zip(row.dtype.names, row))
         # Write to all_ions
         name = survey_name(prefix, idla)

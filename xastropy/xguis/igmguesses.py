@@ -17,22 +17,17 @@ from __future__ import print_function, absolute_import, division, unicode_litera
 
 # Import libraries
 import numpy as np
-import os, sys, warnings, imp
-import matplotlib.pyplot as plt
-import glob
+import warnings, imp
 
 from PyQt4 import QtGui
 from PyQt4 import QtCore
 
-from matplotlib import mpl
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar
 # Matplotlib Figure object
 from matplotlib.figure import Figure
 
 from astropy.units import Quantity
 from astropy import units as u
-from astropy.io import fits, ascii
 from astropy import constants as const
 
 from linetools.analysis import voigt as lav
@@ -1374,7 +1369,7 @@ if __name__ == "__main__":
     if len(sys.argv) == 1: # TESTING
 
         flg_fig = 0 
-        flg_fig += 2**0  # Fit LLS GUI
+        #flg_fig += 2**0  # Fit LLS GUI
     
         # LLS
         if (flg_fig % 2**1) >= 2**0:
