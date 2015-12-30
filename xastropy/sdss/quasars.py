@@ -115,6 +115,15 @@ class SdssQuasars(object):
         # Return
         return qso
 
+        #####
+    def __getattr__(self, k):
+        """ Passback a SdssQso object
+        k: Input to get_qso
+        """
+        try:
+            return self._data[k]
+        except KeyError:
+            return self._data[k.upper()]
 
     def __repr__(self):
         ''' For printing
