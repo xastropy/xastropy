@@ -16,11 +16,14 @@ import numpy as np
 import os, imp, glob, copy
 from astropy.io import fits, ascii
 from astropy import units as u 
+from astropy.table import Table, Column, MaskedColumn, vstack, QTable
+
+from astroquery.sdss import SDSS
+from astropy import coordinates as coords
 from astropy.coordinates import SkyCoord
-from astropy.table import Table, Column, MaskedColumn, vstack
+from astropy.cosmology import Planck15 as cosmo
 
 #from astropy import constants as const
-from xastropy.casbah import galaxy_data as xcgd
 from xastropy.casbah import utils as xcasbahu
 from xastropy.xutils import lists as xxul
 from xastropy.obs import radec as xra
@@ -47,28 +50,106 @@ def build_sdss(field, radius=2.0*u.deg):
     sdss_fil = xcasbahu.get_filename(field,'SDSS')
     print('CASBAH_SDSS: Building {:s}'.format(sdss_fil))
     print('CASBAH_SDSS: Be patient..')
-    xcgd.grab_sdss_spectra( (field[1],field[2]),
+    grab_sdss_spectra((field[1],field[2]),
         radius=radius, outfil=sdss_fil, maxsep=20., zmin=500./3e5)
         #outfig = os.environ.get('DROPBOX_DIR')+'/CASBAH/Galaxies/SDSS/PG1407+265_SDSS.pdf'
 
-def build_spectra(field,path='./'):
-    '''Top-level program to build spectra files
+def build_spectra(field, obs_path=None, path='./'):
+    """Top-level program to build spectra files
 
-    Parameters:
-    -----------
-    field: tuple
+    Parameters
+    ----------
+    field : tuple
       (Name, ra, dec)
-    '''
-    # MMT
+    """
+    if obs_path is None:
+        obs_path = os.getenv('DROPBOX_DIR')+'CASBAH_Observing/'
+    """
+    Hectospec
+    """
+    ## DEAL WITH DUPLICATES (TAKE HIGHER ZQ)
+    #HDU0: wavelengths (Angstroms)
+    #HDU1: sky-subtracted, variance-weighted coadded spectra (total counts)
+    #HDU2: inverse variance (counts)
+    #HDU3: AND bad pixel mask
+    #HDU4: OR bad pixel mask
+    #HDU5: Plugmap structure (fiber info)
+    #HDU6: Combined sky spectra
+    #HDU7: Summed (unweighted) spectra
 
-def build_imaging(field,path='./'):
-    '''Top-level program to build images
+    # Load up the data
+    hecto_path = '/Galx_Spectra/Hectospec/'
+    spfiles = glob.glob(obs_path+field[0]+hecto_path+'spHect-*')
+    spfiles.sort()
+    for spfile in spfiles:
+        if 'zcat' not in spfile:  # Spectra
+            hdu = fits.open(spfile)
+            print('Reading {:s}'.format(spfile))
+            wave = hdu[0].data
+            flux = hdu[1].data
+            ivar = hdu[2].data
+            sig = np.zeros_like(flux)
+            gd = ivar > 0.
+            sig[gd] = np.sqrt(ivar[gd])
+            tbl = Table(hdu[5].data)
+            if 'hecto_wave' not in locals():
+                hecto_wave, hecto_flux, hecto_sig, hecto_stbl = wave, flux, sig, tbl
+            else:
+                hecto_wave = np.concatenate((hecto_wave, wave))
+                hecto_flux = np.concatenate((hecto_flux, flux))
+                hecto_sig = np.concatenate((hecto_sig, sig))
+                hecto_stbl = vstack([hecto_stbl,tbl])
+        else:
+            tmp = Table.read(spfile)  # z values
+            if 'hecto_ztbl' not in locals():
+                hecto_ztbl = tmp
+            else:
+                hecto_ztbl = vstack([hecto_ztbl,tmp])
+    # Check
+    if len(hecto_stbl) != len(hecto_ztbl):
+        raise ValueError("Bad Hecto tables..")
+    # Objects only
+    gdobj = np.where(hecto_ztbl['MAG'] > 1.)[0]
+    nobj = len(gdobj)
+    # Check for duplicates
+    idval = np.array(hecto_ztbl[gdobj]['ID']).astype(int)
+    uni = np.unique(idval)
+    if len(uni) != nobj:
+        raise ValueError("Not ready for duplicates in Hectospec")
+    # Generate the final Table
+    hecto_spec = Table()
+    hecto_spec.add_column(hecto_stbl['RA'][gdobj])
+    hecto_spec.add_column(hecto_stbl['DEC'][gdobj])
+    hecto_spec['RA'].unit = u.deg
+    hecto_spec['DEC'].unit = u.deg
+    hecto_spec.add_column(hecto_ztbl['Z'][gdobj])
+    hecto_spec.add_column(hecto_ztbl['Z_ERR'][gdobj])
+    hecto_spec.add_column(hecto_ztbl['ZQ'][gdobj])
+    hecto_spec.add_column(hecto_ztbl['APERTURE'][gdobj])
+    hecto_spec.add_column(hecto_ztbl['ID'][gdobj])  # May wish to recast as int
+    hecto_spec.add_column(hecto_ztbl['MAG'][gdobj])
+    hecto_spec.add_column(Column(['MMT']*nobj, name='TELESCOPE'))
+    hecto_spec.add_column(Column(['Hectospec']*nobj, name='INSTRUMENT'))
 
-    Parameters:
-    -----------
-    field: tuple
+    hecto_spec.add_column(Column(hecto_wave[gdobj,:], name='WAVE'))
+    hecto_spec.add_column(Column(hecto_flux[gdobj,:], name='FLUX'))
+    hecto_spec.add_column(Column(hecto_sig[gdobj,:], name='SIG'))
+    # Write
+    hectospec_file = xcasbahu.get_filename(field,'HECTOSPEC')
+    hecto_spec.write(hectospec_file, overwrite=True)
+
+
+def build_imaging(field, obs_path=None, path='./'):
+    """Top-level program to build images
+
+    Parameters
+    ----------
+    field : tuple
       (Name, ra, dec)
-    '''
+    obs_path : str, optional
+    """
+    if obs_path is None:
+        obs_path = os.getenv('DROPBOX_DIR')+'CASBAH_Observing/'
     import shutil
     # DEIMOS mask image
     targ_file = xcasbahu.get_filename(field,'TARGETS')
@@ -79,7 +160,7 @@ def build_imaging(field,path='./'):
     if len(deimos_targ) > 0:
         # Search for LBT image
         msk_img = targets[deimos_targ]['TARG_IMG'][0]
-        img_fil = glob.glob(field[0]+'/IMG/LBT/'+msk_img+'*')
+        img_fil = glob.glob(obs_path+field[0]+'/IMG/LBT/'+msk_img+'*')
         if len(img_fil) == 1:
             # Copy
             path = os.getenv('CASBAH_GALAXIES')
@@ -89,19 +170,22 @@ def build_imaging(field,path='./'):
             raise ValueError('Need to provide the image! {:s}'.format(
                 field[0]+'/IMG/LBT/'+msk_img))
 
-def build_targets(field,path='./'):
-    '''Top-level program to build target info 
+def build_targets(field, obs_path=None, path='./'):
+    """Top-level program to build target info
 
-    Parameters:
-    -----------
-    field: tuple
+    Parameters
+    ----------
+    field : tuple
       (Name, ra, dec)
-    '''
+    """
+    if obs_path is None:
+        obs_path = os.getenv('DROPBOX_DIR')+'CASBAH_Observing/'
+
     # MMT
-    mmt_masks, mmt_obs, mmt_targs = mmt_targets(field)
+    mmt_masks, mmt_obs, mmt_targs = hecto_targets(field, obs_path)
 
     # DEIMOS
-    deimos_sex, deimos_masks, deimos_obs, deimos_targs = deimos_targets(field)
+    deimos_sex, deimos_masks, deimos_obs, deimos_targs = deimos_targets(field, obs_path)
 
     # COLLATE
     all_masks = deimos_masks + mmt_masks
@@ -109,7 +193,7 @@ def build_targets(field,path='./'):
     all_sex = vstack([deimos_sex,mmt_targs],join_type='inner')  # Use vstack when needed
 
     # Generate Target table
-    targ_file = xcasbahu.get_filename(field,'TARGETS')
+    targ_file = xcasbahu.get_filename(field, 'TARGETS')
     cut_sex = all_sex[['TARG_RA','TARG_DEC','EPOCH','TARG_ID',
         'TARG_MAG','TARG_IMG','INSTR','MASK_NAME']]
     #cut_sex.write(targ_file,overwrite=True)
@@ -246,26 +330,26 @@ def parse_sex_file(field,targ_yaml_file):
     return targ_tab
 
 
-def deimos_targets(field,path=None):
+def deimos_targets(field, obs_path, deimos_path=None):
     """Generate files related to DEIMOS deimos_targets
 
     Parameters:
     -----------
-    field: tuple
+    field : tuple
       (Name, ra, dec)
 
     Returns:
     ----------
     """
-    if path is None:
-        path = '/Galx_Spectra/DEIMOS/'
+    if deimos_path is None:
+        deimos_path = '/Galx_Spectra/DEIMOS/'
 
     # Loop on Fields
-    mask_path = field[0]+path+'/Masks/'
+    mask_path = obs_path+field[0]+deimos_path+'/Masks/'
     # SExtractor targeting
     targetting_file = glob.glob(mask_path+'*targ.yaml')
     if len(targetting_file) == 1:
-        sex_targ = parse_sex_file(field,targetting_file[0])
+        sex_targ = parse_sex_file(field, targetting_file[0])
         sex_targ.add_column(Column(['DEIMOS']*len(sex_targ),name='INSTR'))
         # Setup for mask matching
         sex_coord = SkyCoord(ra=sex_targ['TARG_RA']*u.deg, 
@@ -411,28 +495,32 @@ def parse_deimos_mask_file(msk_file):
     # Return
     return mask_dict, targ_tab, obs_tab 
 
-def mmt_targets(field,path=None):
-    '''Read files related to MMT targets
+def hecto_targets(field, obs_path, hecto_path=None):
+    '''Read files related to Hectospec targets
 
     Parameters:
     -----------
-    field: tuple
+    field : tuple
       (Name, ra, dec)
+    obs_path : str, optional
+      Path to the observing tree
+    hecto_path : str, optional
+      Path within the file tree to Hectospec data
 
     Returns:
     ----------
     Target and observing info 
     '''
-    if path is None:
-        path = '/Galx_Spectra/MMT/'
+    if hecto_path is None:
+        hecto_path = '/Galx_Spectra/Hectospec/'
 
     # Targets
-    targ_path = field[0]+path
+    targ_path = obs_path+field[0]+hecto_path
 
     # Target file
     targ_file = glob.glob(targ_path+'*.targ')
     if len(targ_file) != 1:
-        raise ValueError('Wrong number of MMT target files')
+        raise ValueError('Wrong number of Hectospec target files')
     else:
         targ_file = targ_file[0]
 
@@ -475,7 +563,7 @@ def mmt_targets(field,path=None):
     all_obs = []
     all_masks = []
     for mask_file in mask_files:
-        print('Reading MMT mask file: {:s}'.format(mask_file))
+        print('Reading Hectospec mask file: {:s}'.format(mask_file))
         i0 = mask_file.rfind('/')
         mask_nm = mask_file[i0+1:mask_file.find('.cat')]
         # Grab info from spectrum file
@@ -536,3 +624,188 @@ def mmt_targets(field,path=None):
         targs.add_column(clm)
     # Finish
     return all_masks, all_obs, targs
+
+
+def galaxy_attrib():
+    """ List of properties expected to be stored for CASBAH galaxies
+
+    """
+    attrib = [ (str('RA'), float),                 # RA (J2000)
+               (str('DEC'), float),                # DEC (J2000)
+               (str('Z'), float),                  # Redshift
+               (str('Z_ERR'), float),              # Redshift uncertainty
+               (str('SDSS_MAG'), float, (5,)),     # ugriz photometry from SDSS
+               (str('SDSS_MAGERR'), float, (5,)),    # ugriz photometry uncertainties
+               (str('TELESCOPE'), '|S80'),            # Telescope(s) used
+               (str('INSTRUMENT'), '|S80')            # Instrument(s) used
+               ]
+    # Return
+    return attrib
+
+
+def grab_sdss_spectra(radec, radius=0.1*u.deg, outfil=None,
+                      debug=False, maxsep=None, timeout=600., zmin=None):
+    """ Grab SDSS spectra
+
+    Parameters
+    ----------
+    radec : tuple
+      RA, DEC in deg
+    radius : float, optional (0.1*u.deg)
+      Search radius -- Astroquery actually makes a box, not a circle
+    timeout : float, optional
+      Timeout limit for connection with SDSS
+    outfil : str ('tmp.fits')
+      Name of output file for FITS table
+    maxsep : float (None) :: Mpc
+      Maximum separation to include
+    zmin : float (None)
+      Minimum redshift to include
+
+    Returns
+    -------
+    tbl : Table
+
+    """
+
+    cC = coords.SkyCoord(ra=radec[0], dec=radec[1])
+
+    # Query
+    photoobj_fs = ['ra', 'dec', 'objid', 'run', 'rerun', 'camcol', 'field']
+    mags = ['petroMag_u', 'petroMag_g', 'petroMag_r', 'petroMag_i', 'petroMag_z']
+    magsErr = ['petroMagErr_u', 'petroMagErr_g', 'petroMagErr_r', 'petroMagErr_i', 'petroMagErr_z']
+
+    phot_catalog = SDSS.query_region(cC,spectro=True,radius=radius, timeout=timeout,
+                                     photoobj_fields=photoobj_fs+mags+magsErr) # Unique
+    spec_catalog = SDSS.query_region(cC,spectro=True, radius=radius, timeout=timeout) # Duplicates exist
+    nobj = len(phot_catalog)
+
+    #
+    print('grab_sdss_spectra: Found {:d} sources in the search box.'.format(nobj))
+
+    # Coordinates
+    cgal = SkyCoord(ra=phot_catalog['ra']*u.degree, dec=phot_catalog['dec']*u.degree)
+    sgal = SkyCoord(ra=spec_catalog['ra']*u.degree, dec=spec_catalog['dec']*u.degree)
+    sepgal = cgal.separation(cC) #in degrees
+
+    # Check for problems and parse z
+    zobj = np.zeros(nobj)
+    idx, d2d, d3d = coords.match_coordinates_sky(cgal, sgal, nthneighbor=1)
+    if np.max(d2d) > 1.*u.arcsec:
+        print('No spectral match!')
+        xdb.set_trace()
+    else:
+        zobj = spec_catalog['z'][idx]
+
+    idx, d2d, d3d = coords.match_coordinates_sky(cgal, cgal, nthneighbor=2)
+    if np.min(d2d.to('arcsec')) < 1.*u.arcsec:
+        print('Two photometric sources with same RA/DEC')
+        xdb.set_trace()
+
+    #xdb.set_trace()
+
+
+    # Cut on Separation
+    if not maxsep is None:
+        print('grab_sdss_spectra: Restricting to {:g} Mpc separation.'.format(maxsep))
+        sepgal_kpc = cosmo.kpc_comoving_per_arcmin(zobj) * sepgal.to('arcmin')
+        sepgal_mpc = sepgal_kpc.to('Mpc')
+        gdg = np.where( sepgal_mpc < (maxsep * u.Unit('Mpc')))[0]
+        phot_catalog = phot_catalog[gdg]
+        #xdb.set_trace()
+
+    nobj = len(phot_catalog)
+    print('grab_sdss_spectra: Grabbing data for {:d} sources.'.format(nobj))
+
+    # Grab Spectra from SDSS
+
+    # Generate output table
+    attribs = galaxy_attrib()
+    npix = 5000 #len( spec_hdus[0][1].data.flux )
+    spec_attrib = [(str('FLUX'), np.float32, (npix,)),
+                   (str('SIG'), np.float32, (npix,)),
+                   (str('WAVE'), np.float64, (npix,))]
+    tbl = np.recarray( (nobj,), dtype=attribs+spec_attrib)
+
+    tbl['RA'] = phot_catalog['ra']
+    tbl['DEC'] = phot_catalog['dec']
+    tbl['TELESCOPE'] = str('SDSS 2.5-M')
+
+    # Deal with spectra separately (for now)
+    npix = 5000 #len( spec_hdus[0][1].data.flux )
+
+    for idx,obj in enumerate(phot_catalog):
+        #print('idx = {:d}'.format(idx))
+
+        # Grab spectra (there may be duplicates)
+        mt = np.where( sgal.separation(cgal[idx]).to('arcsec') < 1.*u.Unit('arcsec'))[0]
+        if len(mt) > 1:
+            # Use BOSS if you have it
+            mmt = np.where( spec_catalog[mt]['instrument'] == 'BOSS')[0]
+            if len(mmt) > 0:
+                mt = mt[mmt[0]]
+            else:
+                mt = mt[0]
+        elif len(mt) == 0:
+            xdb.set_trace()
+        else:
+            mt = mt[0]
+
+        # Grab spectra
+        spec_hdus = SDSS.get_spectra(matches=Table(spec_catalog[mt]))
+
+        tbl[idx]['INSTRUMENT'] = spec_catalog[mt]['instrument']
+        spec = spec_hdus[0][1].data
+        npp = len(spec.flux)
+        tbl[idx]['FLUX'][0:npp] = spec.flux
+        sig = np.zeros(npp)
+        gdi = np.where(spec.ivar > 0.)[0]
+        if len(gdi) > 0:
+            sig[gdi] = np.sqrt( 1./spec.ivar[gdi] )
+        tbl[idx]['SIG'][0:npp] = sig
+        tbl[idx]['WAVE'][0:npp] = 10.**spec.loglam
+
+        # Redshifts
+        meta = spec_hdus[0][2].data
+        for attrib in ['Z','Z_ERR']:
+            tbl[idx][attrib] = meta[attrib]
+
+        if debug:
+            sep_to_qso = cgal[idx].separation(cC).to('arcmin')
+            print('z = {:g}, Separation = {:g}'.format(tbl[idx].Z, sep_to_qso))
+            xdb.set_trace()
+
+        # Fill in rest
+        tbl[idx].SDSS_MAG = np.array( [obj[phot] for phot in mags])
+        tbl[idx].SDSS_MAGERR = np.array( [obj[phot] for phot in magsErr])
+
+    # Clip on redshift to excise stars/quasars
+    if zmin is not None:
+        gd = np.where(tbl['Z'] > zmin)[0]
+        tbl = tbl[gd]
+
+    # Write to FITS file
+    if outfil is not None:
+        prihdr = fits.Header()
+        prihdr['COMMENT'] = 'SDSS Spectra'
+        prihdu = fits.PrimaryHDU(header=prihdr)
+
+        tbhdu = fits.BinTableHDU(tbl)
+
+        thdulist = fits.HDUList([prihdu, tbhdu])
+        thdulist.writeto(outfil,clobber=True)
+
+    print('Wrote SDSS table to {:s}'.format(outfil))
+    return tbl
+
+
+# ################
+if __name__ == "__main__":
+
+    flg_fig = 0
+    flg_fig += 2**0  # SDSS search
+
+    # XSpec
+    if (flg_fig % 2**1) >= 2**0:
+        radec = (212.34957*u.deg,26.30585*u.deg)
+        grab_sdss_spectra(radec, radius=1.*u.degree/12.)

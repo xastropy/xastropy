@@ -548,7 +548,7 @@ class PlotLinesWidget(QtGui.QWidget):
         self.connect(self.zbox, QtCore.SIGNAL('editingFinished ()'), self.setz)
 
         # Create the line list 
-        self.lists = ['None', 'ISM', 'Strong', 'H2', 'EUV', 'OVI'] 
+        self.lists = ['None', 'ISM', 'Strong', 'Galaxy', 'H2', 'EUV', 'OVI']
         #'grb.lst', 'dla.lst', 'lls.lst', 'subLLS.lst', 
 #                      'lyman.lst', 'Dlyman.lst', 'gal_vac.lst', 'ne8.lst',
 #                      'lowz_ovi.lst', 'casbah.lst', 'H2.lst']
@@ -667,7 +667,7 @@ class SelectLineWidget(QtGui.QDialog):
         # Sort
         srt = np.argsort(lines['wrest'])
         for ii in srt:
-            self.lines_widget.addItem('{:s} :: {:.3f} :: {:g}'.format(lines['name'][ii],
+            self.lines_widget.addItem('{:s} :: {:.3f} :: {}'.format(lines['name'][ii],
                                                          lines['wrest'][ii], lines['f'][ii]))
         self.lines_widget.currentItemChanged.connect(self.on_list_change)
         #self.scrollArea = QtGui.QScrollArea()
@@ -758,7 +758,7 @@ class SelectedLinesWidget(QtGui.QWidget):
     def init_list(self):
         nlin = len(self.lines['wrest'])
         for ii in range(nlin):
-            self.lines_widget.addItem('{:s} :: {:.3f} :: {:g}'.format(self.lines['name'][ii],
+            self.lines_widget.addItem('{:s} :: {:.3f} :: {}'.format(self.lines['name'][ii],
                                                          self.lines['wrest'][ii].value,
                                                          self.lines['f'][ii]))
 

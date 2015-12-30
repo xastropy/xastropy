@@ -17,6 +17,7 @@ from __future__ import print_function, absolute_import, division, unicode_litera
 import numpy as np
 import imp
 import glob
+import sys
 
 from PyQt4 import QtGui
 from PyQt4 import QtCore
@@ -52,9 +53,8 @@ class XSpecGui(QtGui.QMainWindow):
         spec = Spectrum1D or tuple of arrays
           Input spectrum.  If tuple then (wave,fx) or (wave,fx,sig)
         '''
-        from linetools.lists.linelist import LineList
         #reload(xxgu)
-        #reload(xspw)
+        reload(xspw)
         # INIT
         spec,_ = xxgu.read_spec(ispec, exten=exten)
         #QtCore.pyqtRemoveInputHook()
