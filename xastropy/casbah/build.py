@@ -22,7 +22,9 @@ from xastropy.casbah import survey_figs as xcassf
 
 from xastropy.xutils import xdebug as xdb
 
-fields = [('PG1407+265', 212.349634*u.deg, 26.3058650*u.deg)]
+fields = [('FBQS0751+2919', 117.80127583*u.deg, 29.3272975*u.deg),
+          ('PG1407+265', 212.349634*u.deg, 26.3058650*u.deg),
+          ]
 
 warnings.warn('casbah.build: Deal with Cosmology')
 # Galaxies first

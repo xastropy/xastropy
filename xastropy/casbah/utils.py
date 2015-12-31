@@ -32,23 +32,20 @@ def get_filename(field, ftype):
     ftype: str
       Type of filename desired
     '''
+    path = os.getenv('CASBAH_GALAXIES')
     if ftype == 'MULTI_OBJ':
-        path = os.getenv('CASBAH_GALAXIES')
         filename = path+'/'+field[0]+'/'+field[0]+'_MULTI_OBJ.ascii'
+    elif ftype == 'FIELD_PATH':
+        filename = path+'/'+field[0]
     elif ftype == 'TARGETS':
-        path = os.getenv('CASBAH_GALAXIES')
         filename = path+'/'+field[0]+'/'+field[0]+'_targets.ascii'
     elif ftype == 'SDSS':
-        path = os.getenv('CASBAH_GALAXIES')
         filename = path+'/'+field[0]+'/'+field[0]+'_SDSS.fits'
     elif ftype == 'HECTOSPEC':
-        path = os.getenv('CASBAH_GALAXIES')
         filename = path+'/'+field[0]+'/'+field[0]+'_HECTOSPEC.fits'
     elif ftype == 'DEIMOS_TARG_FIG':
-        path = os.getenv('CASBAH_GALAXIES')
         filename = path+'/'+field[0]+'/'+field[0]+'_deimostarg.pdf'
     elif ftype == 'HECTO_TARG_FIG':
-        path = os.getenv('CASBAH_GALAXIES')
         filename = path+'/'+field[0]+'/'+field[0]+'_hectotarg.pdf'
     else:
         raise ValueError('Not ready for this ftype: {:s}'.format(ftype))

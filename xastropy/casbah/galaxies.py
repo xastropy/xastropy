@@ -13,15 +13,19 @@
 from __future__ import print_function, absolute_import, division, unicode_literals
 
 import numpy as np
-import os, imp, glob, copy
+import os, glob, copy
+from os import makedirs
+from os.path import exists
 from astropy.io import fits, ascii
 from astropy import units as u 
-from astropy.table import Table, Column, MaskedColumn, vstack, QTable
+from astropy.table import Table, Column, MaskedColumn, vstack
 
 from astroquery.sdss import SDSS
 from astropy import coordinates as coords
 from astropy.coordinates import SkyCoord
 from astropy.cosmology import Planck15 as cosmo
+
+from linetools import utils as ltu
 
 #from astropy import constants as const
 from xastropy.casbah import utils as xcasbahu
@@ -113,8 +117,10 @@ def build_spectra(field, obs_path=None, path='./'):
     nobj = len(gdobj)
     # Check for duplicates
     idval = np.array(hecto_ztbl[gdobj]['ID']).astype(int)
-    uni = np.unique(idval)
+    uni, counts = np.unique(idval, return_counts=True)
     if len(uni) != nobj:
+        dup = np.where(counts>1)[0]
+        xdb.set_trace()
         raise ValueError("Not ready for duplicates in Hectospec")
     # Generate the final Table
     hecto_spec = Table()
@@ -181,16 +187,29 @@ def build_targets(field, obs_path=None, path='./'):
     if obs_path is None:
         obs_path = os.getenv('DROPBOX_DIR')+'CASBAH_Observing/'
 
+    targ_list = []
     # MMT
-    mmt_masks, mmt_obs, mmt_targs = hecto_targets(field, obs_path)
+    hecto_masks, hecto_obs, hecto_targs = hecto_targets(field, obs_path)
+    if hecto_targs is not None:
+        targ_list = targ_list + [hecto_targs]
 
     # DEIMOS
     deimos_sex, deimos_masks, deimos_obs, deimos_targs = deimos_targets(field, obs_path)
+    if deimos_masks is None:
+        deimos_masks = []
+        deimos_obs = []
+    else:
+        targ_list = [deimos_sex] + targ_list
 
     # COLLATE
-    all_masks = deimos_masks + mmt_masks
-    all_obs = deimos_obs + mmt_obs
-    all_sex = vstack([deimos_sex,mmt_targs],join_type='inner')  # Use vstack when needed
+    all_masks = deimos_masks + hecto_masks
+    all_obs = deimos_obs + hecto_obs
+    all_sex = vstack(targ_list, join_type='inner')  # Use vstack when needed
+
+    # Out path
+    outpath = xcasbahu.get_filename(field, 'FIELD_PATH')
+    if not exists(outpath):
+        makedirs(outpath)
 
     # Generate Target table
     targ_file = xcasbahu.get_filename(field, 'TARGETS')
@@ -340,6 +359,7 @@ def deimos_targets(field, obs_path, deimos_path=None):
 
     Returns:
     ----------
+    sex_targ, all_masks, all_obs, all_masktarg
     """
     if deimos_path is None:
         deimos_path = '/Galx_Spectra/DEIMOS/'
@@ -362,8 +382,9 @@ def deimos_targets(field, obs_path, deimos_path=None):
             sex_msk_clms[cname] = [msk_val[kk]]*len(sex_targ)
     elif len(targetting_file) == 0:
         print('WARNING: No SExtractor info for mask path {:s}'.format(mask_path))
-        xdb.set_trace()
-        sex_targ = None
+        print('Assuming no DEIMOS files')
+        return [None]*4
+        #sex_targ = None
     else:
         raise ValueError('Found multiple targ.yaml files!!')
 
@@ -396,7 +417,7 @@ def deimos_targets(field, obs_path, deimos_path=None):
         all_obs.append(obs_tab)
 
     # Add columns to sex_targ
-    for tt,cname in enumerate(cnames):
+    for tt, cname in enumerate(cnames):
         # Mask
         mask = np.array([False]*len(sex_targ))
         bad = np.where(np.array(sex_msk_clms[cname])==msk_val[tt])[0]
@@ -542,11 +563,20 @@ def hecto_targets(field, obs_path, hecto_path=None):
     targs.add_column(Column([0.]*nrow,name='TARG_DEC'))
     # Get RA/DEC in degrees
     for k,row in enumerate(targs):
-        rad, decd = xra.stod1( (row['RAS'], row['DECS']) )
-        targs[k]['TARG_RA'] = rad.value
-        targs[k]['TARG_DEC'] = decd.value
-    targs.rename_column('objid','TARG_ID')
-    targs.rename_column('mag','TARG_MAG')
+        coord = ltu.radec_to_coord((row['RAS'], row['DECS']))
+        targs[k]['TARG_RA'] = coord.ra.value
+        targs[k]['TARG_DEC'] = coord.dec.value
+    # ID/Mag (not always present)
+    targ_coord = SkyCoord(ra=targs['TARG_RA']*u.deg, dec=targs['TARG_DEC']*u.deg)
+    try:
+        targs.rename_column('objid','TARG_ID')
+    except KeyError:
+        targs.add_column(Column([0]*nrow,name='TARG_ID'))
+        targs.add_column(Column([0.]*nrow,name='TARG_MAG'))
+        flg_id = 0
+    else:
+        flg_id = 1
+        targs.rename_column('mag','TARG_MAG')
     targs.add_column(Column([0.]*nrow,name='EPOCH'))
     targs.add_column(Column(['SDSS']*nrow,name='TARG_IMG'))
     targs.add_column(Column(['HECTOSPEC']*nrow,name='INSTR'))
@@ -605,13 +635,26 @@ def hecto_targets(field, obs_path, hecto_path=None):
         obs_tab['TEXP'].unit = u.s
         # Read observed targets
         obs_targ = ascii.read(mask_file,comment='#')
-        gdt = np.where(obs_targ['flag']==1)[0]
+        gdt = np.where(obs_targ['flag'] == 1)[0]
+        # Match to target list
+        obs_coord = SkyCoord(ra=obs_targ['ra'][gdt]*u.hour, dec=obs_targ['dec'][gdt]*u.deg)
+        idx, d2d, d3d = coords.match_coordinates_sky(obs_coord, targ_coord, nthneighbor=1)
+        gdm = np.where(d2d < 1.*u.arcsec)[0]
+        if len(gdm) != len(gdt):
+            raise ValueError('No match')
+        else:
+            for ii in range(len(gdm)):
+                targ_mask['MASK_NAME'][idx[ii]] = mask_nm
+                if flg_id == 0:
+                    targs['TARG_ID'][idx[ii]] = int(obs_targ['objid'][gdt[ii]])
+        """
         for gdi in gdt:
             mtt = np.where(targs['TARG_ID']==
                 int(obs_targ['objid'][gdi]))[0]
             if len(mtt) != 1:
                 raise ValueError('Multiple matches?!')
             targ_mask['MASK_NAME'][mtt[0]] = mask_nm
+        """
         all_obs.append(obs_tab)
     # Add columns to targs
     for tt,cname in enumerate(cnames):
