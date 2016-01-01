@@ -24,9 +24,12 @@ def neeleman13():
     dlasurvey = DLASurvey.from_flist('Lists/Neeleman13.lst',
                                      tree=os.environ.get('DLA'))
     dlasurvey.ref = 'Neeleman+13'
-    #
+    # Json file for ions
     dlasurvey.fill_ions(use_Nfile=True)
     mk_json_ions(dlasurvey, prefix, outpath+prefix+'_DLA_ions.json')
+
+    # Json file for .clm files
+    mk_json_clms(dlasurvey, outpath+prefix+'_DLA_clms.json')
 
     # Summary file and spectra
     mk_summary(dlasurvey, prefix, outpath+prefix+'_DLA.fits',
@@ -179,7 +182,35 @@ def mk_summary(dlas, prefix, outfil, specpath=None, htmlfil=None):
 
     return dla_table
 
-#
+
+def mk_json_clms(dlas, outfil):
+    """ Generate a JSON table of the Ion database
+    Parameters
+    ----------
+    dlas : DLASurvey
+    prefix : str
+    outfil : str
+      Output JSON file
+    """
+    # Generate dict of ._clmdict files
+    all_clmdict = {}
+    for abssys in dlas._abs_sys:
+        tmp = abssys._clmdict
+        # Convert AbsLine to dicts
+        if 'lines' in tmp.keys():
+            new_lines = {}
+            for key in tmp['lines']:
+                new_lines[key] = tmp['lines'][key].to_dict()
+            # Replace
+            tmp['lines'] = new_lines
+        all_clmdict[abssys.name] = tmp
+    # Write
+    print('Writing {:s}'.format(outfil))
+    with io.open(outfil, 'w', encoding='utf-8') as f:
+        f.write(unicode(json.dumps(all_clmdict, sort_keys=True, indent=4,
+                                   separators=(',', ': '))))
+
+
 def mk_json_ions(dlas, prefix, outfil):
     """ Generate a JSON table of the Ion database
     Parameters
