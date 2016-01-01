@@ -14,6 +14,7 @@ from __future__ import print_function, absolute_import, division, unicode_litera
 
 import numpy as np
 import os, glob, copy
+import warnings
 from os import makedirs
 from os.path import exists
 from astropy.io import fits, ascii
@@ -119,9 +120,34 @@ def build_spectra(field, obs_path=None, path='./'):
     idval = np.array(hecto_ztbl[gdobj]['ID']).astype(int)
     uni, counts = np.unique(idval, return_counts=True)
     if len(uni) != nobj:
+        warnings.warn("Resetting duplicate ID values using the targs table")
+        # Load targets file
+        targ_file = xcasbahu.get_filename(field, 'TARGETS')
+        targs = Table.read(targ_file,delimiter='|', format='ascii.fixed_width',
+                                fill_values=[('--','0','MASK_NAME')])
+        tcoord = SkyCoord(ra=targs['TARG_RA']*u.deg, dec=targs['TARG_DEC']*u.deg)
+        # Loop on duplicates
         dup = np.where(counts>1)[0]
+        for idup in dup:
+            dobj = np.where(hecto_ztbl['ID'] == str(uni[idup]))[0]
+            # Loop on objects
+            for idobj in dobj:
+                dcoord = SkyCoord(ra=hecto_stbl['RA'][idobj]*u.deg,
+                                  dec=hecto_stbl['DEC'][idobj]*u.deg)
+                # Match by RA/DEC
+                mt = np.argmin(dcoord.separation(tcoord))
+                # Reset ID
+                #xdb.set_trace()
+                print('Setting ID to {:s} from {:s}'.format(
+                        str(targs['TARG_ID'][mt]), hecto_ztbl['ID'][idobj]))
+                hecto_ztbl['ID'][idobj] = str(targs['TARG_ID'][mt])
+    # Double check
+    idval = np.array(hecto_ztbl[gdobj]['ID']).astype(int)
+    uni, counts = np.unique(idval, return_counts=True)
+    if len(uni) != nobj:
         xdb.set_trace()
-        raise ValueError("Not ready for duplicates in Hectospec")
+        raise ValueError("Should not get here")
+
     # Generate the final Table
     hecto_spec = Table()
     hecto_spec.add_column(hecto_stbl['RA'][gdobj])
@@ -598,11 +624,12 @@ def hecto_targets(field, obs_path, hecto_path=None):
         mask_nm = mask_file[i0+1:mask_file.find('.cat')]
         # Grab info from spectrum file
         #xdb.set_trace()
-        spec_fil = glob.glob(mask_file[:i0+1]+'spHect-'+mask_nm+'*.fits.gz')
-        if len(spec_fil) != 1:
-            print('spec_fil -- Not found!'.format(spec_fil))
-            ras, decs = xra.dtos1((field[1],field[2]))
-            pa=0.
+        spec_fil = glob.glob(mask_file[:i0+1]+'spHect-'+mask_nm+'.*.fits.gz')
+        if len(spec_fil) == 0:
+            raise ValueError('Mask not found!')
+            #print('spec_fil -- Not found!'.format(spec_fil))
+            #ras, decs = xra.dtos1((field[1],field[2]))
+            #pa=0.
         else:
             header = fits.open(spec_fil[0])[0].header
             if header['APERTURE'] != mask_nm:
@@ -665,6 +692,38 @@ def hecto_targets(field, obs_path, hecto_path=None):
         #
         clm = MaskedColumn(targ_mask[cname],name=cname, mask=mask)
         targs.add_column(clm)
+
+    # Look for ID duplicates (rare)
+    gdobj = targs['TARG_ID'] > 0
+    idval = np.array(targs[gdobj]['TARG_ID']).astype(int)
+    uni, counts = np.unique(idval, return_counts=True)
+    if len(uni) != np.sum(gdobj):
+        warnings.warn("Found duplicated ID values in Hectospect cat files")
+        warnings.warn("Modifying these by hand!")
+        dup = np.where(counts>1)[0]
+        # Fix by-hand
+        for idup in dup:
+            dobj = np.where(targs['TARG_ID'] == uni[idup])[0]
+            if len(dobj) == 1:
+                xdb.set_trace()
+            # Confirm RA/DEC are different
+            dcoord = SkyCoord(ra=targs['TARG_RA'][dobj]*u.deg,
+                              dec=targs['TARG_DEC'][dobj]*u.deg)
+            idx, d2d, d3d = coords.match_coordinates_sky(dcoord, dcoord, nthneighbor=2)
+            if np.sum(d2d < 1*u.arcsec) > 0:
+                raise ValueError("Two with the same RA/DEC.  Deal")
+            else:
+                for ii in range(1,len(dobj)):
+                    # Increment
+                    print('Setting TARG_ID to {:d} from {:d}'.format(
+                            (ii+1)*targs['TARG_ID'][dobj[ii]],targs['TARG_ID'][dobj[ii]]))
+                    targs['TARG_ID'][dobj[ii]] = (ii+1)*targs['TARG_ID'][dobj[ii]]
+    # Double check
+    idval = np.array(targs[gdobj]['TARG_ID']).astype(int)
+    uni, counts = np.unique(idval, return_counts=True)
+    if len(uni) != np.sum(gdobj):
+        raise ValueError("Cannot happen")
+
     # Finish
     return all_masks, all_obs, targs
 

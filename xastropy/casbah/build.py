@@ -22,8 +22,11 @@ from xastropy.casbah import survey_figs as xcassf
 
 from xastropy.xutils import xdebug as xdb
 
-fields = [('FBQS0751+2919', 117.80127583*u.deg, 29.3272975*u.deg),
-          ('PG1407+265', 212.349634*u.deg, 26.3058650*u.deg),
+fields = [ ('PG1522+101', 231.1023075*u.deg, 9.9749372*u.deg),
+           ('PG1206+459', 182.24172042*u.deg, 45.67652417*u.deg),
+           #('PG1148+549', 177.83526042*u.deg, 54.625855*u.deg),
+           ('FBQS0751+2919', 117.80127583*u.deg, 29.3272975*u.deg),
+           ('PG1407+265', 212.349634*u.deg, 26.3058650*u.deg),
           ]
 
 warnings.warn('casbah.build: Deal with Cosmology')
