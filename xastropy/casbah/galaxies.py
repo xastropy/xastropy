@@ -626,8 +626,7 @@ def hecto_targets(field, obs_path, hecto_path=None):
         #xdb.set_trace()
         spec_fil = glob.glob(mask_file[:i0+1]+'spHect-'+mask_nm+'.*.fits.gz')
         if len(spec_fil) == 0:
-            raise ValueError('Mask not found!')
-            #print('spec_fil -- Not found!'.format(spec_fil))
+            raise ValueError('Mask not found! {:s}'.format(spec_fil))
             #ras, decs = xra.dtos1((field[1],field[2]))
             #pa=0.
         else:
