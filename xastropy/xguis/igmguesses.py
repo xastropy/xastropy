@@ -285,7 +285,7 @@ class IGMGuessesGui(QtGui.QMainWindow):
             # Set N,b,z
             self.velplot_widg.current_comp.attrib['z']= igmg_dict['cmps'][key]['zfit']
             self.velplot_widg.current_comp.attrib['b']= igmg_dict['cmps'][key]['bfit']*u.km/u.s
-            self.velplot_widg.current_comp.attrib['N']= igmg_dict['cmps'][key]['Nfit']
+            self.velplot_widg.current_comp.attrib['logN']= igmg_dict['cmps'][key]['Nfit']
             self.velplot_widg.current_comp.attrib['Quality']= igmg_dict['cmps'][key]['Quality']
             self.velplot_widg.current_comp.comment = igmg_dict['cmps'][key]['Comment']
             # Sync
@@ -314,7 +314,7 @@ class IGMGuessesGui(QtGui.QMainWindow):
             out_dict['cmps'][key] = {}
             out_dict['cmps'][key]['zcomp'] = comp.zcomp
             out_dict['cmps'][key]['zfit'] = comp.attrib['z']
-            out_dict['cmps'][key]['Nfit'] = comp.attrib['N']
+            out_dict['cmps'][key]['Nfit'] = comp.attrib['logN']
             out_dict['cmps'][key]['bfit'] = comp.attrib['b'].value
             out_dict['cmps'][key]['wrest'] = comp.init_wrest.value
             out_dict['cmps'][key]['vlim'] = list(comp.vlim.value)
@@ -461,12 +461,13 @@ class IGGVelPlotWidget(QtGui.QWidget):
             for line in comp.lines:
                 wvobs = (1+line.attrib['z'])*line.wrest 
                 if (wvobs>wvmin) & (wvobs<wvmax):
+                    line.attrib['N'] = 10.**line.attrib['logN'] / u.cm**2
                     gdlin.append(line)
         # Voigt
         #QtCore.pyqtRemoveInputHook()
         #xdb.set_trace()
         #QtCore.pyqtRestoreInputHook()
-        self.model = lav.voigt_from_abslines(self.spec.dispersion,gdlin, fwhm=self.fwhm)#,debug=True)
+        self.model = lav.voigt_from_abslines(self.spec.dispersion, gdlin, fwhm=self.fwhm)#,debug=True)
         
         #Define arrays for plotting residuals
         if self.plot_residuals:
@@ -559,7 +560,8 @@ class IGGVelPlotWidget(QtGui.QWidget):
             self.spec.flux[fit_line.analy['pix']].value)
 
         # Save and sync
-        component.attrib['N'] = parm.logN.value
+        component.attrib['logN'] = parm.logN.value
+        component.attrib['N'] = 10**parm.logN.value / u.cm**2
         component.attrib['z'] = parm.z.value
         component.attrib['b'] = parm.b.value * u.km/u.s
         component.sync_lines()
@@ -629,9 +631,9 @@ class IGGVelPlotWidget(QtGui.QWidget):
                 print('Need to generate a component first!')
                 return
             if event.key == 'N':
-                self.parent.fiddle_widg.component.attrib['N'] += 0.05
+                self.parent.fiddle_widg.component.attrib['logN'] += 0.05
             elif event.key == 'n':
-                self.parent.fiddle_widg.component.attrib['N'] -= 0.05
+                self.parent.fiddle_widg.component.attrib['logN'] -= 0.05
             elif event.key == 'v':
                 self.parent.fiddle_widg.component.attrib['b'] -= 2*u.km/u.s
             elif event.key == 'V':
@@ -1042,7 +1044,7 @@ class FiddleComponentWidget(QtGui.QWidget):
         '''Setup Widget for the input component'''
         self.component = component
         # Values
-        self.Nwidget.set_text(self.component.attrib['N'])
+        self.Nwidget.set_text(self.component.attrib['logN'])
         self.zwidget.set_text(self.component.attrib['z'])
         self.bwidget.set_text(self.component.attrib['b'].value)
         self.Cwidget.set_text(self.component.comment)
@@ -1071,7 +1073,7 @@ class FiddleComponentWidget(QtGui.QWidget):
 
     def update_component(self):
         '''Values have changed'''
-        self.Nwidget.set_text(self.component.attrib['N'])
+        self.Nwidget.set_text(self.component.attrib['logN'])
         self.zwidget.set_text(self.component.attrib['z'])
         self.bwidget.set_text(self.component.attrib['b'].value)
         self.Cwidget.set_text(self.component.comment)
@@ -1091,7 +1093,7 @@ class FiddleComponentWidget(QtGui.QWidget):
             print('Need to generate a component first!')
         else:
             # Grab values
-            self.component.attrib['N'] = (float(self.Nwidget.box.text()))
+            self.component.attrib['logN'] = (float(self.Nwidget.box.text()))
             self.component.attrib['z'] = (float(self.zwidget.box.text()))
             self.component.attrib['b'] = (float(self.bwidget.box.text()))*u.km/u.s
             self.component.comment = str(self.Cwidget.box.text())
@@ -1238,7 +1240,8 @@ class Component(AbsComponent):
         AbsComponent.__init__(self,radec, Zion, z, vlim, Ej, comment='None')
 
         # Init cont.
-        self.attrib = {'N': 0., 'Nsig': 0., 'flagN': 0, # Column
+        self.attrib = {'N': 0./u.cm**2, 'Nsig': 0./u.cm**2, 'flagN': 0, # Column
+                       'logN': 0., 'sig_logN': 0.,
                        'b': 0.*u.km/u.s, 'bsig': 0.*u.km/u.s,  # Doppler
                        'z': self.zcomp, 'zsig': 0.,
                        'Quality': 'None'}
@@ -1273,7 +1276,7 @@ class Component(AbsComponent):
         '''Synchronize attributes of the lines
         '''
         for line in self.lines:
-            line.attrib['N'] = self.attrib['N']
+            line.attrib['logN'] = self.attrib['logN']
             line.attrib['b'] = self.attrib['b']
             line.attrib['z'] = self.attrib['z']
 

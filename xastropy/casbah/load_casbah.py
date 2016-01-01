@@ -13,18 +13,16 @@
 from __future__ import print_function, absolute_import, division, unicode_literals
 
 import numpy as np
-import os, imp, glob, copy
-from astropy.io import fits, ascii
-from astropy import units as u 
+from astropy import units as u
 from astropy.coordinates import SkyCoord
-from astropy.table import Table, Column, MaskedColumn
+from astropy.table import Table
+
+from pyigm.field.igmfield import IgmGalaxyField
 
 #from astropy import constants as const
 from xastropy.casbah import galaxy_data as xcgd
 from xastropy.casbah import utils as xcasbahu
 from xastropy.xutils import lists as xxul
-from xastropy.cgm import field as xcgmf
-from xastropy.obs import radec as xra
 
 from xastropy.xutils import xdebug as xdb
 
@@ -42,9 +40,8 @@ def load_field(field):
     lfield:     
       Loaded IgmGalaxyField class
     '''
-    reload(xcgmf)
     reload(xcasbahu)
-    lfield = xcgmf.IgmGalaxyField(field[0], (field[1],field[2]))
+    lfield = IgmGalaxyField((field[1],field[2]), name=field[0])
 
     # Load targets
     targ_file = xcasbahu.get_filename(field,'TARGETS')
