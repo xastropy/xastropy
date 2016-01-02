@@ -10,6 +10,7 @@ from astropy.table import Table, Column, QTable
 
 from linetools.spectra import io as lsio
 from linetools.abund import ions as ltai
+from linetools import utils as ltu
 
 from pyigm.surveys.dlasurvey import DLASurvey
 
@@ -206,6 +207,7 @@ def mk_json_clms(dlas, outfil):
         all_clmdict[abssys.name] = tmp
     # Write
     print('Writing {:s}'.format(outfil))
+    #ltu.savejson(outfil, all_clmdict, overwrite=True)
     with io.open(outfil, 'w', encoding='utf-8') as f:
         f.write(unicode(json.dumps(all_clmdict, sort_keys=True, indent=4,
                                    separators=(',', ': '))))
