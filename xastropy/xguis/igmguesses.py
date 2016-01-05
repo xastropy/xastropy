@@ -918,7 +918,8 @@ class IGGVelPlotWidget(QtGui.QWidget):
                     self.ax.get_xaxis().set_ticks([])
                 lbl = self.llist[self.llist['List']].name[idx]
                 self.ax.text(0.01, 0.15, lbl, color=color, transform=self.ax.transAxes,
-                             size='x-small', ha='left',va='center',backgroundcolor='w',bbox={'pad':0,'edgecolor':'none'})
+                             size='x-small', ha='left',va='center',backgroundcolor='w',bbox={'pad':0,'edgecolor':'none',
+                                                                                             'facecolor':'w'})
                 if self.flag_idlbl:
                     # Any lines inside?
                     mtw = np.where((line_wvobs > wvmnx[0]) & (line_wvobs<wvmnx[1]))[0]
