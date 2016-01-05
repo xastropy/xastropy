@@ -926,7 +926,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
                     for imt in mtw:
                         v = 3e5*(line_wvobs[imt]/wvobs - 1)
                         self.ax.text(v, 0.5, line_lbl[imt], color=color_model,backgroundcolor='w',
-                            bbox={'pad':0,'edgecolor':'none'}, size='xx-small', rotation=90.,ha='center',va='center')
+                            bbox={'pad':0,'edgecolor':'none', 'facecolor':'w'}, size='xx-small', rotation=90.,ha='center',va='center')
 
                 # Analysis regions
                 if np.sum(self.spec.mask) > 0.:
