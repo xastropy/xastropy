@@ -4,13 +4,13 @@ from __future__ import print_function, absolute_import, division, unicode_litera
 
 import numpy as np
 import glob, os, sys, io, json
+import datetime
 
 from astropy import units as u
 from astropy.table import Table, Column, QTable
 
 from linetools.spectra import io as lsio
 from linetools.abund import ions as ltai
-from linetools import utils as ltu
 
 from pyigm.surveys.dlasurvey import DLASurvey
 
@@ -29,8 +29,9 @@ def neeleman13():
     dlasurvey.fill_ions(use_Nfile=True)
     mk_json_ions(dlasurvey, prefix, outpath+prefix+'_DLA_ions.json')
 
-    # Json file for .clm files
-    mk_json_clms(dlasurvey, outpath+prefix+'_DLA_clms.json')
+    # Json files for .clm files
+    mk_json_clms(dlasurvey, outpath+'CLMS/', prefix)
+    print('It is likely you wish to tarball the CLMS folder for distribution')
 
     # Summary file and spectra
     mk_summary(dlasurvey, prefix, outpath+prefix+'_DLA.fits',
@@ -184,14 +185,33 @@ def mk_summary(dlas, prefix, outfil, specpath=None, htmlfil=None):
     return dla_table
 
 
-def mk_json_clms(dlas, outfil):
+def mk_json_clms(dlas, outpath, prefix):
     """ Generate a JSON table of the Ion database
     Parameters
     ----------
     dlas : DLASurvey
+    outpath : str
     prefix : str
-    outfil : str
-      Output JSON file
+    """
+    for abssys in dlas._abs_sys:
+        tdict = abssys._clmdict
+        # Convert AbsLine to dicts
+        if 'lines' in tdict.keys():
+            new_lines = {}
+            for key in tdict['lines']:
+                new_lines[key] = tdict['lines'][key].to_dict()
+            # Replace
+            tdict['lines'] = new_lines
+        tdict['Name'] = abssys.name
+        tdict['Creation_date'] = str(datetime.date.today().strftime('%Y-%b-%d'))
+        # Outfil
+        name = survey_name(prefix, abssys)
+        outfil = outpath+name+'_clm.json'
+        # Write
+        print('Writing {:s}'.format(outfil))
+        with io.open(outfil, 'w', encoding='utf-8') as f:
+            f.write(unicode(json.dumps(tdict, sort_keys=True, indent=4,
+                                       separators=(',', ': '))))
     """
     # Generate dict of ._clmdict files
     all_clmdict = {}
@@ -211,6 +231,7 @@ def mk_json_clms(dlas, outfil):
     with io.open(outfil, 'w', encoding='utf-8') as f:
         f.write(unicode(json.dumps(all_clmdict, sort_keys=True, indent=4,
                                    separators=(',', ': '))))
+    """
 
 
 def mk_json_ions(dlas, prefix, outfil):

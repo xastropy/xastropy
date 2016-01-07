@@ -29,13 +29,12 @@ Here is now my preferred approach to perform the
 analysis:
 
 1.  Inspect the velocity plots.
-
 2.  Identify the best low-ion transition for the analysis.
   a. High S/N
   b. Not saturated (or just barely)
   c. Preferably SiII, SII, ZnII (i.e. not refractory)
-
-3.  Hit "L" on the line for a low-ion kinematic tracer
+3.  Hit "^" on the line for a low-ion kinematic tracer
+4.  Hit "&" on the line for a high-ion kinematic tracer
 '''
 
 
