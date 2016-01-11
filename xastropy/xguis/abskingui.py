@@ -91,6 +91,10 @@ class AbsKinGui(QtGui.QDialog):
         self.out_box.setText(self.outfil)
         self.connect(self.out_box, QtCore.SIGNAL('editingFinished ()'), self.set_outfil)
 
+        #QtCore.pyqtRemoveInputHook()
+        #xdb.set_trace()
+        #QtCore.pyqtRestoreInputHook()
+
         # Quit
         buttons = QtGui.QWidget()
         wqbtn = QtGui.QPushButton('Write+Quit', self)
@@ -182,16 +186,17 @@ class AbsKinGui(QtGui.QDialog):
 
     # Write + Quit
     def write_quit(self):
-        self.write_out()
+        #self.write_out()
         self.flg_quit = 1
         self.abs_sys = self.vplt_widg.abs_sys
         self.done(1)
 
     # Write + Quit
     def quit(self):
-        #self.abs_sys = self.vplt_widg.abs_sys # Have to write to pass back
+        self.abs_sys = self.vplt_widg.abs_sys # Have to write to pass back
         self.flg_quit = 0
         self.done(1)
+
 
 # Script to run XVelPltGui from the command line or ipython
 def main(*args, **kwargs):

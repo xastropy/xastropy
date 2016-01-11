@@ -452,6 +452,7 @@ def read_clmfile(clm_file,linelist=None):
         clm_dict['lines'][key] = AbsLine(key*u.AA,closest=True,linelist=linelist)
         clm_dict['lines'][key].attrib['z'] = clm_dict['zsys']
         clm_dict['lines'][key].analy['FLAGS'] = ionflg, int(tmp[3].strip())
+        pdb.set_trace()
         # By-hand
         if ionflg >= 8:
             clm_dict['lines'][key].attrib['N'] = 10.**vmin / u.cm**2
