@@ -36,6 +36,8 @@ from linetools.spectra.xspectrum1d import XSpectrum1D
 from linetools.spectra import convolve as lsc
 from linetools.spectralline import AbsLine
 from linetools.isgm.abscomponent import AbsComponent
+from linetools.guis import utils as ltgu
+from linetools.guis import line_widgets as ltgl
 
 #from xastropy.atomic import ionization as xatomi
 from xastropy.plotting import utils as xputils
@@ -120,7 +122,7 @@ class IGMGuessesGui(QtGui.QMainWindow):
         self.min_strength = min_strength
 
         # Spectrum
-        spec, spec_fil = xxgu.read_spec(ispec)
+        spec, spec_fil = ltgu.read_spec(ispec)
         spec.normalize() # Need to change this..
         spec.mask = np.zeros(len(spec.dispersion),dtype=int)
 
@@ -131,7 +133,7 @@ class IGMGuessesGui(QtGui.QMainWindow):
             spec.dispersion,np.ones(len(spec.dispersion))))
 
         # LineList (Grab ISM and HI as defaults)
-        self.llist = xxgu.set_llist('ISM')
+        self.llist = ltgu.set_llist('ISM')
         # Load others
         self.llist['HI'] = LineList('HI')
         # self.llist['Strong'] = LineList('Strong')
@@ -144,7 +146,7 @@ class IGMGuessesGui(QtGui.QMainWindow):
         self.llist['z'] = z
         
         # Grab the pieces and tie together
-        self.slines_widg = xspw.SelectedLinesWidget(
+        self.slines_widg = ltgl.SelectedLinesWidget(
             self.llist[self.llist['List']], parent=self, init_select='All')
         self.fiddle_widg = FiddleComponentWidget(parent=self)
         self.comps_widg = ComponentListWidget([], parent=self)
@@ -354,7 +356,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
 
         # Initialize
         self.parent = parent
-        spec, spec_fil = xxgu.read_spec(ispec)
+        spec, spec_fil = ltgu.read_spec(ispec)
         
         self.spec = spec
         self.spec_fil = spec_fil
@@ -382,7 +384,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
         self.psdict = {} # Dict for spectra plotting
         self.psdict['xmnx'] = self.vmnx.value # Too much pain to use units with this
         self.psdict['ymnx'] = [-0.1, 1.1]
-        self.psdict['nav'] = xxgu.navigate(0,0,init=True)
+        self.psdict['nav'] = ltgu.navigate(0,0,init=True)
 
         
 
@@ -392,7 +394,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
 
         # Line List
         if llist is None:
-            self.llist = xxgu.set_llist(['HI 1215', 'HI 1025'])
+            self.llist = ltgu.set_llist(['HI 1215', 'HI 1025'])
         else:
             self.llist = llist
         self.llist['z'] = self.z
@@ -605,7 +607,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
 
         ## NAVIGATING
         if event.key in self.psdict['nav']:
-            flg = xxgu.navigate(self.psdict,event)
+            flg = ltgu.navigate(self.psdict,event)
         if event.key == '-':
             self.idx_line = max(0, self.idx_line-self.sub_xy[0]*self.sub_xy[1]) # Min=0
             if self.idx_line == sv_idx:
