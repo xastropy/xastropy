@@ -4,6 +4,7 @@ from __future__ import print_function, absolute_import, division, unicode_litera
 
 import numpy as np
 import glob, os, sys, io, json
+import datetime
 
 from astropy import units as u
 from astropy.table import Table, Column, QTable
@@ -24,9 +25,13 @@ def neeleman13():
     dlasurvey = DLASurvey.from_flist('Lists/Neeleman13.lst',
                                      tree=os.environ.get('DLA'))
     dlasurvey.ref = 'Neeleman+13'
-    #
+    # Json file for ions
     dlasurvey.fill_ions(use_Nfile=True)
     mk_json_ions(dlasurvey, prefix, outpath+prefix+'_DLA_ions.json')
+
+    # Json files for .clm files
+    mk_json_clms(dlasurvey, outpath+'CLMS/', prefix)
+    print('It is likely you wish to tarball the CLMS folder for distribution')
 
     # Summary file and spectra
     mk_summary(dlasurvey, prefix, outpath+prefix+'_DLA.fits',
@@ -179,7 +184,56 @@ def mk_summary(dlas, prefix, outfil, specpath=None, htmlfil=None):
 
     return dla_table
 
-#
+
+def mk_json_clms(dlas, outpath, prefix):
+    """ Generate a JSON table of the Ion database
+    Parameters
+    ----------
+    dlas : DLASurvey
+    outpath : str
+    prefix : str
+    """
+    for abssys in dlas._abs_sys:
+        tdict = abssys._clmdict
+        # Convert AbsLine to dicts
+        if 'lines' in tdict.keys():
+            new_lines = {}
+            for key in tdict['lines']:
+                new_lines[key] = tdict['lines'][key].to_dict()
+            # Replace
+            tdict['lines'] = new_lines
+        tdict['Name'] = abssys.name
+        tdict['Creation_date'] = str(datetime.date.today().strftime('%Y-%b-%d'))
+        # Outfil
+        name = survey_name(prefix, abssys)
+        outfil = outpath+name+'_clm.json'
+        # Write
+        print('Writing {:s}'.format(outfil))
+        with io.open(outfil, 'w', encoding='utf-8') as f:
+            f.write(unicode(json.dumps(tdict, sort_keys=True, indent=4,
+                                       separators=(',', ': '))))
+    """
+    # Generate dict of ._clmdict files
+    all_clmdict = {}
+    for abssys in dlas._abs_sys:
+        tmp = abssys._clmdict
+        # Convert AbsLine to dicts
+        if 'lines' in tmp.keys():
+            new_lines = {}
+            for key in tmp['lines']:
+                new_lines[key] = tmp['lines'][key].to_dict()
+            # Replace
+            tmp['lines'] = new_lines
+        all_clmdict[abssys.name] = tmp
+    # Write
+    print('Writing {:s}'.format(outfil))
+    #ltu.savejson(outfil, all_clmdict, overwrite=True)
+    with io.open(outfil, 'w', encoding='utf-8') as f:
+        f.write(unicode(json.dumps(all_clmdict, sort_keys=True, indent=4,
+                                   separators=(',', ': '))))
+    """
+
+
 def mk_json_ions(dlas, prefix, outfil):
     """ Generate a JSON table of the Ion database
     Parameters
