@@ -26,7 +26,8 @@ from xastropy.obs import finder as x_finder
 # def starlist :: Generate a starlist file
 
 #### ###############################
-def wiki(targs, keys, fndr_pth=None, dbx_pth=None, outfil=None):
+def wiki(targs, keys, fndr_pth=None, dbx_pth=None, outfil=None,
+         offset=None):
     """
     Generate a Wiki table for Keck observing.
     Should work for any of the Wiki pages
@@ -40,6 +41,8 @@ def wiki(targs, keys, fndr_pth=None, dbx_pth=None, outfil=None):
       Folder for finder charts
     dbx_pth: string
       Dropbox path for the finders
+    offset : tuple
+      tag, tag for RA,DEC of offset objects
 
     Writes a file to disk that can be pasted into the Wiki
     """
@@ -68,7 +71,8 @@ def wiki(targs, keys, fndr_pth=None, dbx_pth=None, outfil=None):
         fndr_files = []
         for targ in targs:
             x_finder.main([targ[name_tag], targ['RA'], targ['DEC']], radec=1,
-                          fpath=fndr_pth)
+                          fpath=fndr_pth,
+                          show_another=(targ[offset[0]],targ[offset[1]]))
             # Copy? + Save
             nm = "".join(targ[name_tag].split()) 
             fil1 = fndr_pth+ nm + '.pdf'
@@ -161,7 +165,7 @@ def get_name_tag(tbl_nms,mask=[None]):
     '''
     # Target name key
     name_tag = None
-    for tag in ['Target', 'Name', 'NAME', 'QSO']:
+    for tag in ['Target', 'Name', 'NAME', 'name', 'QSO']:
         if tag in tbl_nms: 
             name_tag = tag
             if not name_tag in mask:
