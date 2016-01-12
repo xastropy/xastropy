@@ -69,7 +69,9 @@ class AbsKinGui(QtGui.QDialog):
         self.sel_wv = sel_wv
 
         # Grab the pieces and tie together
-        sys_label = QtGui.QLabel('Name: {:s}'.format(name))
+        newfont = QtGui.QFont("Times", 10, QtGui.QFont.Bold)
+        sys_label = QtGui.QLabel('Name: \n {:s}'.format(name))
+        sys_label.setFont(newfont)
         self.vplt_widg = xspw.VelPlotWidget(ispec, abs_sys=self.abs_sys, llist=llist,
                                             vmnx=self.vmnx, z=self.z, norm=self.norm)
         self.pltline_widg = ltgl.PlotLinesWidget(init_llist=self.vplt_widg.llist,
