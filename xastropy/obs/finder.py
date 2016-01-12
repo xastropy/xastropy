@@ -287,18 +287,18 @@ def main(inp, survey='2r', radec=None, deci=None, fpath=None, show_circ=True,
                                                  yanother-cradius),
                                                 cradius*2,cradius*2,color='cyan', fill=False)
             plt.gca().add_artist(square)
-            plt.text(0.5,1.24, str(nm), fontsize=32,
+            plt.text(0.5, 1.24, str(nm), fontsize=32,
                  horizontalalignment='center',transform=ax.transAxes)
-            plt.text(0.5,1.18, 'RA (J2000) = '+str(obj['RAS'])+
+            plt.text(0.5, 1.18, 'RA (J2000) = '+str(obj['RAS'])+
                      '  DEC (J2000) = '+str(obj['DECS']), fontsize=22,
                      horizontalalignment='center',transform=ax.transAxes)
-            plt.text(0.5,1.12, 'RA(offset) = {:s}  DEC(offset) = {:s}'.format(
+            plt.text(0.5, 1.12, 'RA(offset) = {:s}  DEC(offset) = {:s}'.format(
                      canother.ra.to_string(unit=astrou.hour,pad=True,sep=':', precision=2),
                      canother.dec.to_string(pad=True, alwayssign=True, sep=':', precision=1)),
                      fontsize=22, horizontalalignment='center',transform=ax.transAxes,
                      color='blue')
-            plt.text(0.5,1.06, 'RA(offset to obj) = {:g}  DEC(offset to obj) = {:g}'.format(
-                     off[0].to('arcsec'), off[1].to('arcsec')),
+            plt.text(0.5, 1.06, 'RA(offset to obj) = {:g}  DEC(offset to obj) = {:g}'.format(
+                     -1*off[0].to('arcsec'), -1*off[1].to('arcsec')),
                       fontsize=18, horizontalalignment='center',transform=ax.transAxes)
         else:
             # Title

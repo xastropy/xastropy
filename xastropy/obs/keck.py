@@ -27,7 +27,7 @@ from xastropy.obs import finder as x_finder
 
 #### ###############################
 def wiki(targs, keys, fndr_pth=None, dbx_pth=None, outfil=None,
-         offset=None):
+         offset=None, BW=False):
     """
     Generate a Wiki table for Keck observing.
     Should work for any of the Wiki pages
@@ -71,7 +71,7 @@ def wiki(targs, keys, fndr_pth=None, dbx_pth=None, outfil=None,
         fndr_files = []
         for targ in targs:
             x_finder.main([targ[name_tag], targ['RA'], targ['DEC']], radec=1,
-                          fpath=fndr_pth,
+                          fpath=fndr_pth, BW=BW,
                           show_another=(targ[offset[0]],targ[offset[1]]))
             # Copy? + Save
             nm = "".join(targ[name_tag].split()) 
