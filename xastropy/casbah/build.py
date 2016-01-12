@@ -12,6 +12,9 @@
 """
 from __future__ import print_function, absolute_import, division, unicode_literals
 
+# TODO
+# 1. Add grating to spectra file meta-data
+
 import os
 import warnings
 
