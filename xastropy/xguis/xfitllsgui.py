@@ -1,5 +1,5 @@
 """
-#;+ 
+#;+
 #; NAME:
 #; spec_guis
 #;    Version 1.0
@@ -22,6 +22,8 @@ from PyQt4 import QtGui
 from PyQt4 import QtCore
 
 # Matplotlib Figure object
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 
 from astropy.units import Quantity
 from astropy import units as u
@@ -64,7 +66,7 @@ sets a guess for NHI.
 
 4. Hit "F" and wait for magic to happen.
 
-5. If an LLS satisfying a rather simple criterion is found, it 
+5. If an LLS satisfying a rather simple criterion is found, it
 should appear.  Otherwise, a message prints to the terminal
 stating none found.  You should then inspect the model,
 including at Lyb and Lya and modify it (or even delete it).
@@ -74,13 +76,628 @@ move on to the next putative break and try again, i.e.
 repeat steps 2-5.
 '''
 
+def set_llist(llist, in_dict=None, sort=True):
+    ''' Method to set a line list dict for the Widgets
+    sort: bool, optional [DEPRECATED CURRENTLY]
+      Sort lines by rest wavelength [True]
+    '''
+    from linetools.lists.linelist import LineList
+    from astropy.units.quantity import Quantity
+
+    if in_dict is None:
+        in_dict = dict(Lists=[])
+
+    if isinstance(llist,basestring): # Set line list from a file
+        in_dict['List'] = llist
+        in_dict['Lists'].append(llist)
+        if llist == 'None':
+            in_dict['Plot'] = False
+        else:
+            in_dict['Plot'] = True
+            # Load?
+            if not (llist in in_dict):
+                # Homebrew
+                if llist == 'OVI':
+                    gdlines = u.AA*[629.730, 702.332, 770.409, 780.324, 787.711, 832.927, 972.5367, 977.0201,
+                        1025.7222, 1031.9261, 1037.6167, 1206.5, 1215.6700, 1260.4221]
+                    llist_cls = LineList('Strong', subset=gdlines)
+                    in_dict[llist] = llist_cls
+                else:
+                    llist_cls = LineList(llist)
+                    # Sort
+                    llist_cls._data.sort('wrest')
+                    # Load
+                    in_dict[llist] = llist_cls
+    elif isinstance(llist,(Quantity,list)): # Set from a list of wrest
+        in_dict['List'] = 'input.lst'
+        in_dict['Lists'].append('input.lst')
+        in_dict['Plot'] = True
+        # Fill
+        if sort:
+            llist.sort()
+        llist_cls = LineList('ISM', subset=llist)
+        in_dict['input.lst'] = llist_cls
+    else:
+        raise IOError('Not ready for this type of input')
+
+    # Return
+    return in_dict
+
+def navigate(psdict,event,init=False):
+    ''' Method to Navigate spectrum
+    init:  (False) Initialize
+      Just pass back valid key strokes
+    '''
+    # Initalize
+    if init is True:
+        return ['l','r','b','t','T','i','I', 'o','O',
+        '[',']','W','Z', 'Y', '{', '}', 's']
+
+    #
+    if (not isinstance(event.xdata,float)) or (not isinstance(event.ydata,float)):
+        print('Navigate: You entered the {:s} key out of bounds'.format(
+            event.key))
+        return 0
+
+    if event.key == 'l':  # Set left
+        psdict['xmnx'][0] = event.xdata
+    elif event.key == 'r':  # Set Right
+        psdict['xmnx'][1] = event.xdata
+    elif event.key == 'b':  # Set Bottom
+        psdict['ymnx'][0] = event.ydata
+    elif event.key == 't':  # Set Top
+        psdict['ymnx'][1] = event.ydata
+    elif event.key == 'T':  # Set Top to 1.1
+        psdict['ymnx'][1] = 1.1
+    elif event.key == 's':  # Select window (i.e. zoom-in)
+        if psdict['tmp_xy'] is None:
+            psdict['tmp_xy'] = [event.xdata,event.ydata]
+            print('Press another s to set the zoom-in window')
+        else:
+            psdict['xmnx'][0] = np.minimum(event.xdata,psdict['tmp_xy'][0])
+            psdict['xmnx'][1] = np.maximum(event.xdata,psdict['tmp_xy'][0])
+            psdict['ymnx'][0] = np.minimum(event.ydata,psdict['tmp_xy'][1])
+            psdict['ymnx'][1] = np.maximum(event.ydata,psdict['tmp_xy'][1])
+            psdict['tmp_xy'] = None
+    elif event.key == 'i':  # Zoom in (and center)
+        deltx = (psdict['xmnx'][1]-psdict['xmnx'][0])/4.
+        psdict['xmnx'] = [event.xdata-deltx, event.xdata+deltx]
+    elif event.key == 'I':  # Zoom in (and center)
+        deltx = (psdict['xmnx'][1]-psdict['xmnx'][0])/16.
+        psdict['xmnx'] = [event.xdata-deltx, event.xdata+deltx]
+    elif event.key == 'o':  # Zoom in (and center)
+        deltx = psdict['xmnx'][1]-psdict['xmnx'][0]
+        psdict['xmnx'] = [event.xdata-deltx, event.xdata+deltx]
+    elif event.key == 'O':  # Zoom in (and center)
+        deltx = psdict['xmnx'][1]-psdict['xmnx'][0]
+        psdict['xmnx'] = [event.xdata-2*deltx, event.xdata+2*deltx]
+    elif event.key == 'Y':  # Zoom in (and center)
+        delty = psdict['ymnx'][1]-psdict['ymnx'][0]
+        psdict['ymnx'] = [event.ydata-delty, event.ydata+delty]
+    elif event.key in ['[',']','{','}']:  # Pan
+        center = (psdict['xmnx'][1]+psdict['xmnx'][0])/2.
+        deltx = (psdict['xmnx'][1]-psdict['xmnx'][0])/2.
+        if event.key == '[':
+            new_center = center - deltx
+        elif event.key == ']':
+            new_center = center + deltx
+        elif event.key == '{':
+            new_center = center - 4*deltx
+        elif event.key == '}':
+            new_center = center + 4*deltx
+        psdict['xmnx'] = [new_center-deltx, new_center+deltx]
+    elif event.key == 'W': # Reset the Window
+        psdict['xmnx'] = copy.deepcopy(psdict['sv_xy'][0])
+        psdict['ymnx'] = copy.deepcopy(psdict['sv_xy'][1])
+    elif event.key == 'Z': # Zero
+        psdict['ymnx'][0] = 0.
+    else:
+        if not (event.key in ['shift']):
+            rstr = 'Key {:s} not supported.'.format(event.key)
+            print(rstr)
+        return 0
+    return 1
+
+
+# ######
+# Plot Doublet
+def set_doublet(iself,event):
+    ''' Set z and plot doublet
+    '''
+    wv_dict = {'C': (1548.195, 1550.770, 'CIV'), 'M': (2796.352, 2803.531, 'MgII'),
+               '4': (1393.755, 1402.770, 'SiIV'),
+               'X': (1031.9261, 1037.6167, 'OVI'), '8': (770.409, 780.324, 'NeVIII'),
+               'B': (1025.4433, 1215.6701, 'Lyba')}
+    wrest = wv_dict[event.key]
+
+    # Set z
+    iself.zabs = event.xdata/wrest[0] - 1.
+    try:
+        iself.statusBar().showMessage('z = {:g} for {:s}'.format(iself.zabs, wrest[2]))
+    except AttributeError:
+        print('z = {:g} for {:s}'.format(iself.zabs, wrest[2]))
+
+    return np.array(wrest[0:2])*(1.+iself.zabs)
+
+
+
+class ExamineSpecWidget(QtGui.QWidget):
+    ''' Widget to plot a spectrum and interactively
+        fiddle about.  Akin to XIDL/x_specplot.pro
+
+        12-Dec-2014 by JXP
+        Parameters:
+        ------------
+        key_events: bool, optional
+          Use key events? [True]
+          Useful when coupling to other widgets
+    '''
+    def __init__(self, ispec, parent=None, status=None, llist=None,
+                 abs_sys=None, norm=True, second_file=None, zsys=None,
+                 key_events=True, vlines=None, plotzero=False, exten=None):
+        '''
+        spec = Spectrum1D
+        '''
+        super(ExamineSpecWidget, self).__init__(parent)
+
+        # Spectrum
+        if isinstance(ispec, XSpectrum1D):
+            spec = ispec
+            spec_fil = spec.filename
+        else:
+            # this is broken
+            spec, spec_fil = xxgu.read_spec(ispec)
+
+        self.orig_spec = spec # For smoothing
+        self.spec = self.orig_spec
+
+        self.vlines = []
+        if vlines is not None:
+            self.vlines.extend(vlines)
+
+        self.plotzero = plotzero
+
+        # Other bits (modified by other widgets)
+        self.continuum = None
+        self.model = None
+        self.bad_model = None  # Discrepant pixels in model
+        self.use_event = 1
+
+        # Abs Systems
+        if abs_sys is None:
+            self.abs_sys = []
+        else:
+            self.abs_sys = abs_sys
+        self.norm = norm
+        self.psdict = {} # Dict for spectra plotting
+        self.adict = {}  # Dict for analysis
+        self.init_spec()
+        self.xval = None # Used with velplt
+
+        # Status Bar?
+        if not status is None:
+            self.statusBar = status
+
+        # Line List?
+        if llist is None:
+            self.llist = {'Plot': False, 'List': 'None', 'z': 0., 'Lists': []}
+        else:
+            self.llist = llist
+
+        # zsys
+        if not zsys is None:
+            self.llist['z'] = zsys
+
+        # Create the mpl Figure and FigCanvas objects.
+        # 5x4 inches, 100 dots-per-inch
+        #
+        self.dpi = 150 # 150
+        self.fig = Figure((8.0, 4.0), dpi=self.dpi)
+        self.canvas = FigureCanvas(self.fig)
+        self.canvas.setParent(self)
+
+        self.canvas.setFocusPolicy( QtCore.Qt.ClickFocus )
+        self.canvas.setFocus()
+        if key_events:
+            self.canvas.mpl_connect('key_press_event', self.on_key)
+        self.canvas.mpl_connect('button_press_event', self.on_click)
+
+        # Make two plots
+        self.ax = self.fig.add_subplot(1,1,1)
+        self.fig.subplots_adjust(hspace=0.1, wspace=0.1)
+
+        vbox = QtGui.QVBoxLayout()
+        vbox.addWidget(self.canvas)
+
+        self.setLayout(vbox)
+
+        # Draw on init
+        self.on_draw()
+
+    # Setup the spectrum plotting info
+    def init_spec(self):
+        #xy min/max
+        xmin = np.min(self.spec.dispersion.value)
+        xmax = np.max(self.spec.dispersion.value)
+        from linetools.spectra.plotting import get_flux_plotrange
+        ymin, ymax = get_flux_plotrange(self.spec.flux.value)#, mult_pos=1)
+        # ymed = np.median(self.spec.flux.value)
+        # ymin = 0. - 0.1*ymed
+        # ymax = ymed * 1.5
+        #
+        #QtCore.pyqtRemoveInputHook()
+        #xdb.set_trace()
+        #QtCore.pyqtRestoreInputHook()
+        self.psdict['xmnx'] = np.array([xmin,xmax])
+        self.psdict['ymnx'] = [ymin,ymax]
+        self.psdict['sv_xy'] = [ [xmin,xmax], [ymin,ymax] ]
+        self.psdict['tmp_xy'] = None
+        self.psdict['nav'] = navigate(0,0,init=True)
+        # Analysis dict
+        self.adict['flg'] = 0 # Column density flag
+
+
+    # Main Driver
+    def on_key(self,event):
+
+        flg = -1
+
+        ## NAVIGATING
+        if event.key in self.psdict['nav']:
+            flg = navigate(self.psdict,event)
+
+        ## DOUBLETS
+        if event.key in ['C','M','X','4','8','B']:  # Set left
+            wave = set_doublet(self, event)
+            #print('wave = {:g},{:g}'.format(wave[0], wave[1]))
+            self.ax.plot( [wave[0],wave[0]], self.psdict['ymnx'], '--', color='red')
+            self.ax.plot( [wave[1],wave[1]], self.psdict['ymnx'], '--', color='red')
+            flg = 2 # Layer
+
+        ## SMOOTH
+        if event.key == 'S':
+            self.spec = self.spec.box_smooth(2)
+            flg = 1
+        if event.key == 'U':
+            self.spec = self.orig_spec
+            flg = 1
+
+        ## Lya Profiles
+        if event.key in ['D', 'R']:
+            # Set NHI
+            if event.key == 'D':
+                NHI = 20.3
+            elif event.key == 'R':
+                NHI = 19.0
+            zlya = event.xdata/1215.6701 - 1.
+            self.llist['z'] = zlya
+            # Generate Lya profile
+            lya_line = AbsLine(1215.6701*u.AA)
+            lya_line.z = zlya
+            lya_line.attrib['N'] = NHI
+            lya_line.attrib['b'] = 30.
+            self.lya_line = xspec.voigt.voigt_model(self.spec.dispersion, lya_line, Npix=3.)
+            self.adict['flg'] = 4
+            flg = 1
+
+        ## ANALYSIS:  EW, AODM column density
+        if event.key in ['N', 'E', '$']:
+            # If column check for line list
+            #QtCore.pyqtRemoveInputHook()
+            #xdb.set_trace()
+            #QtCore.pyqtRestoreInputHook()
+            if (event.key in ['N','E']) & (self.llist['List'] == 'None'):
+                print('xspec: Choose a Line list first!')
+                try:
+                    self.statusBar().showMessage('Choose a Line list first!')
+                except AttributeError:
+                    pass
+                self.adict['flg'] = 0
+                return
+            flg = 1
+
+            if self.adict['flg'] == 0:
+                self.adict['wv_1'] = event.xdata # wavelength
+                self.adict['C_1'] = event.ydata # continuum
+                self.adict['flg'] = 1 # Plot dot
+            else:
+                self.adict['wv_2'] = event.xdata # wavelength
+                self.adict['C_2'] = event.ydata # continuum
+                self.adict['flg'] = 2 # Ready to plot + print
+
+                # Sort em + make arrays
+                iwv = np.array(sorted([self.adict['wv_1'], self.adict['wv_2']])) * self.spec.wcs.unit
+                ic = np.array(sorted([self.adict['C_1'], self.adict['C_2']]))
+
+                # Calculate the continuum (linear fit)
+                param = np.polyfit(iwv, ic, 1)
+                cfunc = np.poly1d(param)
+                self.spec.conti = cfunc(self.spec.dispersion)
+
+                if event.key == '$': # Simple stats
+                    pix = self.spec.pix_minmax(iwv)[0]
+                    mean = np.mean(self.spec.flux[pix])
+                    median = np.median(self.spec.flux[pix])
+                    stdv = np.std(self.spec.flux[pix]-self.spec.conti[pix])
+                    S2N = median / stdv
+                    mssg = 'Mean={:g}, Median={:g}, S/N={:g}'.format(mean,median,S2N)
+                else:
+                    # Find the spectral line (or request it!)
+                    rng_wrest = iwv / (self.llist['z']+1)
+                    gdl = np.where( (self.llist[self.llist['List']].wrest-rng_wrest[0]) *
+                                    (self.llist[self.llist['List']].wrest-rng_wrest[1]) < 0.)[0]
+                    if len(gdl) == 1:
+                        wrest = self.llist[self.llist['List']].wrest[gdl[0]]
+                    else:
+                        if len(gdl) == 0: # Search through them all
+                            gdl = np.arange(len(self.llist[self.llist['List']]))
+                        sel_widg = SelectLineWidget(self.llist[self.llist['List']]._data[gdl])
+                        sel_widg.exec_()
+                        line = sel_widg.line
+                        #wrest = float(line.split('::')[1].lstrip())
+                        quant = line.split('::')[1].lstrip()
+                        spltw = quant.split(' ')
+                        wrest = Quantity(float(spltw[0]), unit=spltw[1])
+                    # Units
+                    if not hasattr(wrest,'unit'):
+                        # Assume Ang
+                        wrest = wrest * u.AA
+
+                    # Generate the Spectral Line
+                    aline = AbsLine(wrest,linelist=self.llist[self.llist['List']])
+                    aline.attrib['z'] = self.llist['z']
+                    aline.analy['spec'] = self.spec
+
+                    # AODM
+                    if event.key == 'N':
+                        # Calculate the velocity limits and load-up
+                        aline.analy['vlim'] = const.c.to('km/s') * (
+                            ( iwv/(1+self.llist['z']) - wrest) / wrest )
+
+                        # AODM
+                        #QtCore.pyqtRemoveInputHook()
+                        #xdb.set_trace()
+                        #QtCore.pyqtRestoreInputHook()
+                        aline.measure_aodm()
+                        mssg = 'Using '+ aline.__repr__()
+                        mssg = mssg + ' ::  logN = {:g} +/- {:g}'.format(
+                            aline.attrib['logN'], aline.attrib['sig_logN'])
+                    elif event.key == 'E':  #EW
+                        aline.analy['wvlim'] = iwv
+                        aline.measure_restew()
+                        mssg = 'Using '+ aline.__repr__()
+                        mssg = mssg + ' ::  Rest EW = {:g} +/- {:g}'.format(
+                            aline.attrib['EW'].to(mAA), aline.attrib['sig_EW'].to(mAA))
+                # Display values
+                try:
+                    self.statusBar().showMessage(mssg)
+                except AttributeError:
+                    pass
+                print(mssg)
+
+                #QtCore.pyqtRemoveInputHook()
+                #xdb.set_trace()
+                #QtCore.pyqtRestoreInputHook()
+
+
+        ## Velocity plot
+        if event.key == 'v':
+            flg = 0
+            from xastropy.xguis import spec_guis as xsgui
+            z=self.llist['z']
+            # Check for a match in existing list and use it if so
+            if len(self.abs_sys) > 0:
+                zabs = np.array([abs_sys.zabs for abs_sys in self.abs_sys])
+                mt = np.where( np.abs(zabs-z) < 1e-4)[0]
+            else:
+                mt = []
+            if len(mt) == 1:
+                ini_abs_sys = self.abs_sys[mt[0]]
+                outfil = ini_abs_sys.absid_file
+                self.vplt_flg = 0 # Old one
+                print('Using existing ID file {:s}'.format(outfil))
+            else:
+                ini_abs_sys = None
+                outfil = None
+                if self.llist['List'] == 'None':
+                    print('Need to set a line list first!!')
+                    self.vplt_flg = -1 # Nothing to do here
+                    return
+                self.vplt_flg = 1 # New one
+
+            # Outfil
+            if outfil is None:
+                i0 = self.spec.filename.rfind('/')
+                i1 = self.spec.filename.rfind('.')
+                if i0 < 0:
+                    path = './ID_LINES/'
+                else:
+                    path = self.spec.filename[0:i0]+'/ID_LINES/'
+                outfil = path + self.spec.filename[i0+1:i1]+'_z'+'{:.4f}'.format(z)+'_id.fits'
+                xutils.files.ensure_dir(outfil)
+                self.outfil = outfil
+                #QtCore.pyqtRemoveInputHook()
+                #xdb.set_trace()
+                #QtCore.pyqtRestoreInputHook()
+
+            # Launch
+            #QtCore.pyqtRemoveInputHook()
+            #xdb.set_trace()
+            #QtCore.pyqtRestoreInputHook()
+            gui = xsgui.XVelPltGui(self.spec, z=z, outfil=outfil, llist=self.llist,
+                                   abs_sys=ini_abs_sys, norm=self.norm,
+                                   sel_wv=self.xval*self.spec.wcs.unit)
+            gui.exec_()
+            if gui.flg_quit == 0: # Quit without saving (i.e. discarded)
+                self.vplt_flg = 0
+            else:
+                # Push to Abs_Sys
+                if len(mt) == 1:
+                    self.abs_sys[mt[0]] = gui.abs_sys
+                else:
+                    self.abs_sys.append(gui.abs_sys)
+                    print('Adding new abs system')
+            # Redraw
+            flg=1
+
+        # Dummy keys
+        if event.key in ['shift', 'control', 'shift+super', 'super+shift']:
+            flg = 0
+
+        # Draw
+        if flg==1: # Default is not to redraw
+            self.on_draw()
+        elif flg==2: # Layer (no clear)
+            self.on_draw(replot=False)
+        elif flg==-1: # Layer (no clear)
+            try:
+                self.statusBar().showMessage('Not a valid key!  {:s}'.format(event.key))
+            except AttributeError:
+                pass
+
+    # Click of main mouse button
+    def on_click(self,event):
+        try:
+            print('button={:d}, x={:f}, y={:f}, xdata={:f}, ydata={:f}'.format(
+                event.button, event.x, event.y, event.xdata, event.ydata))
+        except ValueError:
+            print('Out of bounds')
+            return
+        if event.button == 1: # Draw line
+            self.xval = event.xdata
+            self.ax.plot( [event.xdata,event.xdata], self.psdict['ymnx'], ':', color='green')
+            self.on_draw(replot=False)
+
+            # Print values
+            try:
+                self.statusBar().showMessage('x,y = {:f}, {:f}'.format(event.xdata,event.ydata))
+            except AttributeError:
+                return
+
+    # ######
+    def on_draw(self, replot=True, no_draw=False):
+        """ Redraws the spectrum
+        no_draw: bool, optional
+          Draw the screen on the canvas?
+        """
+        #
+        if replot is True:
+            self.ax.clear()
+            self.ax.plot(self.spec.dispersion, self.spec.flux,
+                'k-',drawstyle='steps-mid')
+            try:
+                self.ax.plot(self.spec.dispersion, self.spec.sig, 'r:')
+            except ValueError:
+                pass
+            self.ax.set_xlabel('Wavelength')
+            self.ax.set_ylabel('Flux')
+
+            # Continuum?
+            if self.continuum is not None:
+                self.ax.plot(self.continuum.dispersion, self.continuum.flux,
+                    color='purple')
+
+            # Model?
+            if self.model is not None:
+                self.ax.plot(self.model.dispersion, self.model.flux,
+                    color='cyan')
+                if self.bad_model is not None:
+                    self.ax.scatter(self.model.dispersion[self.bad_model],
+                        self.model.flux[self.bad_model],  marker='o',
+                        color='red', s=3.)
+
+
+            # Spectral lines?
+            if self.llist['Plot'] is True:
+                ylbl = self.psdict['ymnx'][1]-0.2*(self.psdict['ymnx'][1]-self.psdict['ymnx'][0])
+                z = self.llist['z']
+                wvobs = np.array((1+z) * self.llist[self.llist['List']].wrest)
+                gdwv = np.where( (wvobs > self.psdict['xmnx'][0]) &
+                                 (wvobs < self.psdict['xmnx'][1]))[0]
+                for kk in range(len(gdwv)):
+                    jj = gdwv[kk]
+                    wrest = self.llist[self.llist['List']].wrest[jj].value
+                    lbl = self.llist[self.llist['List']].name[jj]
+                    # Plot
+                    self.ax.plot(wrest*np.array([z+1,z+1]), self.psdict['ymnx'], 'b--')
+                    # Label
+                    self.ax.text(wrest*(z+1), ylbl, lbl, color='blue', rotation=90., size='small')
+
+            # Abs Sys?
+            if not self.abs_sys is None:
+                ylbl = self.psdict['ymnx'][0]+0.2*(self.psdict['ymnx'][1]-self.psdict['ymnx'][0])
+                clrs = ['red', 'green', 'cyan', 'orange', 'gray', 'purple']*10
+                ii=-1
+                for abs_sys in self.abs_sys:
+                    ii+=1
+                    lines = abs_sys.list_of_abslines()
+                    #QtCore.pyqtRemoveInputHook()
+                    #xdb.set_trace()
+                    #QtCore.pyqtRestoreInputHook()
+                    wrest = Quantity([line.wrest for line in lines])
+                    wvobs = wrest * (abs_sys.zabs+1)
+                    gdwv = np.where( ((wvobs.value+5) > self.psdict['xmnx'][0]) &  # Buffer for region
+                                    ((wvobs.value-5) < self.psdict['xmnx'][1]))[0]
+                    #for kk in range(len(gdwv)):
+                    for jj in gdwv:
+                        if lines[jj].analy['do_analysis'] == 0:
+                            continue
+                        # Paint spectrum red
+                        wvlim = wvobs[jj]*(1 + lines[jj].analy['vlim']/const.c.to('km/s'))
+                        pix = np.where( (self.spec.dispersion > wvlim[0]) & (self.spec.dispersion < wvlim[1]))[0]
+                        self.ax.plot(self.spec.dispersion[pix], self.spec.flux[pix], '-',drawstyle='steps-mid',
+                                     color=clrs[ii])
+                        # Label
+                        lbl = lines[jj].analy['name']+' z={:g}'.format(abs_sys.zabs)
+                        self.ax.text(wvobs[jj].value, ylbl, lbl, color=clrs[ii], rotation=90., size='x-small')
+            # Analysis? EW, Column
+            if self.adict['flg'] == 1:
+                self.ax.plot(self.adict['wv_1'], self.adict['C_1'], 'go')
+            elif self.adict['flg'] == 2:
+                self.ax.plot([self.adict['wv_1'], self.adict['wv_2']],
+                             [self.adict['C_1'], self.adict['C_2']], 'g--', marker='o')
+                self.adict['flg'] = 0
+            # Lya line?
+            if self.adict['flg'] == 4:
+                self.ax.plot(self.spec.dispersion,
+                    self.lya_line.flux, color='green')
+
+        # Reset window limits
+        self.ax.set_xlim(self.psdict['xmnx'])
+        self.ax.set_ylim(self.psdict['ymnx'])
+
+        if self.plotzero:
+            self.ax.axhline(0, lw=0.3, color='k')
+
+        for line in self.vlines:
+            self.ax.axvline(line, color='k', ls=':')
+
+        # Draw
+        if not no_draw:
+            self.canvas.draw()
+
+    # Notes on usage
+    def help_notes():
+        doublets = [ 'Doublets --------',
+                     'C: CIV',
+                     'M: MgII',
+                     'O: OVI',
+                     '8: NeVIII',
+                     'B: Lyb/Lya'
+                     ]
+        analysis = [ 'Analysis --------',
+                     'N/N: Column density (AODM)',
+                     'E/E: EW (boxcar)',
+                     '$/$: stats on spectrum'
+                     ]
+
 # GUI for fitting LLS in a spectrum
 class XFitLLSGUI(QtGui.QMainWindow):
     ''' GUI to fit LLS in a given spectrum
         v1.2
         30-Jul-2015 by JXP
     '''
-    def __init__(self, ispec, parent=None, lls_fit_file=None, 
+    def __init__(self, ispec, parent=None, lls_fit_file=None,
         outfil=None, smooth=3., zqso=None, fN_gamma=None, template=None,
         dw=0.1, skip_wveval=False):
         QtGui.QMainWindow.__init__(self, parent)
@@ -129,11 +746,16 @@ class XFitLLSGUI(QtGui.QMainWindow):
             warnings.warn("Make sure you know what you are doing!")
 
         # Spectrum
-        spec, spec_fil = xxgu.read_spec(ispec)
+        if isinstance(ispec, XSpectrum1D):
+            spec = ispec
+            spec_fil = spec.filename
+        else:
+            # this is broken
+            spec, spec_fil = xxgu.read_spec(ispec)
 
 
         # LineList
-        self.llist = xxgu.set_llist('Strong') 
+        self.llist = set_llist('Strong')
         self.llist['z'] = 0.
         self.plt_wv = zip(np.array([911.7, 949.743, 972.5367,1025.7222,1215.6700])*u.AA,
             ['LL','Lyd', 'Lyg','Lyb','Lya'])
@@ -149,10 +771,10 @@ class XFitLLSGUI(QtGui.QMainWindow):
             no_buttons=True, linelist=self.llist[self.llist['List']])
 
         vlines = [(912 * (1 + zqso) if zqso is not None else None)]
-        self.spec_widg = xspw.ExamineSpecWidget(spec,status=self.statusBar,
-                                                llist=self.llist, key_events=False,
-                                                abs_sys=self.abssys_widg.abs_sys,
-                                                vlines=vlines, plotzero=1)
+        self.spec_widg = ExamineSpecWidget(spec,status=self.statusBar,
+                                           llist=self.llist, key_events=False,
+                                           abs_sys=self.abssys_widg.abs_sys,
+                                           vlines=vlines, plotzero=1)
         # Initialize continuum (and LLS if from a file)
         if lls_fit_file is not None:
             self.init_LLS(lls_fit_file,spec)
@@ -222,13 +844,13 @@ class XFitLLSGUI(QtGui.QMainWindow):
         self.spec_widg.canvas.mpl_connect('key_press_event', self.on_key)
         self.abssys_widg.abslist_widget.itemSelectionChanged.connect(
             self.on_list_change)
-        self.connect(self.Nwidget.box, 
+        self.connect(self.Nwidget.box,
             QtCore.SIGNAL('editingFinished ()'), self.setbzN)
-        self.connect(self.zwidget.box, 
+        self.connect(self.zwidget.box,
             QtCore.SIGNAL('editingFinished ()'), self.setbzN)
-        self.connect(self.bwidget.box, 
+        self.connect(self.bwidget.box,
             QtCore.SIGNAL('editingFinished ()'), self.setbzN)
-        self.connect(self.Cwidget.box, 
+        self.connect(self.Cwidget.box,
             QtCore.SIGNAL('editingFinished ()'), self.setbzN)
 
         # Layout
@@ -242,7 +864,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
         hbox1.addWidget(wqbtn)
         hbox1.addWidget(qbtn)
         buttons.setLayout(hbox1)
- 
+
         # z,N
         zNwidg = QtGui.QWidget()
         hbox2 = QtGui.QHBoxLayout()
@@ -258,7 +880,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
         vbox.addWidget(self.abssys_widg)
         vbox.addWidget(buttons)
         anly_widg.setLayout(vbox)
-        
+
         hbox = QtGui.QHBoxLayout()
         hbox.addWidget(self.spec_widg)
         hbox.addWidget(anly_widg)
@@ -294,7 +916,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
             self.Cwidget.box.text())
         # Update the lines
         for iline in self.abssys_widg.all_abssys[idx].lls_lines:
-            iline.attrib['z'] = self.abssys_widg.all_abssys[idx].zabs 
+            iline.attrib['z'] = self.abssys_widg.all_abssys[idx].zabs
             iline.attrib['N'] = 10**self.abssys_widg.all_abssys[idx].NHI * u.cm**-2
             iline.attrib['b'] = self.abssys_widg.all_abssys[idx].bval
         # Update the rest
@@ -309,15 +931,15 @@ class XFitLLSGUI(QtGui.QMainWindow):
         # z
         self.zwidget.box.setText(
             self.zwidget.box.frmt.format(
-                self.abssys_widg.all_abssys[idx].zabs)) 
+                self.abssys_widg.all_abssys[idx].zabs))
         # N
         self.Nwidget.box.setText(
             self.Nwidget.box.frmt.format(
-                self.abssys_widg.all_abssys[idx].NHI)) 
+                self.abssys_widg.all_abssys[idx].NHI))
         # b
         self.bwidget.box.setText(
             self.bwidget.box.frmt.format(
-                self.abssys_widg.all_abssys[idx].bval.value)) 
+                self.abssys_widg.all_abssys[idx].bval.value))
         # Comment
         self.Cwidget.box.setText(
             self.Cwidget.box.frmt.format(
@@ -343,7 +965,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
     def update_model(self):
         '''Update absorption model '''
         from linetools.analysis import voigt as lav
-        
+
         if len(self.abssys_widg.all_abssys) == 0:
             self.lls_model = None
             self.spec_widg.model = None
@@ -364,7 +986,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
 
         # Loop on forest lines
         for forest in self.all_forest:
-            tau_Lyman = lav.voigt_from_abslines(wa1, forest.lines, 
+            tau_Lyman = lav.voigt_from_abslines(wa1, forest.lines,
                 ret='tau', skip_wveval=self.skip_wveval)
             all_tau_model += tau_Lyman
 
@@ -386,7 +1008,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
         # Over-absorbed
         self.spec_widg.bad_model = np.where( (self.lls_model < 0.7) &
             (self.full_model.flux < (self.spec_widg.spec.flux-
-                self.spec_widg.spec.sig*1.5)))[0] 
+                self.spec_widg.spec.sig*1.5)))[0]
         # Model
         self.spec_widg.model = self.full_model
 
@@ -401,7 +1023,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
         elif len(items) > 1:
             print('Need to select only 1 system!')
             return None
-        # 
+        #
         item = items[0]
         txt = item.text()
         if txt == 'None':
@@ -415,7 +1037,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
             if event.key == 'C':
                 imin = np.argmin(np.abs(
                     self.continuum.dispersion.value-event.xdata))
-                self.conti_dict['Norm'] = float(event.ydata / 
+                self.conti_dict['Norm'] = float(event.ydata /
                     (self.base_continuum[imin].value*(event.xdata/
                         self.conti_dict['piv_wv'])**self.conti_dict['tilt']))
             elif event.key == '1':
@@ -467,14 +1089,14 @@ class XFitLLSGUI(QtGui.QMainWindow):
                 #QtCore.pyqtRestoreInputHook()
             else:
                 raise ValueError('Not ready for this keystroke')
-            # Update the lines 
+            # Update the lines
             if idx is not None:
                 self.llist['z'] = self.abssys_widg.all_abssys[idx].zabs
                 #QtCore.pyqtRemoveInputHook()
                 #xdb.set_trace()
                 #QtCore.pyqtRestoreInputHook()
                 for iline in self.abssys_widg.all_abssys[idx].lls_lines:
-                    iline.attrib['z'] = self.abssys_widg.all_abssys[idx].zabs 
+                    iline.attrib['z'] = self.abssys_widg.all_abssys[idx].zabs
                     iline.attrib['N'] = 10**self.abssys_widg.all_abssys[idx].NHI * u.cm**-2
                     iline.attrib['b'] = self.abssys_widg.all_abssys[idx].bval
             # Update the model
@@ -504,9 +1126,9 @@ class XFitLLSGUI(QtGui.QMainWindow):
             # Add text
             for wv,lbl in self.plt_wv:
                 idx = np.argmin(np.abs(self.continuum.dispersion-wv*(1+lls.zabs)))
-                self.spec_widg.ax.text(wv.value*(1+lls.zabs), 
+                self.spec_widg.ax.text(wv.value*(1+lls.zabs),
                     self.continuum.flux[idx],
-                    '{:s}_{:s}'.format(ilbl,lbl), ha='center', 
+                    '{:s}_{:s}'.format(ilbl,lbl), ha='center',
                     color='blue', size='small', rotation=90.)
         # Ticks for selected LLS
         idxl = self.get_sngl_sel_sys()
@@ -520,9 +1142,9 @@ class XFitLLSGUI(QtGui.QMainWindow):
                     continue
                 idx = np.argmin(np.abs(self.continuum.dispersion-
                     line.wrest*(1+lls.zabs)))
-                self.spec_widg.ax.text(line.wrest.value*(1+lls.zabs), 
+                self.spec_widg.ax.text(line.wrest.value*(1+lls.zabs),
                     self.continuum.flux[idx],
-                    '-{:s}'.format(ilbl), ha='center', 
+                    '-{:s}'.format(ilbl), ha='center',
                     color='red', size='small', rotation=90.)
         # Draw
         self.spec_widg.canvas.draw()
@@ -564,7 +1186,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
         self.abssys_widg.all_abssys.append(new_sys)
         self.abssys_widg.abslist_widget.item(
             len(self.abssys_widg.all_abssys)).setSelected(True)
-        
+
         # Update
         self.llist['Plot'] = False # Turn off metal-lines
         if model:  # For dealing with initialization
@@ -691,7 +1313,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
     def init_LLS(self,fit_file,spec):
         import json
         # Read the JSON file
-        with open(fit_file) as data_file:    
+        with open(fit_file) as data_file:
             lls_dict = json.load(data_file)
         # Init continuum
         try:
@@ -753,7 +1375,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
         #xdb.set_trace()
         #QtCore.pyqtRestoreInputHook()
         with io.open(self.outfil, 'w', encoding='utf-8') as f:
-            f.write(unicode(json.dumps(out_dict, sort_keys=True, indent=4, 
+            f.write(unicode(json.dumps(out_dict, sort_keys=True, indent=4,
                 separators=(',', ': '))))
         self.flag_write = True
 
@@ -798,7 +1420,7 @@ def run_fitlls(*args, **kwargs):
             gui.show()
             app.exec_()
             return
-        else: # String parsing 
+        else: # String parsing
             largs = ['1'] + [iargs for iargs in args]
             pargs = parser.parse_args(largs)
 
@@ -825,7 +1447,7 @@ def run_fitlls(*args, **kwargs):
         zqso = pargs.zqso
     except AttributeError:
         zqso=None
-    
+
     app = QtGui.QApplication(sys.argv)
     gui = XFitLLSGUI(pargs.in_file,outfil=outfil,smooth=smooth,
         lls_fit_file=lls_fit_file, zqso=zqso)
@@ -838,9 +1460,9 @@ if __name__ == "__main__":
 
     if len(sys.argv) == 1: # TESTING
 
-        flg_tst = 0 
+        flg_tst = 0
         flg_tst += 2**0  # Fit LLS GUI
-    
+
         # LLS
         if (flg_tst % 2**1) >= 2**0:
             spec_fil = '/Users/xavier/VLT/XShooter/LP/idl_reduced_frames/0952-0115_uvb_coadd_vbin_flx.fits'
@@ -848,10 +1470,9 @@ if __name__ == "__main__":
             spec = lsi.readspec(spec_fil)
             app = QtGui.QApplication(sys.argv)
             app.setApplicationName('FitLLS')
-            main = XFitLLSGUI(spec) 
+            main = XFitLLSGUI(spec)
             main.show()
             sys.exit(app.exec_())
 
     else: # RUN A GUI
         run_fitlls()
-            
