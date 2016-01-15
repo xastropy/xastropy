@@ -100,7 +100,7 @@ def get_coord(targ_file, radec=None):
         if len(targ_file) != 3:
             return -1
         # Manipulate
-        ras, decs = x_radec.dtos1((targ_file[1], targ_file[2]))
+        ras, decs = x_r.dtos1((targ_file[1], targ_file[2]))
         # Generate the Table
         ra_tab = QTable( [ [targ_file[0]], [ras], [decs] ], names=('Name','RA','DEC') )
     else:
@@ -108,8 +108,8 @@ def get_coord(targ_file, radec=None):
 
     # Add dummy columns for decimal degrees and EPOCH
     nrow = len(ra_tab)
-    col_RAD = Column(name='RAD', data=np.zeros(nrow), unit=u.degree)
-    col_DECD = Column(name='DECD', data=np.zeros(nrow), unit=u.degree)
+    col_RAD = Column(name='RAD', data=np.zeros(nrow), unit=astrou.degree)
+    col_DECD = Column(name='DECD', data=np.zeros(nrow), unit=astrou.degree)
     col_EPOCH = Column(name='EPOCH', data=np.zeros(nrow))
     ra_tab.add_columns( [col_RAD, col_DECD, col_EPOCH] )
     # Assume 2000 for now
@@ -167,7 +167,8 @@ def main(inp, survey='2r', radec=None, deci=None, fpath=None, show_circ=True,
 
     # Read in the Target list
     if isinstance(inp,basestring):
-        ra_tab = get_coord(targ_file, radec=radec)
+        raise NotImplementedError("No longer implemented")
+        #ra_tab = get_coord(targ_file, radec=radec)
     else:
         ira_tab = {}
         ira_tab['Name'] = inp[0]

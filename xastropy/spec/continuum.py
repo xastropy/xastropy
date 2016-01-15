@@ -14,14 +14,15 @@ from __future__ import print_function, absolute_import, division, unicode_litera
 
 import numpy as np
 import os, imp
-import astropy as apy
 
 from astropy import units as u
-from astropy import constants as const
 from astropy.io import fits, ascii
 from astropy.table import Table
 
 from linetools.spectra.xspectrum1d import XSpectrum1D
+
+from pyigm.fN import tau_eff as pyift
+from pyigm.fN.fnmodel import FNModel
 
 from xastropy.xutils import xdebug as xdb
 
@@ -93,9 +94,7 @@ def get_telfer_spec(zqso=0., igm=False, fN_gamma=None, LL_flatten=True):
         Use at your own risk.
         '''
         import multiprocessing
-        from xastropy.igm.fN import model as xifm
-        from xastropy.igm import tau_eff as xit
-        fN_model = xifm.default_model()
+        fN_model = FNModel.default_model()
         # Expanding range of zmnx (risky)
         fN_model.zmnx = (0.,5.)
         if fN_gamma is not None:
@@ -109,7 +108,7 @@ def get_telfer_spec(zqso=0., igm=False, fN_gamma=None, LL_flatten=True):
         # Run
         #xdb.set_trace()
         pool = multiprocessing.Pool(4) # initialize thread pool N threads
-        ateff = pool.map(xit.map_etl, adict)
+        ateff = pool.map(pyift.map_lymanew, adict)
         # Apply
         telfer_spec.flux[igm_wv] *= np.exp(-1.*np.array(ateff))
         # Flatten?
