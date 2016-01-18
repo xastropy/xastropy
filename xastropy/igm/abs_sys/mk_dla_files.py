@@ -25,6 +25,11 @@ def neeleman13():
     dlasurvey = DLASurvey.from_flist('Lists/Neeleman13.lst',
                                      tree=os.environ.get('DLA'))
     dlasurvey.ref = 'Neeleman+13'
+    # Reset vlim
+    for dla in dlasurvey._abs_sys:
+        dla.vlim = [-1000., 1000.]*u.km/u.s
+    # Mask
+    dlasurvey.mask = dlasurvey.NHI == dlasurvey.NHI
     # Json file for ions
     dlasurvey.fill_ions(use_Nfile=True)
     mk_json_ions(dlasurvey, prefix, outpath+prefix+'_DLA_ions.json')
@@ -32,6 +37,9 @@ def neeleman13():
     # Json files for .clm files
     mk_json_clms(dlasurvey, outpath+'CLMS/', prefix)
     print('It is likely you wish to tarball the CLMS folder for distribution')
+
+    # JSON SYS files (preferred)
+    mk_json_sys(dlasurvey, outpath, prefix)
 
     # Summary file and spectra
     mk_summary(dlasurvey, prefix, outpath+prefix+'_DLA.fits',
@@ -138,8 +146,8 @@ def mk_summary(dlas, prefix, outfil, specpath=None, htmlfil=None):
     # # Constructing
     # QSO, RA/DEC
     cqso = Column(dlas.qso, name='QSO')
-    ra = dlas.coord.ra.degree[0]
-    dec = dlas.coord.dec.degree[0]
+    ra = dlas.coord.ra.degree
+    dec = dlas.coord.dec.degree
     jname = []
     for abs_sys in dlas._abs_sys:
         jname.append(survey_name(prefix, abs_sys))
@@ -212,26 +220,6 @@ def mk_json_clms(dlas, outpath, prefix):
         with io.open(outfil, 'w', encoding='utf-8') as f:
             f.write(unicode(json.dumps(tdict, sort_keys=True, indent=4,
                                        separators=(',', ': '))))
-    """
-    # Generate dict of ._clmdict files
-    all_clmdict = {}
-    for abssys in dlas._abs_sys:
-        tmp = abssys._clmdict
-        # Convert AbsLine to dicts
-        if 'lines' in tmp.keys():
-            new_lines = {}
-            for key in tmp['lines']:
-                new_lines[key] = tmp['lines'][key].to_dict()
-            # Replace
-            tmp['lines'] = new_lines
-        all_clmdict[abssys.name] = tmp
-    # Write
-    print('Writing {:s}'.format(outfil))
-    #ltu.savejson(outfil, all_clmdict, overwrite=True)
-    with io.open(outfil, 'w', encoding='utf-8') as f:
-        f.write(unicode(json.dumps(all_clmdict, sort_keys=True, indent=4,
-                                   separators=(',', ': '))))
-    """
 
 
 def mk_json_ions(dlas, prefix, outfil):
@@ -278,6 +266,33 @@ def mk_json_ions(dlas, prefix, outfil):
 
     # Return
     return all_ions
+
+
+def mk_json_sys(dlas, outpath, prefix):
+    """ Generate one JSON file per absorption system
+
+    This is now the preferred method
+
+    Parameters
+    ----------
+    dlas : DLASurvey
+    outpath : str
+    prefix : str
+    """
+    # Generate dict of each AbsSys
+    for ii, abssys in enumerate(dlas._abs_sys):
+        name = survey_name(prefix, abssys)
+        if ~dlas.mask[ii]:
+            print('Skipping {:s}'.format(name))
+            continue
+        # Generate the main dict
+        tdict = abssys.to_dict()
+        # Write
+        outfil = outpath+'SYS/'+name+'.json'
+        print('Writing {:s}'.format(outfil))
+        with io.open(outfil, 'wt') as f:
+            f.write(unicode(json.dumps(tdict, sort_keys=True, indent=4,
+                                       separators=(',', ': '))))
 
 
 # ##################################################
