@@ -524,7 +524,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
         if not no_fit_mask:
             self.update_model()
 
-    def fit_component(self,component):
+    def fit_component(self, component):
         '''Fit the component and save values'''
         from astropy.modeling import fitting
         # Generate Fit line
@@ -533,12 +533,12 @@ class IGGVelPlotWidget(QtGui.QWidget):
         fit_line.analy['vlim'] = component.vlim
         fit_line.analy['spec'] = self.spec
         fit_line.attrib['z'] = component.zcomp
-        fit_line.measure_aodm()
+        fit_line.measure_aodm(normalize=False)  # Already normalized
         # Guesses
         fmin = np.argmin(self.spec.flux[fit_line.analy['pix']])
         zguess = self.spec.dispersion[fit_line.analy['pix'][fmin]]/component.init_wrest - 1.
         bguess = (component.vlim[1]-component.vlim[0])/2.
-        Nguess = fit_line.attrib['logN']
+        Nguess = np.log10(fit_line.attrib['N'].to('cm**-2').value)
         # Voigt model
         #QtCore.pyqtRemoveInputHook()
         #xdb.set_trace()
@@ -552,14 +552,14 @@ class IGGVelPlotWidget(QtGui.QWidget):
         fitvoigt.b.min = 1.
         fitvoigt.z.min = component.zcomp+component.vlim[0].value/3e5/(1+component.zcomp)
         fitvoigt.z.max = component.zcomp+component.vlim[1].value/3e5/(1+component.zcomp)
-        #QtCore.pyqtRemoveInputHook()
-        #xdb.set_trace()
-        #QtCore.pyqtRestoreInputHook()
-        
+
         # Fit
         fitter = fitting.LevMarLSQFitter()
         parm = fitter(fitvoigt,self.spec.dispersion[fit_line.analy['pix']],
             self.spec.flux[fit_line.analy['pix']].value)
+        #QtCore.pyqtRemoveInputHook()
+        #xdb.set_trace()
+        #QtCore.pyqtRestoreInputHook()
 
         # Save and sync
         component.attrib['logN'] = parm.logN.value
