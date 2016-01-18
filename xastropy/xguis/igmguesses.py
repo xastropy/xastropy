@@ -500,7 +500,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
             # For Lyman series only mask pixels for fitting 
             # up to Ly-gamma; the rest should be done manually 
             # if wanted
-            if new_comp.lines[0].trans.startswith('HI '):
+            if new_comp.lines[0].name.startswith('HI '):
                 aux_comp_list = new_comp.lines[::-1][:3] #invert order from ISM LineList and truncate
             else:
                 aux_comp_list = new_comp.lines
@@ -846,7 +846,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
                         la = comp.attrib['Quality']
                     for line in comp.lines:
                         line_wvobs.append(line.wrest.value*(line.attrib['z']+1))
-                        line_lbl.append(line.trans+',{:.3f}{:s}'.format(line.attrib['z'],la))
+                        line_lbl.append(line.name+',{:.3f}{:s}'.format(line.attrib['z'],la))
                 line_wvobs = np.array(line_wvobs)*u.AA
                 line_lbl = np.array(line_lbl)
             # Subplots
