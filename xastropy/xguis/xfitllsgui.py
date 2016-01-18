@@ -1,5 +1,5 @@
 """
-#;+ 
+#;+
 #; NAME:
 #; spec_guis
 #;    Version 1.0
@@ -30,6 +30,10 @@ from linetools.spectra.xspectrum1d import XSpectrum1D
 from linetools.spectra import convolve as lsc
 import linetools.spectra.io as lsi
 from linetools.spectralline import AbsLine
+from linetools.guis import line_widgets as ltgl
+from linetools.guis import utils as ltgu
+from linetools.guis import simple_widgets as ltgsm
+from linetools.guis import spec_widgets as ltgsp
 
 from pyigm.abssys.lls import LLSSystem
 from pyigm.abssys import lls as igmlls
@@ -37,7 +41,7 @@ from pyigm.abssys import lls as igmlls
 from xastropy.xutils import xdebug as xdb
 from xastropy.xguis import spec_widgets as xspw
 from xastropy.xguis import spec_guis as xspg
-from xastropy.xguis import utils as xxgu
+#from xastropy.xguis import utils as xxgu
 from xastropy.spec import continuum as xspc
 
 xa_path = imp.find_module('xastropy')[1]
@@ -64,7 +68,7 @@ sets a guess for NHI.
 
 4. Hit "F" and wait for magic to happen.
 
-5. If an LLS satisfying a rather simple criterion is found, it 
+5. If an LLS satisfying a rather simple criterion is found, it
 should appear.  Otherwise, a message prints to the terminal
 stating none found.  You should then inspect the model,
 including at Lyb and Lya and modify it (or even delete it).
@@ -76,11 +80,11 @@ repeat steps 2-5.
 
 # GUI for fitting LLS in a spectrum
 class XFitLLSGUI(QtGui.QMainWindow):
-    ''' GUI to fit LLS in a given spectrum
+    """ GUI to fit LLS in a given spectrum
         v1.2
         30-Jul-2015 by JXP
-    '''
-    def __init__(self, ispec, parent=None, lls_fit_file=None, 
+    """
+    def __init__(self, ispec, parent=None, lls_fit_file=None,
         outfil=None, smooth=3., zqso=None, fN_gamma=None, template=None,
         dw=0.1, skip_wveval=False):
         QtGui.QMainWindow.__init__(self, parent)
@@ -129,30 +133,35 @@ class XFitLLSGUI(QtGui.QMainWindow):
             warnings.warn("Make sure you know what you are doing!")
 
         # Spectrum
-        spec, spec_fil = xxgu.read_spec(ispec)
+        if isinstance(ispec, XSpectrum1D):
+            spec = ispec
+            spec_fil = spec.filename
+        else:
+            # this is broken
+            spec, spec_fil = ltgu.read_spec(ispec)
 
 
         # LineList
-        self.llist = xxgu.set_llist('Strong') 
+        self.llist = ltgu.set_llist('Strong')
         self.llist['z'] = 0.
         self.plt_wv = zip(np.array([911.7, 949.743, 972.5367,1025.7222,1215.6700])*u.AA,
             ['LL','Lyd', 'Lyg','Lyb','Lya'])
 
         # z and N boxes
-        self.zwidget = xxgu.EditBox(-1., 'z_LLS=', '{:0.5f}')
-        self.Nwidget = xxgu.EditBox(-1., 'NHI=', '{:0.2f}')
-        self.bwidget = xxgu.EditBox(-1., 'b=', '{:0.1f}')
-        self.Cwidget = xxgu.EditBox('None', 'Comment=', '{:s}')
+        self.zwidget = ltgsm.EditBox(-1., 'z_LLS=', '{:0.5f}')
+        self.Nwidget = ltgsm.EditBox(-1., 'NHI=', '{:0.2f}')
+        self.bwidget = ltgsm.EditBox(-1., 'b=', '{:0.1f}')
+        self.Cwidget = ltgsm.EditBox('None', 'Comment=', '{:s}')
 
         # Grab the pieces and tie together
         self.abssys_widg = xspw.AbsSysWidget([],only_one=True,
             no_buttons=True, linelist=self.llist[self.llist['List']])
 
         vlines = [(912 * (1 + zqso) if zqso is not None else None)]
-        self.spec_widg = xspw.ExamineSpecWidget(spec,status=self.statusBar,
-                                                llist=self.llist, key_events=False,
-                                                abs_sys=self.abssys_widg.abs_sys,
-                                                vlines=vlines, plotzero=1)
+        self.spec_widg = ltgsp.ExamineSpecWidget(spec,status=self.statusBar,
+                                           llist=self.llist, key_events=False,
+                                           abs_sys=self.abssys_widg.abs_sys,
+                                           vlines=vlines, plotzero=1)
         # Initialize continuum (and LLS if from a file)
         if lls_fit_file is not None:
             self.init_LLS(lls_fit_file,spec)
@@ -222,13 +231,13 @@ class XFitLLSGUI(QtGui.QMainWindow):
         self.spec_widg.canvas.mpl_connect('key_press_event', self.on_key)
         self.abssys_widg.abslist_widget.itemSelectionChanged.connect(
             self.on_list_change)
-        self.connect(self.Nwidget.box, 
+        self.connect(self.Nwidget.box,
             QtCore.SIGNAL('editingFinished ()'), self.setbzN)
-        self.connect(self.zwidget.box, 
+        self.connect(self.zwidget.box,
             QtCore.SIGNAL('editingFinished ()'), self.setbzN)
-        self.connect(self.bwidget.box, 
+        self.connect(self.bwidget.box,
             QtCore.SIGNAL('editingFinished ()'), self.setbzN)
-        self.connect(self.Cwidget.box, 
+        self.connect(self.Cwidget.box,
             QtCore.SIGNAL('editingFinished ()'), self.setbzN)
 
         # Layout
@@ -242,7 +251,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
         hbox1.addWidget(wqbtn)
         hbox1.addWidget(qbtn)
         buttons.setLayout(hbox1)
- 
+
         # z,N
         zNwidg = QtGui.QWidget()
         hbox2 = QtGui.QHBoxLayout()
@@ -258,7 +267,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
         vbox.addWidget(self.abssys_widg)
         vbox.addWidget(buttons)
         anly_widg.setLayout(vbox)
-        
+
         hbox = QtGui.QHBoxLayout()
         hbox.addWidget(self.spec_widg)
         hbox.addWidget(anly_widg)
@@ -294,7 +303,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
             self.Cwidget.box.text())
         # Update the lines
         for iline in self.abssys_widg.all_abssys[idx].lls_lines:
-            iline.attrib['z'] = self.abssys_widg.all_abssys[idx].zabs 
+            iline.attrib['z'] = self.abssys_widg.all_abssys[idx].zabs
             iline.attrib['N'] = 10**self.abssys_widg.all_abssys[idx].NHI * u.cm**-2
             iline.attrib['b'] = self.abssys_widg.all_abssys[idx].bval
         # Update the rest
@@ -309,15 +318,15 @@ class XFitLLSGUI(QtGui.QMainWindow):
         # z
         self.zwidget.box.setText(
             self.zwidget.box.frmt.format(
-                self.abssys_widg.all_abssys[idx].zabs)) 
+                self.abssys_widg.all_abssys[idx].zabs))
         # N
         self.Nwidget.box.setText(
             self.Nwidget.box.frmt.format(
-                self.abssys_widg.all_abssys[idx].NHI)) 
+                self.abssys_widg.all_abssys[idx].NHI))
         # b
         self.bwidget.box.setText(
             self.bwidget.box.frmt.format(
-                self.abssys_widg.all_abssys[idx].bval.value)) 
+                self.abssys_widg.all_abssys[idx].bval.value))
         # Comment
         self.Cwidget.box.setText(
             self.Cwidget.box.frmt.format(
@@ -343,7 +352,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
     def update_model(self):
         '''Update absorption model '''
         from linetools.analysis import voigt as lav
-        
+
         if len(self.abssys_widg.all_abssys) == 0:
             self.lls_model = None
             self.spec_widg.model = None
@@ -364,7 +373,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
 
         # Loop on forest lines
         for forest in self.all_forest:
-            tau_Lyman = lav.voigt_from_abslines(wa1, forest.lines, 
+            tau_Lyman = lav.voigt_from_abslines(wa1, forest.lines,
                 ret='tau', skip_wveval=self.skip_wveval)
             all_tau_model += tau_Lyman
 
@@ -386,7 +395,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
         # Over-absorbed
         self.spec_widg.bad_model = np.where( (self.lls_model < 0.7) &
             (self.full_model.flux < (self.spec_widg.spec.flux-
-                self.spec_widg.spec.sig*1.5)))[0] 
+                self.spec_widg.spec.sig*1.5)))[0]
         # Model
         self.spec_widg.model = self.full_model
 
@@ -401,7 +410,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
         elif len(items) > 1:
             print('Need to select only 1 system!')
             return None
-        # 
+        #
         item = items[0]
         txt = item.text()
         if txt == 'None':
@@ -415,7 +424,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
             if event.key == 'C':
                 imin = np.argmin(np.abs(
                     self.continuum.dispersion.value-event.xdata))
-                self.conti_dict['Norm'] = float(event.ydata / 
+                self.conti_dict['Norm'] = float(event.ydata /
                     (self.base_continuum[imin].value*(event.xdata/
                         self.conti_dict['piv_wv'])**self.conti_dict['tilt']))
             elif event.key == '1':
@@ -467,14 +476,14 @@ class XFitLLSGUI(QtGui.QMainWindow):
                 #QtCore.pyqtRestoreInputHook()
             else:
                 raise ValueError('Not ready for this keystroke')
-            # Update the lines 
+            # Update the lines
             if idx is not None:
                 self.llist['z'] = self.abssys_widg.all_abssys[idx].zabs
                 #QtCore.pyqtRemoveInputHook()
                 #xdb.set_trace()
                 #QtCore.pyqtRestoreInputHook()
                 for iline in self.abssys_widg.all_abssys[idx].lls_lines:
-                    iline.attrib['z'] = self.abssys_widg.all_abssys[idx].zabs 
+                    iline.attrib['z'] = self.abssys_widg.all_abssys[idx].zabs
                     iline.attrib['N'] = 10**self.abssys_widg.all_abssys[idx].NHI * u.cm**-2
                     iline.attrib['b'] = self.abssys_widg.all_abssys[idx].bval
             # Update the model
@@ -504,9 +513,9 @@ class XFitLLSGUI(QtGui.QMainWindow):
             # Add text
             for wv,lbl in self.plt_wv:
                 idx = np.argmin(np.abs(self.continuum.dispersion-wv*(1+lls.zabs)))
-                self.spec_widg.ax.text(wv.value*(1+lls.zabs), 
+                self.spec_widg.ax.text(wv.value*(1+lls.zabs),
                     self.continuum.flux[idx],
-                    '{:s}_{:s}'.format(ilbl,lbl), ha='center', 
+                    '{:s}_{:s}'.format(ilbl,lbl), ha='center',
                     color='blue', size='small', rotation=90.)
         # Ticks for selected LLS
         idxl = self.get_sngl_sel_sys()
@@ -520,9 +529,9 @@ class XFitLLSGUI(QtGui.QMainWindow):
                     continue
                 idx = np.argmin(np.abs(self.continuum.dispersion-
                     line.wrest*(1+lls.zabs)))
-                self.spec_widg.ax.text(line.wrest.value*(1+lls.zabs), 
+                self.spec_widg.ax.text(line.wrest.value*(1+lls.zabs),
                     self.continuum.flux[idx],
-                    '-{:s}'.format(ilbl), ha='center', 
+                    '-{:s}'.format(ilbl), ha='center',
                     color='red', size='small', rotation=90.)
         # Draw
         self.spec_widg.canvas.draw()
@@ -564,7 +573,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
         self.abssys_widg.all_abssys.append(new_sys)
         self.abssys_widg.abslist_widget.item(
             len(self.abssys_widg.all_abssys)).setSelected(True)
-        
+
         # Update
         self.llist['Plot'] = False # Turn off metal-lines
         if model:  # For dealing with initialization
@@ -691,7 +700,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
     def init_LLS(self,fit_file,spec):
         import json
         # Read the JSON file
-        with open(fit_file) as data_file:    
+        with open(fit_file) as data_file:
             lls_dict = json.load(data_file)
         # Init continuum
         try:
@@ -753,7 +762,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
         #xdb.set_trace()
         #QtCore.pyqtRestoreInputHook()
         with io.open(self.outfil, 'w', encoding='utf-8') as f:
-            f.write(unicode(json.dumps(out_dict, sort_keys=True, indent=4, 
+            f.write(unicode(json.dumps(out_dict, sort_keys=True, indent=4,
                 separators=(',', ': '))))
         self.flag_write = True
 
@@ -798,7 +807,7 @@ def run_fitlls(*args, **kwargs):
             gui.show()
             app.exec_()
             return
-        else: # String parsing 
+        else: # String parsing
             largs = ['1'] + [iargs for iargs in args]
             pargs = parser.parse_args(largs)
 
@@ -825,7 +834,7 @@ def run_fitlls(*args, **kwargs):
         zqso = pargs.zqso
     except AttributeError:
         zqso=None
-    
+
     app = QtGui.QApplication(sys.argv)
     gui = XFitLLSGUI(pargs.in_file,outfil=outfil,smooth=smooth,
         lls_fit_file=lls_fit_file, zqso=zqso)
@@ -838,9 +847,9 @@ if __name__ == "__main__":
 
     if len(sys.argv) == 1: # TESTING
 
-        flg_tst = 0 
+        flg_tst = 0
         flg_tst += 2**0  # Fit LLS GUI
-    
+
         # LLS
         if (flg_tst % 2**1) >= 2**0:
             spec_fil = '/Users/xavier/VLT/XShooter/LP/idl_reduced_frames/0952-0115_uvb_coadd_vbin_flx.fits'
@@ -848,10 +857,9 @@ if __name__ == "__main__":
             spec = lsi.readspec(spec_fil)
             app = QtGui.QApplication(sys.argv)
             app.setApplicationName('FitLLS')
-            main = XFitLLSGUI(spec) 
+            main = XFitLLSGUI(spec)
             main.show()
             sys.exit(app.exec_())
 
     else: # RUN A GUI
         run_fitlls()
-            
