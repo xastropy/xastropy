@@ -37,12 +37,13 @@ from linetools.guis import spec_widgets as ltgsp
 
 from pyigm.abssys.lls import LLSSystem
 from pyigm.abssys import lls as igmlls
+from pyigm.continuum import core as pycc
+from pyigm.continuum import quasar as pycq
 
 from xastropy.xutils import xdebug as xdb
 from xastropy.xguis import spec_widgets as xspw
 from xastropy.xguis import spec_guis as xspg
 #from xastropy.xguis import utils as xxgu
-from xastropy.spec import continuum as xspc
 
 xa_path = imp.find_module('xastropy')[1]
 
@@ -166,7 +167,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
         if lls_fit_file is not None:
             self.init_LLS(lls_fit_file,spec)
         else:
-            self.conti_dict = xspc.init_conti_dict(
+            self.conti_dict = pycc.init_conti_dict(
                 Norm=float(np.median(spec.flux.value)),
                 piv_wv=1215.*(1+zqso),
                 #piv_wv2=915.*(1+zqso),
@@ -182,7 +183,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
                         (tspec.dispersion.value * (1 + zqso),
                         tspec.flux.value))
                 else:
-                    tspec = xspc.get_telfer_spec(zqso=zqso,
+                    tspec = pycq.get_telfer_spec(zqso=zqso,
                               igm=(self.conti_dict['igm']=='True'))
                 # Rebin
                 self.continuum = tspec.rebin(spec.dispersion)

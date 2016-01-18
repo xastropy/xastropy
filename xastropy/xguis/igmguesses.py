@@ -33,16 +33,16 @@ from astropy import constants as const
 from linetools.analysis import voigt as lav
 from linetools.lists.linelist import LineList
 from linetools.spectra.xspectrum1d import XSpectrum1D
-from linetools.spectra import convolve as lsc
 from linetools.spectralline import AbsLine
 from linetools.isgm.abscomponent import AbsComponent
 from linetools.guis import utils as ltgu
 from linetools.guis import line_widgets as ltgl
+from linetools.guis import simple_widgets as ltgsm
 
 #from xastropy.atomic import ionization as xatomi
 from xastropy.plotting import utils as xputils
 from xastropy.xguis import spec_widgets as xspw
-from xastropy.xguis import utils as xxgu
+#from xastropy.xguis import utils as xxgu
 
 from xastropy.xutils import xdebug as xdb
 
@@ -152,7 +152,7 @@ class IGMGuessesGui(QtGui.QMainWindow):
         self.comps_widg = ComponentListWidget([], parent=self)
         self.velplot_widg = IGGVelPlotWidget(spec, z, 
             parent=self, llist=self.llist, fwhm=self.fwhm,plot_residuals=self.plot_residuals)
-        self.wq_widg = xxgu.WriteQuitWidget(parent=self)
+        self.wq_widg = ltgsm.WriteQuitWidget(parent=self)
         
         # Setup strongest LineList
         self.llist['strongest'] = LineList('ISM')
@@ -382,8 +382,8 @@ class IGGVelPlotWidget(QtGui.QWidget):
 
 
         self.psdict = {} # Dict for spectra plotting
-        self.psdict['xmnx'] = self.vmnx.value # Too much pain to use units with this
-        self.psdict['ymnx'] = [-0.1, 1.1]
+        self.psdict['x_minmax'] = self.vmnx.value # Too much pain to use units with this
+        self.psdict['y_minmax'] = [-0.1, 1.1]
         self.psdict['nav'] = ltgu.navigate(0,0,init=True)
 
         
@@ -679,12 +679,12 @@ class IGGVelPlotWidget(QtGui.QWidget):
             self.z = self.z + event.xdata*(1+self.z)/3e5
             #self.abs_sys.zabs = newz
             # Drawing
-            self.psdict['xmnx'] = self.vmnx.value
+            self.psdict['x_minmax'] = self.vmnx.value
         if event.key == '^':
-            zgui = xxgu.AnsBox('Enter redshift:',float)
+            zgui = ltgsm.AnsBox('Enter redshift:',float)
             zgui.exec_()
             self.z = zgui.value
-            self.psdict['xmnx'] = self.vmnx.value
+            self.psdict['x_minmax'] = self.vmnx.value
 
         # Choose line
         if event.key == "%":
@@ -809,7 +809,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
         except ValueError:
             return
         if event.button == 1: # Draw line
-            self.ax.plot( [event.xdata,event.xdata], self.psdict['ymnx'], ':', color='green')
+            self.ax.plot( [event.xdata,event.xdata], self.psdict['y_minmax'], ':', color='green')
             self.on_draw(replot=False) 
     
             # Print values
@@ -896,7 +896,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
                 self.ax.plot( [0., 0.], [-1e9, 1e9], ':', color='gray')
                 # Velocity
                 wvobs = (1+self.z) * wrest
-                wvmnx = wvobs*(1 + np.array(self.psdict['xmnx'])/3e5)
+                wvmnx = wvobs*(1 + np.array(self.psdict['x_minmax'])/3e5)
                 velo = (self.spec.dispersion/wvobs - 1.) * c_mks
                 
                 # Plot
@@ -938,12 +938,12 @@ class IGGVelPlotWidget(QtGui.QWidget):
                             marker='o',color=color,s=3.,alpha=0.5)
 
                 # Reset window limits
-                self.ax.set_ylim(self.psdict['ymnx'])
-                self.ax.set_xlim(self.psdict['xmnx'])
+                self.ax.set_ylim(self.psdict['y_minmax'])
+                self.ax.set_xlim(self.psdict['x_minmax'])
 
                 # Add line?
                 if self.wrest == wrest:
-                    self.ax.plot([self.vtmp]*2,self.psdict['ymnx'], '--',
+                    self.ax.plot([self.vtmp]*2,self.psdict['y_minmax'], '--',
                         color='red')
 
                 # Components
@@ -958,14 +958,14 @@ class IGGVelPlotWidget(QtGui.QWidget):
                         #xdb.set_trace()
                         #QtCore.pyqtRestoreInputHook()
                         dvz = c_mks * (self.z - comp.zcomp) / (1 + self.z)
-                        if dvz.value < np.max(np.abs(self.psdict['xmnx'])):
+                        if dvz.value < np.max(np.abs(self.psdict['x_minmax'])):
                             if comp is self.parent.fiddle_widg.component:
                                 lw = 1.5
                             else:
                                 lw = 1.
                             # Plot
                             for vlim in comp.vlim:
-                                self.ax.plot([vlim.value-dvz.value]*2,self.psdict['ymnx'], 
+                                self.ax.plot([vlim.value-dvz.value]*2,self.psdict['y_minmax'],
                                     '--', color='r',linewidth=lw)
                             self.ax.plot([-1.*dvz.value]*2,[1.0,1.05],
                                 '-', color='grey',linewidth=lw)
@@ -987,9 +987,9 @@ class FiddleComponentWidget(QtGui.QWidget):
         #if not status is None:
         #    self.statusBar = status
         self.label = QtGui.QLabel('Component:',self)
-        self.zwidget = xxgu.EditBox(-1., 'zc=', '{:0.5f}')
-        self.Nwidget = xxgu.EditBox(-1., 'Nc=', '{:0.2f}')
-        self.bwidget = xxgu.EditBox(-1., 'bc=', '{:0.1f}')
+        self.zwidget = ltgsm.EditBox(-1., 'zc=', '{:0.5f}')
+        self.Nwidget = ltgsm.EditBox(-1., 'Nc=', '{:0.2f}')
+        self.bwidget = ltgsm.EditBox(-1., 'bc=', '{:0.1f}')
 
         self.ddlbl = QtGui.QLabel('Quality')
         self.ddlist = QtGui.QComboBox(self)
@@ -997,7 +997,7 @@ class FiddleComponentWidget(QtGui.QWidget):
         self.ddlist.addItem('a')
         self.ddlist.addItem('b')
         self.ddlist.addItem('c')
-        self.Cwidget = xxgu.EditBox('None', 'Comment=', '{:s}')
+        self.Cwidget = ltgsm.EditBox('None', 'Comment=', '{:s}')
 
         # Init further
         if component is not None:
@@ -1363,26 +1363,8 @@ if __name__ == "__main__":
 
     if len(sys.argv) == 1: # TESTING
 
-        flg_fig = 0 
-        #flg_fig += 2**0  # Fit LLS GUI
-    
-        # LLS
-        if (flg_fig % 2**1) >= 2**0:
-            #spec_fil = '/Users/xavier/Keck/ESI/RedData/PSS0133+0400/PSS0133+0400_f.fits'
-            # spec_fil = os.getenv('DROPBOX_DIR')+'/Tejos_X/COS-Clusters/J1018+0546.txt'
-            # spec_fil = os.getenv('DROPBOX_DIR')+'/Tejos_X/COS-Filaments/q1410.fits'
-            spec_fil = os.getenv('DROPBOX_DIR')+'/Tejos_X/COS-Filaments/J1619+2543.fits'
-            
-            spec = lsi.readspec(spec_fil)
-            spec.normalize()
-            #spec.plot()
-            #xdb.set_trace()
-            # Launch
-            app = QtGui.QApplication(sys.argv)
-            app.setApplicationName('IGMGuesses')
-            main = IGMGuessesGui(spec) 
-            main.show()
-            sys.exit(app.exec_())
+        xdb.set_trace()  # Do the line below
+        # python igmguesses.py ~/Dropbox/BHB_abs/COSdata/visit01/tmp_nrm.fits
 
     else: # RUN A GUI
         run_gui()
