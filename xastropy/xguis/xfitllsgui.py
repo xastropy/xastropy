@@ -443,7 +443,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
             self.add_LLS(z, bval=20.*u.km/u.s, NHI=17.3)
         elif event.key == 'F': # New LLS
             self.auto_plls(event.xdata, event.ydata)
-        elif event.key in ['L','a','N','n','v','V','D','@','g']: # LLS-centric
+        elif event.key in ['L','a','N','n','v','V','D','$','g']: # LLS-centric
             idx = self.get_sngl_sel_sys()
             if idx is None:
                 return
