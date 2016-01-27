@@ -102,21 +102,21 @@ class IGMGuessesGui(QtGui.QMainWindow):
             # 17. Use Component list to jump between components (like 'S')
 
 
-        help_message = """
+        self.help_message = """
 i,o 	  : zoom in/out x limits
 y         : zoom out y limits
 Y         : guess y limits
 t,b       : set y top/bottom limit
 l,r       : set left/right x limit
 [,]       : pan left/right
-C,c		  : add/remove column
-K,k		  : add/remove row
+C,c       : add/remove column
+K,k       : add/remove row
 (         : toggle between many/few (15 or 6) panels per page
-=,-		  : move to next/previous page
+=,-       : move to next/previous page
 Space bar : set redshift from cursor position
-^ 		  : set redshift by hand
-U		  : update the main LineList at current redshift
-H		  : update to Lyman series LineList at current redshift
+^         : set redshift by hand
+U         : update the main LineList at current redshift
+H         : update to Lyman series LineList at current redshift
             (type `U` to get metals back)
 A         : set limits for fitting an absorption component
             from cursor position (need to be pressed twice:
@@ -124,16 +124,17 @@ A         : set limits for fitting an absorption component
 S         : select an absorption component from cursor position
 D         : delete currently selected absorption component
 d         : delete absorption component selected from component widget
-N,n		  : slightly increase/decrease column density in initial guess
-V,v 	  :	slightly increase/decrease b-value in initial guess
-<,>		  : slightly increase/decrease redshift in initial guess
+N,n       : slightly increase/decrease column density in initial guess
+V,v       : slightly increase/decrease b-value in initial guess
+<,>       : slightly increase/decrease redshift in initial guess
 R         : refit
-X,x		  : add/remove `good pixels` to keep for subsequent VP fitting
+X,x       : add/remove `good pixels` to keep for subsequent VP fitting
             (works as `A` command, i.e. need to define two limits)
-L		  : toggle between displaying/hiding labels of currently
+L         : toggle between displaying/hiding labels of currently
             identified lines
 %         : guess a transition and redshift for a given feature at
             the cursor's position
+?         : print help message
 """
 
         # Build a widget combining several others
@@ -388,6 +389,9 @@ class IGGVelPlotWidget(QtGui.QWidget):
           Absorption system class
         '''
         super(IGGVelPlotWidget, self).__init__(parent)
+
+        # init help message
+        self.help_message = parent.help_message
 
         # Initialize
         self.parent = parent
@@ -816,6 +820,9 @@ class IGGVelPlotWidget(QtGui.QWidget):
             else:
                 print('VelPlot.AODM: No good lines to plot')
 
+        if event.key == '?':
+            print(self.help_message)
+
             #QtCore.pyqtRemoveInputHook()
             #xdb.set_trace()
             #QtCore.pyqtRestoreInputHook()
@@ -835,6 +842,8 @@ class IGGVelPlotWidget(QtGui.QWidget):
             self.on_draw(replot=False, rescale=rescale)
         elif flg==3: # Layer (no clear)
             self.on_draw(in_wrest=wrest, rescale=rescale)
+
+
 
     # Click of main mouse button
     def on_click(self,event):
