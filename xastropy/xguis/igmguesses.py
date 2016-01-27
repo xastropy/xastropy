@@ -111,7 +111,7 @@ l,r       : set left/right x limit
 [,]       : pan left/right
 C,c		  : add/remove column
 K,k		  : add/remove row
-(         : toggle between many/few panels per page
+(         : toggle between many/few (15 or 6) panels per page
 =,-		  : move to next/previous page
 Space bar : set redshift from cursor position
 ^ 		  : set redshift by hand
@@ -724,7 +724,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
         # Choose line
         if event.key == "%":
             # GUI
-            self.select_line_widg = xspw.SelectLineWidget(
+            self.select_line_widg = ltgl.SelectLineWidget(
                 self.llist[self.llist['List']]._data)
             self.select_line_widg.exec_()
             line = self.select_line_widg.line
