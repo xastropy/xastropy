@@ -123,10 +123,11 @@ A         : set limits for fitting an absorption component
             once for left and once for right limit, respectively)
 S         : select an absorption component from cursor position
 D         : delete currently selected absorption component
-d         : delete absorption component selected from widget
+d         : delete absorption component selected from component widget
 N,n		  : slightly increase/decrease column density in initial guess
 V,v 	  :	slightly increase/decrease b-value in initial guess
 <,>		  : slightly increase/decrease redshift in initial guess
+R         : refit
 X,x		  : add/remove `good pixels` to keep for subsequent VP fitting
             (works as `A` command, i.e. need to define two limits)
 L		  : toggle between displaying/hiding labels of currently
