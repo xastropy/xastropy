@@ -101,6 +101,40 @@ class IGMGuessesGui(QtGui.QMainWindow):
             # 16. Input redshift value via Widget
             # 17. Use Component list to jump between components (like 'S')
 
+
+        help_message = """
+i,o 	  : zoom in/out x limits
+y         : zoom out y limits
+Y         : guess y limits
+t,b       : set y top/bottom limit
+l,r       : set left/right x limit
+[,]       : pan left/right
+C,c		  : add/remove column
+K,k		  : add/remove row
+(         : toggle between many/few panels per page
+=,-		  : move to next/previous page
+Space bar : set redshift from cursor position
+^ 		  : set redshift by hand
+U		  : update the main LineList at current redshift
+H		  : update to Lyman series LineList at current redshift
+            (type `U` to get metals back)
+A         : set limits for fitting an absorption component
+            from cursor position (need to be pressed twice:
+            once for left and once for right limit, respectively)
+S         : select an absorption component from cursor position
+D         : delete currently selected absorption component
+d         : delete absorption component selected from widget
+N,n		  : slightly increase/decrease column density in initial guess
+V,v 	  :	slightly increase/decrease b-value in initial guess
+<,>		  : slightly increase/decrease redshift in initial guess
+X,x		  : add/remove `good pixels` to keep for subsequent VP fitting
+            (works as `A` command, i.e. need to define two limits)
+L		  : toggle between displaying/hiding labels of currently
+            identified lines
+%         : guess a transition and redshift for a given feature at
+            the cursor's position
+"""
+
         # Build a widget combining several others
         self.main_widget = QtGui.QWidget()
 
@@ -448,7 +482,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
             self.llist[self.llist['List']])
 
 
-    # Add a component
+    # Update model
     def update_model(self):
         if self.parent is None:
             return
