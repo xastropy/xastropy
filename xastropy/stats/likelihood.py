@@ -28,6 +28,7 @@ def cl_image(lnL, sigma=False):
     Parameters:
       lnL: np.array
         log-Likelihood image
+        Should probably be 2D
       sigma: bool, optional
         Return as sigma values [not implemented]
 

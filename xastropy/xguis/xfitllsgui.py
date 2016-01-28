@@ -312,7 +312,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
         self.draw()
 
     def update_boxes(self):
-        '''Update Nbz boxes'''
+        """Update Nbz boxes"""
         idx = self.get_sngl_sel_sys()
         if idx is None:
             return
