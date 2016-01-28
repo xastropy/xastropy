@@ -1240,10 +1240,16 @@ class Component(AbsComponent):
         radec = (0*u.deg,0*u.deg)
         Zion = (self.lines[0].data['Z'],self.lines[0].data['ion'])
         Ej = self.lines[0].data['Ej']
-        AbsComponent.__init__(self,radec, Zion, z, vlim, Ej, comment='None')
+
+        # Name for fine-structure
+        if Ej.value > 0.:
+            stars = '*'*(len(self.lines[0].name.split('*'))-1)
+        else:
+            stars = None
+        AbsComponent.__init__(self,radec, Zion, z, vlim, Ej, comment='None', stars=stars)
 
         # Init cont.
-        self.attrib = {'N': 0./u.cm**2, 'Nsig': 0./u.cm**2, 'flagN': 0, # Column
+        self.attrib = {'N': 0./u.cm**2, 'Nsig': 0./u.cm**2, 'flagN': 0,  # Column
                        'logN': 0., 'sig_logN': 0.,
                        'b': 0.*u.km/u.s, 'bsig': 0.*u.km/u.s,  # Doppler
                        'z': self.zcomp, 'zsig': 0.,
