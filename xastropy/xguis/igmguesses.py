@@ -103,7 +103,7 @@ class IGMGuessesGui(QtGui.QMainWindow):
 
 
         self.help_message = """
-i,o 	  : zoom in/out x limits
+i,o       : zoom in/out x limits
 y         : zoom out y limits
 Y         : guess y limits
 t,b       : set y top/bottom limit
@@ -113,6 +113,7 @@ C,c       : add/remove column
 K,k       : add/remove row
 (         : toggle between many/few (15 or 6) panels per page
 =,-       : move to next/previous page
+f         : move to the first page
 Space bar : set redshift from cursor position
 ^         : set redshift by hand
 U         : update the main LineList at current redshift
@@ -656,6 +657,10 @@ class IGGVelPlotWidget(QtGui.QWidget):
                                 self.idx_line + self.sub_xy[0]*self.sub_xy[1])
             if self.idx_line == sv_idx:
                 print('Edge of list')
+        if event.key == 'f':
+            self.idx_line = 0
+            print('Edge of list')
+
 
         # Find line
         try:
