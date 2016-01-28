@@ -243,7 +243,7 @@ L         : toggle between displaying/hiding labels of currently
             names = list(np.array(transitions['name']))
         else:
             names = ['HI 1215']
-        self.llist['strongest'].subset_lines(reset_data=True,subset=names)
+        self.llist['strongest'] = self.llist['strongest'].subset_lines(reset_data=True,subset=names)
         self.llist['show_line'] = np.arange(len(self.llist['strongest']._data))
         self.llist['List'] = 'strongest'
         # self.llist['strongest'] = self.llist['ISM'].subset(names)
