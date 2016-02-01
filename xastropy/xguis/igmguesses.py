@@ -226,6 +226,11 @@ L         : toggle between displaying/hiding labels of currently
 
         self.main_widget.setLayout(hbox)
 
+        # Attempt to initialize
+        self.update_strongest_lines()
+        self.velplot_widg.init_lines()
+        self.velplot_widg.on_draw(rescale=True, fig_clear=True)
+
         # Point MainWindow
         self.setCentralWidget(self.main_widget)
 
@@ -376,10 +381,10 @@ L         : toggle between displaying/hiding labels of currently
 
  ######################
 class IGGVelPlotWidget(QtGui.QWidget):
-    ''' Widget for a velocity plot with interaction.
+    """ Widget for a velocity plot with interaction.
           Adapted from VelPlotWidget in spec_guis
         14-Aug-2015 by JXP
-    '''
+    """
     def __init__(self, ispec, z, parent=None, llist=None, norm=True,
                  vmnx=[-500., 500.]*u.km/u.s, fwhm=0.,plot_residuals=True):
         '''
@@ -760,12 +765,9 @@ class IGGVelPlotWidget(QtGui.QWidget):
         unit = u.km/u.s
         if event.key in ['1','2']:
             if event.key == '1':
-                self.vmin = event.xdata*unit
-            if event.key == '2':
-                #QtCore.pyqtRemoveInputHook()
-                #xdb.set_trace()
-                #QtCore.pyqtRestoreInputHook()
-                absline.analy['vlim'][1] = event.xdata*unit
+                self.avmnx[0] = event.xdata*unit
+            elif event.key == '2':
+                self.avmnx[1] = event.xdata*unit
             self.update_component()
 
         ## Add component
