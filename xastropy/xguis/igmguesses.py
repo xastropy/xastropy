@@ -160,10 +160,12 @@ L         : toggle between displaying/hiding labels of currently
 
         # Spectrum
         spec, spec_fil = ltgu.read_spec(ispec)
-        spec.normalize() # Need to change this..
+        # Normalize if needed
+        spec.normalize()
+        # make sure there are no nans in uncertainty, which affects the display of residuals
+        spec.uncertainty.array = np.where(np.isnan(spec.uncertainty.array), 0, spec.uncertainty.array)
+        # This attribute will store `good pixels` for subsequent Voigt Profile fitting
         spec.mask = np.zeros(len(spec.dispersion),dtype=int)
-
-        # Normalize
 
         # Full Model 
         self.model = XSpectrum1D.from_tuple((
@@ -686,13 +688,13 @@ class IGGVelPlotWidget(QtGui.QWidget):
             elif event.key == 'n':
                 self.parent.fiddle_widg.component.attrib['logN'] -= 0.05
             elif event.key == 'v':
-                self.parent.fiddle_widg.component.attrib['b'] -= 2*u.km/u.s
+                self.parent.fiddle_widg.component.attrib['b'] -= 5*u.km/u.s
             elif event.key == 'V':
-                self.parent.fiddle_widg.component.attrib['b'] += 2*u.km/u.s
+                self.parent.fiddle_widg.component.attrib['b'] += 5*u.km/u.s
             elif event.key == '<':
-                self.parent.fiddle_widg.component.attrib['z'] -= 2e-5 #should be a fraction of pixel size
+                self.parent.fiddle_widg.component.attrib['z'] -= 4e-5 # should be a fraction of pixel size
             elif event.key == '>':
-                self.parent.fiddle_widg.component.attrib['z'] += 2e-5
+                self.parent.fiddle_widg.component.attrib['z'] += 4e-5
 
             elif event.key == 'R': # Refit
                 self.fit_component(self.parent.fiddle_widg.component)
@@ -768,7 +770,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
                 self.avmnx[0] = event.xdata*unit
             elif event.key == '2':
                 self.avmnx[1] = event.xdata*unit
-            self.update_component()
+            # todo: we need to update the fit with new edges here
 
         ## Add component
         if event.key == 'A': # Add to lines
@@ -786,7 +788,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
                 self.flag_add = False
                 self.wrest = 0.
 
-        # Fiddle with analysis mask        
+        # Fiddle with analysis pixel mask
         if event.key in ['x','X']:
             # x = Delete mask
             # X = Add to mask
