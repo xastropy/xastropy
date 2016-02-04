@@ -289,7 +289,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
         self.update_boxes()
 
     def create_status_bar(self):
-        self.status_text = QtGui.QLabel("XFitLLS v0.4.2")
+        self.status_text = QtGui.QLabel("XFitLLS v0.4.3")
         self.statusBar().addWidget(self.status_text, 1)
 
     def setbzN(self):
@@ -336,6 +336,10 @@ class XFitLLSGUI(QtGui.QMainWindow):
         self.Cwidget.box.setText(
             self.Cwidget.box.frmt.format(
                 self.abssys_widg.all_abssys[idx].comment))
+        # Rest-frame too
+        self.spec_widg.show_restframe = True
+        self.spec_widg.rest_z = self.abssys_widg.all_abssys[idx].zabs
+
 
     def update_conti(self):
         """Update continuum
