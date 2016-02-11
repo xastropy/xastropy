@@ -34,6 +34,7 @@ from linetools.guis import line_widgets as ltgl
 from linetools.guis import utils as ltgu
 from linetools.guis import simple_widgets as ltgsm
 from linetools.guis import spec_widgets as ltgsp
+from linetools import utils as ltu
 
 from pyigm.abssys.lls import LLSSystem
 from pyigm.abssys import lls as igmlls
@@ -184,13 +185,13 @@ class XFitLLSGUI(QtGui.QMainWindow):
                     tspec = lsi.readspec(template)
                     # assume wavelengths
                     tspec = XSpectrum1D.from_tuple(
-                        (tspec.dispersion.value * (1 + zqso),
+                        (tspec.wavelength.value * (1 + zqso),
                         tspec.flux.value))
                 else:
                     tspec = pycq.get_telfer_spec(zqso=zqso,
                               igm=(self.conti_dict['igm']=='True'))
                 # Rebin
-                self.continuum = tspec.rebin(spec.dispersion)
+                self.continuum = tspec.rebin(spec.wavelength)
                 # Reset pivot wave
                 self.conti_dict['piv_wv'] = 915.*(1+zqso)
                 #self.conti_dict['piv_wv'] = 1215.*(1+zqso)
@@ -198,7 +199,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
             else:
                 self.zqso = None
                 self.continuum = XSpectrum1D.from_tuple((
-                    spec.dispersion,np.ones(len(spec.dispersion))))
+                    spec.wavelength,np.ones(len(spec.wavelength))))
             self.base_continuum = self.continuum.flux
         self.update_conti()
 
@@ -206,7 +207,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
 
         # Full Model (LLS+continuum)
         self.full_model = XSpectrum1D.from_tuple((
-            spec.dispersion,np.ones(len(spec.dispersion))))
+            spec.wavelength,np.ones(len(spec.wavelength))))
         if self.smooth is None:
             self.smooth = smooth
 
@@ -347,16 +348,16 @@ class XFitLLSGUI(QtGui.QMainWindow):
         cflux = self.base_continuum * self.conti_dict['Norm']
         # Double tilt
         if 'piv_wv2' in self.conti_dict.keys():
-            lowwv = self.continuum.dispersion.value < self.conti_dict['piv_wv2']
-            self.continuum.flux[lowwv] = (cflux[lowwv] * (self.continuum.dispersion.value[lowwv]/
+            lowwv = self.continuum.wavelength.value < self.conti_dict['piv_wv2']
+            self.continuum._data['flux'][lowwv] = (cflux[lowwv] * (self.continuum.wavelength.value[lowwv]/
                                             self.conti_dict['piv_wv2'])**self.conti_dict['tilt2'])
-            self.continuum.flux[~lowwv] = (cflux[~lowwv] * (self.continuum.dispersion.value[~lowwv]/
+            self.continuum._data['flux'][~lowwv] = (cflux[~lowwv] * (self.continuum.wavelength.value[~lowwv]/
                                             self.conti_dict['piv_wv'])**self.conti_dict['tilt'])
         else:
-            self.continuum.flux = (cflux * (self.continuum.dispersion.value/
+            self.continuum._data['flux'] = (cflux * (self.continuum.wavelength.value/
                     self.conti_dict['piv_wv'])**self.conti_dict['tilt'])
         if self.lls_model is not None:
-            self.full_model.flux = self.lls_model * self.continuum.flux
+            self.full_model._data['flux'] = self.lls_model * self.continuum.flux
 
     def update_model(self):
         '''Update absorption model '''
@@ -367,7 +368,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
             self.spec_widg.model = None
             return
         # use finer wavelength array to resolve absorption features.
-        wa = self.full_model.dispersion
+        wa = self.full_model.wavelength
         # Angstroms
         # should really make this a constant velocity width array instead.
         if not self.skip_wveval:
@@ -400,7 +401,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
             self.lls_model = flux
 
         # Finish
-        self.full_model.flux = self.lls_model * self.continuum.flux
+        self.full_model._data['flux'] = self.lls_model * self.continuum.flux
         # Over-absorbed
         self.spec_widg.bad_model = np.where( (self.lls_model < 0.7) &
             (self.full_model.flux < (self.spec_widg.spec.flux-
@@ -432,7 +433,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
         if event.key in ['C','1','2','!','@']: # Set continuum level
             if event.key == 'C':
                 imin = np.argmin(np.abs(
-                    self.continuum.dispersion.value-event.xdata))
+                    self.continuum.wavelength.value-event.xdata))
                 self.conti_dict['Norm'] = float(event.ydata /
                     (self.base_continuum[imin].value*(event.xdata/
                         self.conti_dict['piv_wv'])**self.conti_dict['tilt']))
@@ -521,7 +522,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
             ilbl = self.abssys_widg.all_items[kk][ipos+1:]
             # Add text
             for wv,lbl in self.plt_wv:
-                idx = np.argmin(np.abs(self.continuum.dispersion-wv*(1+lls.zabs)))
+                idx = np.argmin(np.abs(self.continuum.wavelength-wv*(1+lls.zabs)))
                 self.spec_widg.ax.text(wv.value*(1+lls.zabs),
                     self.continuum.flux[idx],
                     '{:s}_{:s}'.format(ilbl,lbl), ha='center',
@@ -536,7 +537,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
             for line in lls.lls_lines:
                 if line.wrest < 915.*u.AA:
                     continue
-                idx = np.argmin(np.abs(self.continuum.dispersion-
+                idx = np.argmin(np.abs(self.continuum.wavelength-
                     line.wrest*(1+lls.zabs)))
                 self.spec_widg.ax.text(line.wrest.value*(1+lls.zabs),
                     self.continuum.flux[idx],
@@ -601,7 +602,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
         else:
             conti= self.continuum
         # Generate toy LLS from click
-        ximn = np.argmin(np.abs(spec.dispersion.value-x))
+        ximn = np.argmin(np.abs(spec.wavelength.value-x))
         NHI = 17.29 + np.log10(-1.*np.log(y/conti.flux.value[ximn]))
         #QtCore.pyqtRemoveInputHook()
         #xdb.set_trace()
@@ -614,8 +615,8 @@ class XFitLLSGUI(QtGui.QMainWindow):
         plls.fill_lls_lines(bval=20*u.km/u.s, do_analysis=0)
 
         # wrest, Tau model, flux
-        wrest = spec.dispersion/(1+plls.zabs)
-        tau = igmlls.tau_multi_lls(spec.dispersion,[plls])
+        wrest = spec.wavelength/(1+plls.zabs)
+        tau = igmlls.tau_multi_lls(spec.wavelength,[plls])
         emtau = np.exp(-1. * tau)
         lls_flux = lsc.convolve_psf(emtau, 3.)
 #xdb.xplot(wrest, lls_flux)
@@ -633,18 +634,18 @@ class XFitLLSGUI(QtGui.QMainWindow):
         # Pixels for analysis and rolling
         # NEED TO CUT ON X-Shooter ARM
         apix = np.where( (wrest > 914*u.AA) & #(spec.dispersion<5600*u.AA) &
-                        (spec.dispersion<(1+zmin)*1026.*u.AA))[0] # Might go to Lyb
-        nroll = (np.argmin(np.abs(spec.dispersion-(911.7*u.AA*(1+zmin))))- # Extra 0.01 for bad z
-                   np.argmin(np.abs(spec.dispersion-(911.7*u.AA*(1+plls.zabs)))))
+                        (spec.wavelength<(1+zmin)*1026.*u.AA))[0] # Might go to Lyb
+        nroll = (np.argmin(np.abs(spec.wavelength-(911.7*u.AA*(1+zmin))))- # Extra 0.01 for bad z
+                   np.argmin(np.abs(spec.wavelength-(911.7*u.AA*(1+plls.zabs)))))
         # Require nroll does not exceed length of spectrum
-        if np.max(apix)+nroll > len(spec.dispersion):
-            nroll = len(spec.dispersion) - np.max(apix) - 1
+        if np.max(apix)+nroll > len(spec.wavelength):
+            nroll = len(spec.wavelength) - np.max(apix) - 1
         gdpix = np.arange(np.min(apix)-nroll,np.max(apix)+nroll+1)
         roll_flux = np.concatenate([np.ones(nroll),lls_flux[apix], np.ones(nroll)])
         roll_msk = roll_flux < 0.7
 
         # Generate data arrays
-        wave_pad = spec.dispersion[gdpix]
+        wave_pad = spec.wavelength[gdpix]
             #QtCore.pyqtRemoveInputHook()
             #xdb.set_trace()
             #QtCore.pyqtRestoreInputHook()
@@ -680,7 +681,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
         # Sum on offsets and get redshift
         bad = np.sum(bad_matrix,0)
         ibest = np.argmin(bad)
-        zbest = spec.dispersion[ibest+ximn]/(911.7*u.AA)-1 # Quantity
+        zbest = spec.wavelength[ibest+ximn]/(911.7*u.AA)-1 # Quantity
 
         # Add pLLS?
         if bad[ibest] < 10:
@@ -724,7 +725,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
                 self.base_continuum = None
             else:
                 self.continuum = XSpectrum1D.from_tuple((
-                    spec.dispersion,np.ones(len(spec.dispersion))))
+                    spec.wavelength,np.ones(len(spec.wavelength))))
         #self.update_conti()
         # Check spectra names
         if spec.filename != lls_dict['spec_file']:
@@ -767,9 +768,10 @@ class XFitLLSGUI(QtGui.QMainWindow):
             out_dict['LLS'][key]['bval'] = lls.lls_lines[0].attrib['b'].value
             out_dict['LLS'][key]['comment'] = str(lls.comment).strip()
         # Write
-        #QtCore.pyqtRemoveInputHook()
-        #xdb.set_trace()
-        #QtCore.pyqtRestoreInputHook()
+        out_dict = ltu.jsonify(out_dict)
+        QtCore.pyqtRemoveInputHook()
+        xdb.set_trace()
+        QtCore.pyqtRestoreInputHook()
         with io.open(self.outfil, 'w', encoding='utf-8') as f:
             f.write(unicode(json.dumps(out_dict, sort_keys=True, indent=4,
                 separators=(',', ': '))))
