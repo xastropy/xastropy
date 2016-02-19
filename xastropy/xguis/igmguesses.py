@@ -54,7 +54,10 @@ c_mks = const.c.to('km/s')
 
 # GUI for fitting LLS in a spectrum
 class IGMGuessesGui(QtGui.QMainWindow):
-    ''' GUI to fit LLS in a given spectrum
+    ''' GUI to identify absorption features and provide reasonable
+        first guesses of (z, logN, b) for subsequent Voigt profile
+        fitting.
+
         v0.5
         30-Jul-2015 by JXP
     '''
@@ -149,23 +152,23 @@ L         : toggle between displaying/hiding labels of currently
         spec.normalize(co=spec.data[0]['co'])
         # make sure there are no nans in uncertainty, which affects the display of residuals
         spec.data[0]['sig'] = np.where(np.isnan(spec.data[0]['sig']), 0, spec.data[0]['sig'])
+
         # This attribute will store `good pixels` for subsequent Voigt Profile fitting
         spec.mask = np.zeros(len(spec.wavelength),dtype=int)
 
-        # Full Model 
+        # Full spectrum model
         self.model = XSpectrum1D.from_tuple(
             (spec.wavelength, np.ones(len(spec.wavelength))))
 
         # LineList (Grab ISM and HI as defaults)
         self.llist = ltgu.set_llist('ISM')
-        # Load others
         self.llist['HI'] = LineList('HI')
         # self.llist['Strong'] = LineList('Strong')
         self.llist['Lists'].append('HI')
         self.llist['HI']._data = self.llist['HI']._data[::-1] #invert order of Lyman series
         #self.llist['show_line'] = np.arange(10) #maximum 10 to show for Lyman series
         
-        #define initial redshift
+        # Define initial redshift
         z=0.0
         self.llist['z'] = z
         
@@ -1341,7 +1344,7 @@ def run_gui(*args, **kwargs):
 
     import argparse
 
-    parser = argparse.ArgumentParser(description='Parser for XFitLLSGUI')
+    parser = argparse.ArgumentParser(description='Parser for IGMGuesses')
     parser.add_argument("in_file", type=str, help="Spectral file")
     parser.add_argument("-out_file", type=str, help="Output Guesses file")
     parser.add_argument("-fwhm", type=float, help="FWHM smoothing (pixels)")
