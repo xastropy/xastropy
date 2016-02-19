@@ -117,8 +117,8 @@ N,n       : slightly increase/decrease column density in initial guess
 V,v       : slightly increase/decrease b-value in initial guess
 <,>       : slightly increase/decrease redshift in initial guess
 R         : refit
-X,x       : add/remove `good pixels` to keep for subsequent VP fitting
-            (works as `A` command, i.e. need to define two limits)
+X,x       : add/remove `bad pixels` (for avoiding using them in subsequent
+            VP fitting; works as `A` command, i.e. need to define two limits)
 L         : toggle between displaying/hiding labels of currently
             identified lines
 %         : guess a transition and redshift for a given feature at
