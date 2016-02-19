@@ -156,9 +156,11 @@ L         : toggle between displaying/hiding labels of currently
                              "You can do this using linetool's `lt_continuumfit` script.")
         # make sure there are no nans in uncertainty, which affects the display of residuals
         spec.data[0]['sig'] = np.where(np.isnan(spec.data[0]['sig']), 0, spec.data[0]['sig'])
+        # import pdb; pdb.set_trace()
 
-        # This attribute will store `good pixels` for subsequent Voigt Profile fitting
-        spec.mask = np.zeros(len(spec.wavelength),dtype=int)
+        # These attributes will store good/bad pixels for subsequent Voigt Profile fitting
+        # spec.good_pixels = np.zeros(len(spec.wavelength),dtype=int)
+        spec.bad_pixels = np.zeros(len(spec.wavelength),dtype=int)
 
         # Full spectrum model
         self.model = XSpectrum1D.from_tuple(
@@ -263,12 +265,14 @@ L         : toggle between displaying/hiding labels of currently
         # Fiddle query (need to come back to it)
         if component is self.fiddle_widg.component:
             self.fiddle_widg.reset()
+
         # Mask
-        for line in component.lines:
-            wvmnx = line.wrest*(1+component.zcomp)*(1 + component.vlim.value/3e5)
-            gdp = np.where((self.velplot_widg.spec.wavelength>wvmnx[0])&
-                (self.velplot_widg.spec.wavelength<wvmnx[1]))[0]
-            self.velplot_widg.spec.mask[gdp] = 0
+        # for line in component.lines:
+        #     wvmnx = line.wrest * (1 + component.zcomp) * (1 + component.vlim.value / c_mks)
+        #     gdp = np.where((self.velplot_widg.spec.wavelength > wvmnx[0])&
+        #         (self.velplot_widg.spec.wavelength < wvmnx[1]))[0]
+        #     self.velplot_widg.spec.good_pixels[gdp] = 0
+
         # Delete
         del component
         # Update
@@ -303,13 +307,23 @@ L         : toggle between displaying/hiding labels of currently
         # Check FWHM
         if igmg_dict['fwhm'] != self.fwhm:
             raise ValueError('Input FWHMs do not match. Please fix it!')
-        # Mask
-        msk = igmg_dict['mask']
-        if len(msk) > 0:
-            self.velplot_widg.spec.mask[np.array(msk)] = 1
+        # Load bad pixels
+        if 'bad_pixels' in igmg_dict.keys():
+            bad = igmg_dict['bad_pixels']
+            if len(bad) > 0:
+                self.velplot_widg.spec.bad_pixels[np.array(bad)] = 1
+        # Load good pixels
+        # if 'good_pixels' in igmg_dict.keys():
+        #     good = igmg_dict['good_pixels']
+        # elif 'mask' in igmg_dict.keys(): # old format
+        #     good = igmg_dict['mask']
+        # if len(good) > 0:
+        #     self.velplot_widg.spec.good_pixels[np.array(good)] = 1
+
         # Check spectra names
         if self.velplot_widg.spec.filename != igmg_dict['spec_file']:
             warnings.warn('Spec file names do not match! Could just be path..')
+
         # Components
         for key in igmg_dict['cmps'].keys():
             self.velplot_widg.add_component(
@@ -342,11 +356,8 @@ L         : toggle between displaying/hiding labels of currently
         # Create dict of the components
         out_dict = dict(cmps={},
             spec_file=self.velplot_widg.spec.filename,
-            fwhm=self.fwhm)
-        mskp = np.where(self.velplot_widg.spec.mask == 1)[0]
-        if len(mskp) > 0:
-            out_dict['mask'] = list(mskp)
-        # Load
+            fwhm=self.fwhm, bad_pixels=[])
+        # Write components out
         for kk,comp in enumerate(self.comps_widg.all_comp):
             key = comp.name
             out_dict['cmps'][key] = {}
@@ -358,7 +369,16 @@ L         : toggle between displaying/hiding labels of currently
             out_dict['cmps'][key]['vlim'] = list(comp.vlim.value)
             out_dict['cmps'][key]['Quality'] = str(comp.attrib['Quality'])
             out_dict['cmps'][key]['Comment'] = str(comp.comment)
-        # Write
+
+        # Write bad goo/pixels out
+        # good_pixels = np.where(self.velplot_widg.spec.good_pixels == 1)[0]
+        # if len(good_pixels) > 0:
+        #     out_dict['good_pixels'] = list(good_pixels)
+        bad_pixels = np.where(self.velplot_widg.spec.bad_pixels == 1)[0]
+        if len(bad_pixels) > 0:
+            out_dict['bad_pixels'] = list(bad_pixels)
+
+        # Write file
         print('Wrote: {:s}'.format(self.outfil))
         with io.open(self.outfil, 'w', encoding='utf-8') as f:
             f.write(unicode(json.dumps(out_dict, sort_keys=True, indent=4, 
@@ -456,8 +476,8 @@ class IGGVelPlotWidget(QtGui.QWidget):
         self.canvas.mpl_connect('button_press_event', self.on_click)
 
         # Sub_plots
-        self.sub_xy = [5,3]
-        self.subxy_state = 'Out'
+        self.sub_xy = [3,2]
+        self.subxy_state = 'In'
 
         self.fig.subplots_adjust(hspace=0.0, wspace=0.1,left=0.04,right=0.975)
         
@@ -545,13 +565,13 @@ class IGGVelPlotWidget(QtGui.QWidget):
                 aux_comp_list = new_comp.lines
 
             # Mask for analysis
-            for line in aux_comp_list:
-                #print('masking {:g}'.format(line.wrest))
-                wvmnx = line.wrest*(1+new_comp.zcomp)*(1 + vlim.value/3e5)
-                gdp = np.where((self.spec.wavelength>wvmnx[0])&
-                    (self.spec.wavelength<wvmnx[1]))[0]
-                if len(gdp) > 0:
-                    self.spec.mask[gdp] = 1
+            # for line in aux_comp_list:
+                # print('masking {:g}'.format(line.wrest))
+                # wvmnx = line.wrest*(1+new_comp.zcomp)*(1 + vlim.value/3e5)
+                # gdp = np.where((self.spec.wavelength>wvmnx[0])&
+                #     (self.spec.wavelength<wvmnx[1]))[0]
+                # if len(gdp) > 0:
+                #     self.spec.good_pixels[gdp] = 1
 
         # Add to component list and Fiddle
         if self.parent is not None:
@@ -797,9 +817,9 @@ class IGGVelPlotWidget(QtGui.QWidget):
                     (self.spec.wavelength<twvmnx[1]))[0]
                 #print(twvmnx,len(mskp))
                 if event.key == 'x':
-                    self.spec.mask[mskp] = 0
+                    self.spec.bad_pixels[mskp] = 0
                 elif event.key == 'X':
-                    self.spec.mask[mskp] = 1
+                    self.spec.bad_pixels[mskp] = 1
                 # Reset
                 self.flag_mask = False
                 self.wrest = 0.
@@ -902,12 +922,12 @@ class IGGVelPlotWidget(QtGui.QWidget):
             subp_idx = np.hstack(subp.reshape(self.sub_xy[0],self.sub_xy[1]).T)
             #print('idx_l={:d}, nplt={:d}, lall={:d}'.format(self.idx_line,nplt,len(all_idx)))
             
-            #try different color per ion species
+            # try different color per ion species, and grey for model
             color_model = '#999966'
             colors = ['#0066FF','#339933','#CC3300','#660066','#FF9900','#B20047']
             color_ind = 0
 
-            #loop over individual velplot axes
+            # loop over individual velplot axes
             for jj in range(min(nplt, len(all_idx))):
                 try:
                     idx = all_idx[jj+self.idx_line]
@@ -918,7 +938,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
                 wrest = self.llist[self.llist['List']].wrest[idx]
                 kwrest = wrest.value # For the Dict
                 
-                #define colors for visually grouping same species
+                #define colors for visually grouping same species together
                 if jj > 0:
                     name_aux = self.llist[self.llist['List']].name[idx].split(' ')[0]
                     name_aux2 = self.llist[self.llist['List']].name[idx-1].split(' ')[0]
@@ -943,11 +963,15 @@ class IGGVelPlotWidget(QtGui.QWidget):
                 wvobs = (1+self.z) * wrest
                 wvmnx = wvobs*(1 + np.array(self.psdict['x_minmax'])/3e5)
                 velo = (self.spec.wavelength/wvobs - 1.) * c_mks
-                
-                # Plot
-                self.ax.plot(velo, self.spec.flux, '-',color=color,drawstyle='steps-mid',lw=0.5)
+
+                # Plot spectrum and model
+                flux = self.spec.data[0]['flux'] / self.spec.data[0]['co']  # this is slightly faster
+                # flux = self.spec.flux
+                self.ax.plot(velo, flux, '-', color=color, drawstyle='steps-mid', lw=0.5)
                 # Model
-                self.ax.plot(velo, self.model.flux, '-',color=color_model,lw=0.5)
+                # flux_model = self.model.flux
+                flux_model = self.model.data[0]['flux']  # this is slightly faster
+                self.ax.plot(velo, flux_model, '-', color=color_model, lw=0.5)
 
                 #Error & residuals
                 if self.plot_residuals:
@@ -975,12 +999,19 @@ class IGGVelPlotWidget(QtGui.QWidget):
                         self.ax.text(v, 0.5, line_lbl[imt], color=color_model,backgroundcolor='w',
                             bbox={'pad':0,'edgecolor':'none', 'facecolor':'w'}, size='xx-small', rotation=90.,ha='center',va='center')
 
-                # Analysis regions
-                if np.sum(self.spec.mask) > 0.:
-                    gdp = self.spec.mask==1
-                    if len(gdp) > 0:
-                        self.ax.scatter(velo[gdp],self.spec.flux[gdp],
-                            marker='o',color=color,s=3.,alpha=0.5)
+                # Plot good pixels
+                # if np.sum(self.spec.good_pixels) > 0.:
+                #     gdp = self.spec.good_pixels == 1
+                #     if len(gdp) > 0:
+                #         self.ax.scatter(velo[gdp],self.spec.flux[gdp],
+                #             marker='o',color=color, s=3.,alpha=0.5)
+
+                # Plot bad pixels
+                if np.sum(self.spec.bad_pixels) > 0.:
+                    bad = self.spec.bad_pixels == 1
+                    if len(bad) > 0:
+                        self.ax.scatter(velo[bad],self.spec.flux[bad],
+                            marker='x',color=color, s=20., alpha=0.5, lw=0.5)
 
                 # Reset window limits
                 self.ax.set_ylim(self.psdict['y_minmax'])
