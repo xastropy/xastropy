@@ -149,7 +149,11 @@ L         : toggle between displaying/hiding labels of currently
         # Load spectrum
         spec, spec_fil = ltgu.read_spec(ispec)
         # Normalize
-        spec.normalize(co=spec.data[0]['co'])
+        if spec.co_is_set:
+            spec.normed = True
+        else:
+            raise ValueError("Please provide a spectrum with a continuum estimation. "
+                             "You can do this using linetool's `lt_continuumfit` script.")
         # make sure there are no nans in uncertainty, which affects the display of residuals
         spec.data[0]['sig'] = np.where(np.isnan(spec.data[0]['sig']), 0, spec.data[0]['sig'])
 
