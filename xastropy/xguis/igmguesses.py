@@ -156,7 +156,6 @@ L         : toggle between displaying/hiding labels of currently
                              "You can do this using linetool's `lt_continuumfit` script.")
         # make sure there are no nans in uncertainty, which affects the display of residuals
         spec.data[0]['sig'] = np.where(np.isnan(spec.data[0]['sig']), 0, spec.data[0]['sig'])
-        # import pdb; pdb.set_trace()
 
         # These attributes will store good/bad pixels for subsequent Voigt Profile fitting
         # spec.good_pixels = np.zeros(len(spec.wavelength),dtype=int)
@@ -166,16 +165,17 @@ L         : toggle between displaying/hiding labels of currently
         self.model = XSpectrum1D.from_tuple(
             (spec.wavelength, np.ones(len(spec.wavelength))))
 
-        # LineList (Grab ISM and HI as defaults)
+        # LineList (Grab ISM, Strong and HI as defaults)
         self.llist = ltgu.set_llist('ISM')
         self.llist['HI'] = LineList('HI')
-        # self.llist['Strong'] = LineList('Strong')
+        self.llist['Strong'] = LineList('Strong')
         self.llist['Lists'].append('HI')
-        self.llist['HI']._data = self.llist['HI']._data[::-1] #invert order of Lyman series
+        self.llist['Lists'].append('Strong')
+        self.llist['HI']._data = self.llist['HI']._data[::-1] # invert order of Lyman series
         #self.llist['show_line'] = np.arange(10) #maximum 10 to show for Lyman series
         
         # Define initial redshift
-        z=0.0
+        z = 0.0
         self.llist['z'] = z
         
         # Grab the pieces and tie together
@@ -190,7 +190,7 @@ L         : toggle between displaying/hiding labels of currently
         # Setup strongest LineList
         self.llist['strongest'] = LineList('ISM')
         self.llist['Lists'].append('strongest')
-        self.update_strongest_lines()
+        # self.update_strongest_lines()
         self.slines_widg.selected = self.llist['show_line']
         self.slines_widg.on_list_change(
             self.llist[self.llist['List']])
@@ -198,7 +198,6 @@ L         : toggle between displaying/hiding labels of currently
         # Load prevoius file
         if self.previous_file is not None:
             self.read_previous()
-
         # Connections (buttons are above)
         #self.spec_widg.canvas.mpl_connect('key_press_event', self.on_key)
         #self.abssys_widg.abslist_widget.itemSelectionChanged.connect(
@@ -237,9 +236,9 @@ L         : toggle between displaying/hiding labels of currently
         z = self.velplot_widg.z
         wvmin = np.min(self.velplot_widg.spec.wavelength)
         wvmax = np.max(self.velplot_widg.spec.wavelength)
-        wvlims = (wvmin/(1+z),wvmax/(1+z))
+        wvlims = (wvmin/(1+z), wvmax/(1+z))
         transitions = self.llist['ISM'].available_transitions(
-            wvlims,n_max=None, n_max_tuple=self.n_max_tuple,min_strength=self.min_strength)
+            wvlims, n_max=None, n_max_tuple=self.n_max_tuple, min_strength=self.min_strength)
 
         if transitions is not None:
             names = list(np.array(transitions['name']))
@@ -325,12 +324,14 @@ L         : toggle between displaying/hiding labels of currently
             warnings.warn('Spec file names do not match! Could just be path..')
 
         # Components
+        print('Reading the components from previous file. It may take a while...')
         for key in igmg_dict['cmps'].keys():
+
             self.velplot_widg.add_component(
                 igmg_dict['cmps'][key]['wrest']*u.AA, 
                 zcomp=igmg_dict['cmps'][key]['zcomp'],
                 vlim=igmg_dict['cmps'][key]['vlim']*u.km/u.s,
-                no_fit_mask=True)
+                update_model=False)
 
             # Name
             self.velplot_widg.current_comp.name = key
@@ -342,10 +343,8 @@ L         : toggle between displaying/hiding labels of currently
             self.velplot_widg.current_comp.comment = igmg_dict['cmps'][key]['Comment']
             # Sync
             self.velplot_widg.current_comp.sync_lines()
+
         # Updates
-        #QtCore.pyqtRemoveInputHook()
-        #xdb.set_trace()
-        #QtCore.pyqtRestoreInputHook()
         self.velplot_widg.update_model()
         self.fiddle_widg.init_component(self.velplot_widg.current_comp)
 
@@ -520,8 +519,8 @@ class IGGVelPlotWidget(QtGui.QWidget):
         gdlin = []
         for comp in all_comp:
             for line in comp.lines:
-                wvobs = (1+line.attrib['z'])*line.wrest 
-                if (wvobs>wvmin) & (wvobs<wvmax):
+                wvobs = (1 + line.attrib['z']) * line.wrest
+                if (wvobs > wvmin) & (wvobs < wvmax):
                     line.attrib['N'] = 10.**line.attrib['logN'] / u.cm**2
                     gdlin.append(line)
         # Voigt
@@ -536,35 +535,37 @@ class IGGVelPlotWidget(QtGui.QWidget):
             self.residual = (self.spec.flux - self.model.flux) * self.residual_normalization_factor
 
     # Add a component
-    def add_component(self, wrest, vlim=None, zcomp=None, no_fit_mask=False):
-        '''Generate a component and fit with Gaussian
+    def add_component(self, wrest, vlim=None, zcomp=None, update_model=True):
+        '''Generate a component and fit with Voigt profiles
+
         Parameters:
         ------------
-        no_fit_mask: bool, optional
-          Skip fit + masking (mainly for reading in a previous file)
+        update_model: bool, optional
+          Whether to update the model. It is useful to set it to
+          False when reading the previous file to increase speed.
         '''
         # Center z and reset vmin/vmax
         if zcomp is None:
-            zmin,zmax = self.z + (1+self.z)*(self.avmnx.value/3e5)
-            zcomp = (zmin+zmax)/2.
+            zmin, zmax = self.z + (1 + self.z) * (self.avmnx.value / c_mks)
+            zcomp = 0.5 * (zmin + zmax)
         if vlim is None:
-            vlim = self.avmnx - (self.avmnx[1]+self.avmnx[0])/2.
-        new_comp = Component(zcomp, wrest,vlim=vlim,
-            linelist=self.llist['ISM']) 
+            vlim = self.avmnx - 0.5 * (self.avmnx[1] + self.avmnx[0])
+        new_comp = Component(zcomp, wrest, vlim=vlim, linelist=self.llist['ISM'])
+
         # Fit
         #print('doing fit for {:g}'.format(wrest))
-        if not no_fit_mask:
+        if update_model:
             self.fit_component(new_comp)
 
+            # Masking good pixels
             # For Lyman series only mask pixels for fitting 
             # up to Ly-gamma; the rest should be done manually 
             # if wanted
-            if new_comp.lines[0].name.startswith('HI '):
-                aux_comp_list = new_comp.lines[::-1][:3] #invert order from ISM LineList and truncate
-            else:
-                aux_comp_list = new_comp.lines
+            # if new_comp.lines[0].name.startswith('HI '):
+            #     aux_comp_list = new_comp.lines[::-1][:3] #invert order from ISM LineList and truncate for masking
+            # else:
+            #     aux_comp_list = new_comp.lines
 
-            # Mask for analysis
             # for line in aux_comp_list:
                 # print('masking {:g}'.format(line.wrest))
                 # wvmnx = line.wrest*(1+new_comp.zcomp)*(1 + vlim.value/3e5)
@@ -580,7 +581,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
 
         # Update model
         self.current_comp = new_comp
-        if not no_fit_mask:
+        if update_model:
             self.update_model()
 
     def fit_component(self, component):
@@ -596,7 +597,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
         # Guesses
         fmin = np.argmin(self.spec.flux[fit_line.analy['pix']])
         zguess = self.spec.wavelength[fit_line.analy['pix'][fmin]]/component.init_wrest - 1.
-        bguess = (component.vlim[1]-component.vlim[0])/2.
+        bguess = 0.5 * (component.vlim[1] - component.vlim[0])
         Nguess = np.log10(fit_line.attrib['N'].to('cm**-2').value)
         # Voigt model
         #QtCore.pyqtRemoveInputHook()
@@ -621,16 +622,16 @@ class IGGVelPlotWidget(QtGui.QWidget):
         #QtCore.pyqtRestoreInputHook()
 
         # Find velocity limits using zfit as reference
-        zlim_orig = (fitvoigt.z.min, fitvoigt.z.max)
-        vlim_zfit = (zlim_orig - parm.z.value) * c_mks / (1 + parm.z.value)
+        # zlim_orig = (fitvoigt.z.min, fitvoigt.z.max)
+        # vlim_zfit = (zlim_orig - parm.z.value) * c_mks / (1 + parm.z.value)
 
         # Save and sync
         component.attrib['logN'] = parm.logN.value
         component.attrib['N'] = 10**parm.logN.value / u.cm**2
         component.attrib['z'] = parm.z.value
         component.attrib['b'] = parm.b.value * u.km/u.s
-        component.attrib['vmin_zfit'] = vlim_zfit[0] * u.km / u.s
-        component.attrib['vmax_zfit'] = vlim_zfit[1] * u.km / u.s
+        # component.attrib['vmin_zfit'] = vlim_zfit[0] * u.km / u.s
+        # component.attrib['vmax_zfit'] = vlim_zfit[1] * u.km / u.s
         component.sync_lines()
 
     def out_of_bounds(self,coord):
@@ -1238,7 +1239,12 @@ class ComponentListWidget(QtGui.QWidget):
         Changed an item in the list
         '''
         item = self.complist_widget.selectedItems()
-        txt = item[0].text()
+        try:
+            txt = item[0].text()
+        except:
+            QtCore.pyqtRemoveInputHook()
+            xdb.set_trace()
+            QtCore.pyqtRestoreInputHook()
         if txt == 'None':
             if self.parent is not None:
                 self.parent.updated_compslist(None)
@@ -1302,8 +1308,10 @@ class ComponentListWidget(QtGui.QWidget):
         idx = self.all_items.index(comp_name)
         del self.all_items[idx]
         self.all_comp.pop(idx)
+        self.complist_widget.item(len(self.all_items)).setSelected(True)
+
         tmp = self.complist_widget.takeItem(idx+1) # 1 for None
-        #self.on_list_change()
+        self.on_list_change()
 
 
 class Component(AbsComponent):
@@ -1326,6 +1334,8 @@ class Component(AbsComponent):
             stars = '*'*(len(self.lines[0].name.split('*'))-1)
         else:
             stars = None
+
+        # Init AbsComponent
         AbsComponent.__init__(self,radec, Zion, z, vlim, Ej, comment='None', stars=stars)
 
         # Init cont.
@@ -1338,10 +1348,9 @@ class Component(AbsComponent):
         # Sync
         self.sync_lines()
 
-        # Use different naming convention here
+        # Use different naming convention within IGMGuesses
         self.name = 'z{:.5f}_{:s}'.format(
             self.zcomp,self.lines[0].data['name'].split(' ')[0])
-
 
 
     def init_lines(self):
@@ -1354,7 +1363,7 @@ class Component(AbsComponent):
         #QtCore.pyqtRemoveInputHook()
         #xdb.set_trace()
         #QtCore.pyqtRestoreInputHook()
-        if isinstance(all_trans,dict):
+        if isinstance(all_trans, dict):
             all_trans = [all_trans]
         for trans in all_trans:
             self.lines.append(AbsLine(trans['wrest'],
