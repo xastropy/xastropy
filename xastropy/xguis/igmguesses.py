@@ -54,7 +54,10 @@ c_mks = const.c.to('km/s')
 
 # GUI for fitting LLS in a spectrum
 class IGMGuessesGui(QtGui.QMainWindow):
-    ''' GUI to fit LLS in a given spectrum
+    ''' GUI to identify absorption features and provide reasonable
+        first guesses of (z, logN, b) for subsequent Voigt profile
+        fitting.
+
         v0.5
         30-Jul-2015 by JXP
     '''
@@ -63,9 +66,10 @@ class IGMGuessesGui(QtGui.QMainWindow):
         plot_residuals=True,n_max_tuple=None, min_strength=0.):
         QtGui.QMainWindow.__init__(self, parent)
         """
-        spec = Spectrum1D
+        ispec : str
+            Name of the spectrum file to load
         previous_file: str, optional
-            Name of the previous guesses file
+            Name of the previous IGMguesses json file
         smooth: float, optional
             Number of pixels to smooth on
         zqso: float, optional
@@ -84,23 +88,7 @@ class IGMGuessesGui(QtGui.QMainWindow):
         """
         # TODO
         # 1. Fix convolve window size
-            # 2. Avoid sorting of wavelengths
-            # 3. Remove astropy.relativity 
-            # 4. Display self.z 
-            # 5. Recenter on 'z'
-        # 6. Add COS LSF
-            # 7. Refit component key 'F'
-            # 8. Plot only selected components [DEPRECATED]
-            # 9. Avoid shifting z of component outside its velocity range
-            # 10. Write Component vlim to JSON
-            # 11. Key to set line as some other transition (e.g. RMB in XSpec)
-            # 12. Mask array with points
-            # 13. Toggle line ID names
-            # 14. Add error + residual arrays [NT]
-            # 15. Adjust component redshift by keystroke
-            # 16. Input redshift value via Widget
-            # 17. Use Component list to jump between components (like 'S')
-
+        # 2. Add COS LSF (?)
 
         self.help_message = """
 i,o       : zoom in/out x limits
@@ -158,27 +146,33 @@ L         : toggle between displaying/hiding labels of currently
         self.n_max_tuple = n_max_tuple
         self.min_strength = min_strength
 
-        # Spectrum
+        # Load spectrum
         spec, spec_fil = ltgu.read_spec(ispec)
-        spec.normalize() # Need to change this..
-        spec.mask = np.zeros(len(spec.dispersion),dtype=int)
-
         # Normalize
+        if spec.co_is_set:
+            spec.normed = True
+        else:
+            raise ValueError("Please provide a spectrum with a continuum estimation. "
+                             "You can do this using linetool's `lt_continuumfit` script.")
+        # make sure there are no nans in uncertainty, which affects the display of residuals
+        spec.data[0]['sig'] = np.where(np.isnan(spec.data[0]['sig']), 0, spec.data[0]['sig'])
 
-        # Full Model 
-        self.model = XSpectrum1D.from_tuple((
-            spec.dispersion,np.ones(len(spec.dispersion))))
+        # This attribute will store `good pixels` for subsequent Voigt Profile fitting
+        spec.mask = np.zeros(len(spec.wavelength),dtype=int)
+
+        # Full spectrum model
+        self.model = XSpectrum1D.from_tuple(
+            (spec.wavelength, np.ones(len(spec.wavelength))))
 
         # LineList (Grab ISM and HI as defaults)
         self.llist = ltgu.set_llist('ISM')
-        # Load others
         self.llist['HI'] = LineList('HI')
         # self.llist['Strong'] = LineList('Strong')
         self.llist['Lists'].append('HI')
         self.llist['HI']._data = self.llist['HI']._data[::-1] #invert order of Lyman series
         #self.llist['show_line'] = np.arange(10) #maximum 10 to show for Lyman series
         
-        #define initial redshift
+        # Define initial redshift
         z=0.0
         self.llist['z'] = z
         
@@ -239,8 +233,8 @@ L         : toggle between displaying/hiding labels of currently
         redshift.
         '''
         z = self.velplot_widg.z
-        wvmin = np.min(self.velplot_widg.spec.dispersion) 
-        wvmax = np.max(self.velplot_widg.spec.dispersion) 
+        wvmin = np.min(self.velplot_widg.spec.wavelength)
+        wvmax = np.max(self.velplot_widg.spec.wavelength)
         wvlims = (wvmin/(1+z),wvmax/(1+z))
         transitions = self.llist['ISM'].available_transitions(
             wvlims,n_max=None, n_max_tuple=self.n_max_tuple,min_strength=self.min_strength)
@@ -272,8 +266,8 @@ L         : toggle between displaying/hiding labels of currently
         # Mask
         for line in component.lines:
             wvmnx = line.wrest*(1+component.zcomp)*(1 + component.vlim.value/3e5)
-            gdp = np.where((self.velplot_widg.spec.dispersion>wvmnx[0])&
-                (self.velplot_widg.spec.dispersion<wvmnx[1]))[0]
+            gdp = np.where((self.velplot_widg.spec.wavelength>wvmnx[0])&
+                (self.velplot_widg.spec.wavelength<wvmnx[1]))[0]
             self.velplot_widg.spec.mask[gdp] = 0
         # Delete
         del component
@@ -415,8 +409,8 @@ class IGGVelPlotWidget(QtGui.QWidget):
         self.flag_mask = False
         self.wrest = 0.
         self.avmnx = np.array([0.,0.])*u.km/u.s
-        self.model = XSpectrum1D.from_tuple((
-            spec.dispersion,np.ones(len(spec.dispersion))))
+        self.model = XSpectrum1D.from_tuple(
+            (spec.wavelength, np.ones(len(spec.wavelength))))
 
         self.plot_residuals = plot_residuals
         #Define arrays for plotting residuals
@@ -477,8 +471,8 @@ class IGGVelPlotWidget(QtGui.QWidget):
 
     # Load them up for display
     def init_lines(self):
-        wvmin = np.min(self.spec.dispersion)
-        wvmax = np.max(self.spec.dispersion)
+        wvmin = np.min(self.spec.wavelength)
+        wvmax = np.max(self.spec.wavelength)
         #
         #QtCore.pyqtRemoveInputHook()
         #xdb.set_trace()
@@ -502,7 +496,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
             self.model.flux[:] = 1.
             return
         # Setup lines
-        wvmin, wvmax = np.min(self.spec.dispersion), np.max(self.spec.dispersion)
+        wvmin, wvmax = np.min(self.spec.wavelength), np.max(self.spec.wavelength)
         gdlin = []
         for comp in all_comp:
             for line in comp.lines:
@@ -514,7 +508,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
         #QtCore.pyqtRemoveInputHook()
         #xdb.set_trace()
         #QtCore.pyqtRestoreInputHook()
-        self.model = lav.voigt_from_abslines(self.spec.dispersion, gdlin, fwhm=self.fwhm)#,debug=True)
+        self.model = lav.voigt_from_abslines(self.spec.wavelength, gdlin, fwhm=self.fwhm)#,debug=True)
         
         #Define arrays for plotting residuals
         if self.plot_residuals:
@@ -554,8 +548,8 @@ class IGGVelPlotWidget(QtGui.QWidget):
             for line in aux_comp_list:
                 #print('masking {:g}'.format(line.wrest))
                 wvmnx = line.wrest*(1+new_comp.zcomp)*(1 + vlim.value/3e5)
-                gdp = np.where((self.spec.dispersion>wvmnx[0])&
-                    (self.spec.dispersion<wvmnx[1]))[0]
+                gdp = np.where((self.spec.wavelength>wvmnx[0])&
+                    (self.spec.wavelength<wvmnx[1]))[0]
                 if len(gdp) > 0:
                     self.spec.mask[gdp] = 1
 
@@ -581,7 +575,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
         fit_line.measure_aodm(normalize=False)  # Already normalized
         # Guesses
         fmin = np.argmin(self.spec.flux[fit_line.analy['pix']])
-        zguess = self.spec.dispersion[fit_line.analy['pix'][fmin]]/component.init_wrest - 1.
+        zguess = self.spec.wavelength[fit_line.analy['pix'][fmin]]/component.init_wrest - 1.
         bguess = (component.vlim[1]-component.vlim[0])/2.
         Nguess = np.log10(fit_line.attrib['N'].to('cm**-2').value)
         # Voigt model
@@ -600,7 +594,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
 
         # Fit
         fitter = fitting.LevMarLSQFitter()
-        parm = fitter(fitvoigt,self.spec.dispersion[fit_line.analy['pix']],
+        parm = fitter(fitvoigt,self.spec.wavelength[fit_line.analy['pix']],
             self.spec.flux[fit_line.analy['pix']].value)
         #QtCore.pyqtRemoveInputHook()
         #xdb.set_trace()
@@ -617,8 +611,8 @@ class IGGVelPlotWidget(QtGui.QWidget):
         '''Check for out of bounds
         '''
         # Default is x
-        if ((coord < np.min(self.spec.dispersion)) 
-            or (coord > np.max(self.spec.dispersion))):
+        if ((coord < np.min(self.spec.wavelength))
+            or (coord > np.max(self.spec.wavelength))):
             print('Out of bounds!')
             return True
         else:
@@ -686,13 +680,13 @@ class IGGVelPlotWidget(QtGui.QWidget):
             elif event.key == 'n':
                 self.parent.fiddle_widg.component.attrib['logN'] -= 0.05
             elif event.key == 'v':
-                self.parent.fiddle_widg.component.attrib['b'] -= 2*u.km/u.s
+                self.parent.fiddle_widg.component.attrib['b'] -= 5*u.km/u.s
             elif event.key == 'V':
-                self.parent.fiddle_widg.component.attrib['b'] += 2*u.km/u.s
+                self.parent.fiddle_widg.component.attrib['b'] += 5*u.km/u.s
             elif event.key == '<':
-                self.parent.fiddle_widg.component.attrib['z'] -= 2e-5 #should be a fraction of pixel size
+                self.parent.fiddle_widg.component.attrib['z'] -= 4e-5 # should be a fraction of pixel size
             elif event.key == '>':
-                self.parent.fiddle_widg.component.attrib['z'] += 2e-5
+                self.parent.fiddle_widg.component.attrib['z'] += 4e-5
 
             elif event.key == 'R': # Refit
                 self.fit_component(self.parent.fiddle_widg.component)
@@ -768,7 +762,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
                 self.avmnx[0] = event.xdata*unit
             elif event.key == '2':
                 self.avmnx[1] = event.xdata*unit
-            self.update_component()
+            # todo: we need to update the fit with new edges here
 
         ## Add component
         if event.key == 'A': # Add to lines
@@ -786,7 +780,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
                 self.flag_add = False
                 self.wrest = 0.
 
-        # Fiddle with analysis mask        
+        # Fiddle with analysis pixel mask
         if event.key in ['x','X']:
             # x = Delete mask
             # X = Add to mask
@@ -799,8 +793,8 @@ class IGGVelPlotWidget(QtGui.QWidget):
                 wtmp2 = wvobs*(1+event.xdata/3e5)
                 twvmnx = [np.minimum(self.wtmp,wtmp2), np.maximum(self.wtmp,wtmp2)]
                 # Modify mask
-                mskp = np.where((self.spec.dispersion>twvmnx[0])&
-                    (self.spec.dispersion<twvmnx[1]))[0]
+                mskp = np.where((self.spec.wavelength>twvmnx[0])&
+                    (self.spec.wavelength<twvmnx[1]))[0]
                 #print(twvmnx,len(mskp))
                 if event.key == 'x':
                     self.spec.mask[mskp] = 0
@@ -948,7 +942,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
                 # Velocity
                 wvobs = (1+self.z) * wrest
                 wvmnx = wvobs*(1 + np.array(self.psdict['x_minmax'])/3e5)
-                velo = (self.spec.dispersion/wvobs - 1.) * c_mks
+                velo = (self.spec.wavelength/wvobs - 1.) * c_mks
                 
                 # Plot
                 self.ax.plot(velo, self.spec.flux, '-',color=color,drawstyle='steps-mid',lw=0.5)
@@ -1354,7 +1348,7 @@ def run_gui(*args, **kwargs):
 
     import argparse
 
-    parser = argparse.ArgumentParser(description='Parser for XFitLLSGUI')
+    parser = argparse.ArgumentParser(description='Parser for IGMGuesses')
     parser.add_argument("in_file", type=str, help="Spectral file")
     parser.add_argument("-out_file", type=str, help="Output Guesses file")
     parser.add_argument("-fwhm", type=float, help="FWHM smoothing (pixels)")

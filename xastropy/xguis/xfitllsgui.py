@@ -88,7 +88,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
     """
     def __init__(self, ispec, parent=None, lls_fit_file=None,
         outfil=None, smooth=3., zqso=None, fN_gamma=None, template=None,
-        dw=0.1, skip_wveval=False):
+        dw=0.1, skip_wveval=False, norm=True):
         QtGui.QMainWindow.__init__(self, parent)
         '''
         ispec : Spectrum1D or specfil
@@ -109,6 +109,9 @@ class XFitLLSGUI(QtGui.QMainWindow):
         skip_wveval : bool, optional
           Skip rebinning of wavelengths in the Voigt profile generation.
           This can speed up the code considerably, but use it wisely.
+        norm : bool, optional
+          Whether to normalize the spectrum by dividing by the
+          continuum (default True).
         '''
 
         # Build a widget combining several others
@@ -163,7 +166,8 @@ class XFitLLSGUI(QtGui.QMainWindow):
         self.spec_widg = ltgsp.ExamineSpecWidget(spec,status=self.statusBar,
                                            llist=self.llist, key_events=False,
                                            abs_sys=self.abssys_widg.abs_sys,
-                                           vlines=vlines, plotzero=1)
+                                           vlines=vlines, plotzero=1,
+                                                 norm=norm)
         # Initialize continuum (and LLS if from a file)
         if lls_fit_file is not None:
             self.init_LLS(lls_fit_file,spec)
@@ -333,6 +337,10 @@ class XFitLLSGUI(QtGui.QMainWindow):
         self.Cwidget.box.setText(
             self.Cwidget.box.frmt.format(
                 self.abssys_widg.all_abssys[idx].comment))
+        # Rest-frame too
+        self.spec_widg.show_restframe = True
+        self.spec_widg.rest_z = self.abssys_widg.all_abssys[idx].zabs
+
 
     def update_conti(self):
         """Update continuum
