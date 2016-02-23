@@ -338,7 +338,7 @@ L         : toggle between displaying/hiding labels of currently
             self.velplot_widg.current_comp.attrib['z']= igmg_dict['cmps'][key]['zfit']
             self.velplot_widg.current_comp.attrib['b']= igmg_dict['cmps'][key]['bfit']*u.km/u.s
             self.velplot_widg.current_comp.attrib['logN']= igmg_dict['cmps'][key]['Nfit']
-            self.velplot_widg.current_comp.attrib['Quality']= igmg_dict['cmps'][key]['Quality']
+            self.velplot_widg.current_comp.attrib['Reliability']= igmg_dict['cmps'][key]['Reliability']
             self.velplot_widg.current_comp.comment = igmg_dict['cmps'][key]['Comment']
             # Sync
             self.velplot_widg.current_comp.sync_lines()
@@ -367,7 +367,7 @@ L         : toggle between displaying/hiding labels of currently
             out_dict['cmps'][key]['bfit'] = comp.attrib['b'].value
             out_dict['cmps'][key]['wrest'] = comp.init_wrest.value
             out_dict['cmps'][key]['vlim'] = list(comp.vlim.value)
-            out_dict['cmps'][key]['Quality'] = str(comp.attrib['Quality'])
+            out_dict['cmps'][key]['Reliability'] = str(comp.attrib['Reliability'])
             out_dict['cmps'][key]['Comment'] = str(comp.comment)
 
         # Write bad goo/pixels out
@@ -609,8 +609,8 @@ class IGGVelPlotWidget(QtGui.QWidget):
         # Restrict z range
         fitvoigt.logN.min = 10.
         fitvoigt.b.min = 1.
-        fitvoigt.z.min = component.zcomp+component.vlim[0].value/3e5/(1+component.zcomp)
-        fitvoigt.z.max = component.zcomp+component.vlim[1].value/3e5/(1+component.zcomp)
+        fitvoigt.z.min = component.zcomp + component.vlim[0].value * (1 + component.zcomp) / c_mks
+        fitvoigt.z.max = component.zcomp + component.vlim[1].value * (1 + component.zcomp) / c_mks
 
         # Fit
         fitter = fitting.LevMarLSQFitter()
@@ -620,11 +620,17 @@ class IGGVelPlotWidget(QtGui.QWidget):
         #xdb.set_trace()
         #QtCore.pyqtRestoreInputHook()
 
+        # Find velocity limits using zfit as reference
+        zlim_orig = (fitvoigt.z.min, fitvoigt.z.max)
+        vlim_zfit = (zlim_orig - parm.z.value) * c_mks / (1 + parm.z.value)
+
         # Save and sync
         component.attrib['logN'] = parm.logN.value
         component.attrib['N'] = 10**parm.logN.value / u.cm**2
         component.attrib['z'] = parm.z.value
         component.attrib['b'] = parm.b.value * u.km/u.s
+        component.attrib['vmin_zfit'] = vlim_zfit[0] * u.km / u.s
+        component.attrib['vmax_zfit'] = vlim_zfit[1] * u.km / u.s
         component.sync_lines()
 
     def out_of_bounds(self,coord):
@@ -905,10 +911,10 @@ class IGGVelPlotWidget(QtGui.QWidget):
                 line_wvobs = []
                 line_lbl = []
                 for comp in components:
-                    if comp.attrib['Quality'] == 'None':
+                    if comp.attrib['Reliability'] == 'None':
                         la = ''
                     else: 
-                        la = comp.attrib['Quality']
+                        la = comp.attrib['Reliability']
                     for line in comp.lines:
                         line_wvobs.append(line.wrest.value*(line.attrib['z']+1))
                         line_lbl.append(line.name+',{:.3f}{:s}'.format(line.attrib['z'],la))
@@ -965,22 +971,19 @@ class IGGVelPlotWidget(QtGui.QWidget):
                 velo = (self.spec.wavelength/wvobs - 1.) * c_mks
 
                 # Plot spectrum and model
-                flux = self.spec.data[0]['flux'] / self.spec.data[0]['co']  # this is slightly faster
                 # flux = self.spec.flux
-                self.ax.plot(velo, flux, '-', color=color, drawstyle='steps-mid', lw=0.5)
+                # flux = self.spec.data[0]['flux'] / self.spec.data[0]['co']  # this is slightly faster
+                self.ax.plot(velo, self.spec.flux, '-', color=color, drawstyle='steps-mid', lw=0.5)
                 # Model
                 # flux_model = self.model.flux
-                flux_model = self.model.data[0]['flux']  # this is slightly faster
-                self.ax.plot(velo, flux_model, '-', color=color_model, lw=0.5)
+                # flux_model = self.model.data[0]['flux']  # this is slightly faster
+                self.ax.plot(velo, self.model.flux, '-', color=color_model, lw=0.5)
 
                 #Error & residuals
                 if self.plot_residuals:
                     self.ax.plot(velo, self.residual_limit, 'k-',drawstyle='steps-mid',lw=0.5)
                     self.ax.plot(velo, -self.residual_limit, 'k-',drawstyle='steps-mid',lw=0.5)
                     self.ax.plot(velo, self.residual, '.',color='grey',ms=2)
-
-                #import pdb
-                #pdb.set_trace()
 
                 # Labels
                 if (((jj+1) % self.sub_xy[0]) == 0) or ((jj+1) == len(all_idx)):
@@ -989,15 +992,16 @@ class IGGVelPlotWidget(QtGui.QWidget):
                     self.ax.get_xaxis().set_ticks([])
                 lbl = self.llist[self.llist['List']].name[idx]
                 self.ax.text(0.01, 0.15, lbl, color=color, transform=self.ax.transAxes,
-                             size='x-small', ha='left',va='center',backgroundcolor='w',bbox={'pad':0,'edgecolor':'none',
-                                                                                             'facecolor':'w'})
+                             size='x-small', ha='left', va='center', backgroundcolor='w',
+                             bbox={'pad':0, 'edgecolor':'none', 'facecolor':'w'})
                 if self.flag_idlbl:
                     # Any lines inside?
                     mtw = np.where((line_wvobs > wvmnx[0]) & (line_wvobs<wvmnx[1]))[0]
                     for imt in mtw:
                         v = 3e5*(line_wvobs[imt]/wvobs - 1)
                         self.ax.text(v, 0.5, line_lbl[imt], color=color_model,backgroundcolor='w',
-                            bbox={'pad':0,'edgecolor':'none', 'facecolor':'w'}, size='xx-small', rotation=90.,ha='center',va='center')
+                            bbox={'pad':0,'edgecolor':'none', 'facecolor':'w'}, size='xx-small',
+                                rotation=90.,ha='center',va='center')
 
                 # Plot good pixels
                 # if np.sum(self.spec.good_pixels) > 0.:
@@ -1067,7 +1071,7 @@ class FiddleComponentWidget(QtGui.QWidget):
         self.Nwidget = ltgsm.EditBox(-1., 'Nc=', '{:0.2f}')
         self.bwidget = ltgsm.EditBox(-1., 'bc=', '{:0.1f}')
 
-        self.ddlbl = QtGui.QLabel('Quality')
+        self.ddlbl = QtGui.QLabel('Reliability')
         self.ddlist = QtGui.QComboBox(self)
         self.ddlist.addItem('None')
         self.ddlist.addItem('a')
@@ -1082,7 +1086,7 @@ class FiddleComponentWidget(QtGui.QWidget):
             self.component = component
 
         # Connect
-        self.ddlist.activated[str].connect(self.setQuality)
+        self.ddlist.activated[str].connect(self.setReliability)
         self.connect(self.Nwidget.box, 
             QtCore.SIGNAL('editingFinished ()'), self.setbzN)
         self.connect(self.zwidget.box, 
@@ -1127,15 +1131,15 @@ class FiddleComponentWidget(QtGui.QWidget):
         self.zwidget.set_text(self.component.attrib['z'])
         self.bwidget.set_text(self.component.attrib['b'].value)
         self.Cwidget.set_text(self.component.comment)
-        # Quality
-        idx = self.ddlist.findText(self.component.attrib['Quality'])
+        # Reliability
+        idx = self.ddlist.findText(self.component.attrib['Reliability'])
         self.ddlist.setCurrentIndex(idx)
         # Label
         self.set_label()
 
-    def setQuality(self,text):
+    def setReliability(self, text):
         if self.component is not None:
-            self.component.attrib['Quality'] = text
+            self.component.attrib['Reliability'] = text
 
     def reset(self):
         #
@@ -1329,7 +1333,7 @@ class Component(AbsComponent):
                        'logN': 0., 'sig_logN': 0.,
                        'b': 0.*u.km/u.s, 'bsig': 0.*u.km/u.s,  # Doppler
                        'z': self.zcomp, 'zsig': 0.,
-                       'Quality': 'None'}
+                       'Reliability': 'None'}
 
         # Sync
         self.sync_lines()
