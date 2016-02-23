@@ -290,7 +290,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
         self.update_boxes()
 
     def create_status_bar(self):
-        self.status_text = QtGui.QLabel("XFitLLS v0.4.3")
+        self.status_text = QtGui.QLabel("XFitLLS v0.5.0")
         self.statusBar().addWidget(self.status_text, 1)
 
     def setbzN(self):
@@ -349,15 +349,17 @@ class XFitLLSGUI(QtGui.QMainWindow):
         # Double tilt
         if 'piv_wv2' in self.conti_dict.keys():
             lowwv = self.continuum.wavelength.value < self.conti_dict['piv_wv2']
-            self.continuum._data['flux'][lowwv] = (cflux[lowwv] * (self.continuum.wavelength.value[lowwv]/
+            self.continuum.flux[lowwv] = (cflux[lowwv] * (self.continuum.wavelength.value[lowwv]/
                                             self.conti_dict['piv_wv2'])**self.conti_dict['tilt2'])
-            self.continuum._data['flux'][~lowwv] = (cflux[~lowwv] * (self.continuum.wavelength.value[~lowwv]/
+            self.continuum.flux[~lowwv] = (cflux[~lowwv] * (self.continuum.wavelength.value[~lowwv]/
                                             self.conti_dict['piv_wv'])**self.conti_dict['tilt'])
         else:
-            self.continuum._data['flux'] = (cflux * (self.continuum.wavelength.value/
+            self.continuum.flux = (cflux * (self.continuum.wavelength.value/
                     self.conti_dict['piv_wv'])**self.conti_dict['tilt'])
         if self.lls_model is not None:
-            self.full_model._data['flux'] = self.lls_model * self.continuum.flux
+            self.full_model.flux = self.lls_model * self.continuum.flux
+        # For plotting
+        self.spec_widg.spec.co = self.continuum.flux.value
 
     def update_model(self):
         '''Update absorption model '''
@@ -401,7 +403,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
             self.lls_model = flux
 
         # Finish
-        self.full_model._data['flux'] = self.lls_model * self.continuum.flux
+        self.full_model.flux = self.lls_model * self.continuum.flux
         # Over-absorbed
         self.spec_widg.bad_model = np.where( (self.lls_model < 0.7) &
             (self.full_model.flux < (self.spec_widg.spec.flux-
@@ -633,7 +635,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
 
         # Pixels for analysis and rolling
         # NEED TO CUT ON X-Shooter ARM
-        apix = np.where( (wrest > 914*u.AA) & #(spec.dispersion<5600*u.AA) &
+        apix = np.where( (wrest > 914*u.AA) & #(spec.wavelength<5600*u.AA) &
                         (spec.wavelength<(1+zmin)*1026.*u.AA))[0] # Might go to Lyb
         nroll = (np.argmin(np.abs(spec.wavelength-(911.7*u.AA*(1+zmin))))- # Extra 0.01 for bad z
                    np.argmin(np.abs(spec.wavelength-(911.7*u.AA*(1+plls.zabs)))))
@@ -768,12 +770,12 @@ class XFitLLSGUI(QtGui.QMainWindow):
             out_dict['LLS'][key]['bval'] = lls.lls_lines[0].attrib['b'].value
             out_dict['LLS'][key]['comment'] = str(lls.comment).strip()
         # Write
-        out_dict = ltu.jsonify(out_dict)
-        QtCore.pyqtRemoveInputHook()
-        xdb.set_trace()
-        QtCore.pyqtRestoreInputHook()
+        #QtCore.pyqtRemoveInputHook()
+        #xdb.set_trace()
+        #QtCore.pyqtRestoreInputHook()
+        clean_dict = ltu.jsonify(out_dict)
         with io.open(self.outfil, 'w', encoding='utf-8') as f:
-            f.write(unicode(json.dumps(out_dict, sort_keys=True, indent=4,
+            f.write(unicode(json.dumps(clean_dict, sort_keys=True, indent=4,
                 separators=(',', ': '))))
         self.flag_write = True
 
