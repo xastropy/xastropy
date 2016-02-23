@@ -48,7 +48,7 @@ from xastropy.xutils import xdebug as xdb
 
 xa_path = imp.find_module('xastropy')[1]
 
-c_mks = const.c.to('km/s')
+c_mks = const.c.to('km/s').value
 
 #class IGMGuessesGui(QtGui.QMainWindow):
 
@@ -967,8 +967,8 @@ class IGGVelPlotWidget(QtGui.QWidget):
                 self.ax.plot( [0., 0.], [-1e9, 1e9], ':', color='gray')
                 # Velocity
                 wvobs = (1+self.z) * wrest
-                wvmnx = wvobs*(1 + np.array(self.psdict['x_minmax'])/3e5)
-                velo = (self.spec.wavelength/wvobs - 1.) * c_mks
+                wvmnx = wvobs*(1 + np.array(self.psdict['x_minmax']) / c_mks)
+                velo = (self.spec.wavelength/wvobs - 1.) * c_mks * u.km/u.s
 
                 # Plot spectrum and model
                 # flux = self.spec.flux
@@ -1037,17 +1037,17 @@ class IGGVelPlotWidget(QtGui.QWidget):
                         #QtCore.pyqtRemoveInputHook()
                         #xdb.set_trace()
                         #QtCore.pyqtRestoreInputHook()
-                        dvz = c_mks * (self.z - comp.zcomp) / (1 + self.z)
-                        if dvz.value < np.max(np.abs(self.psdict['x_minmax'])):
+                        dvz_mks = c_mks * (self.z - comp.zcomp) / (1 + self.z)
+                        if dvz_mks < np.max(np.abs(self.psdict['x_minmax'])):
                             if comp is self.parent.fiddle_widg.component:
                                 lw = 1.5
                             else:
                                 lw = 1.
                             # Plot
                             for vlim in comp.vlim:
-                                self.ax.plot([vlim.value-dvz.value]*2,self.psdict['y_minmax'],
+                                self.ax.plot([vlim.value-dvz_mks]*2,self.psdict['y_minmax'],
                                     '--', color='r',linewidth=lw)
-                            self.ax.plot([-1.*dvz.value]*2,[1.0,1.05],
+                            self.ax.plot([-1.*dvz_mks]*2,[1.0,1.05],
                                 '-', color='grey',linewidth=lw)
 
                 # Fonts
