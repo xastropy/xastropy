@@ -336,10 +336,13 @@ L         : toggle between displaying/hiding labels of currently
             # Name
             self.velplot_widg.current_comp.name = key
             # Set N,b,z
-            self.velplot_widg.current_comp.attrib['z']= igmg_dict['cmps'][key]['zfit']
-            self.velplot_widg.current_comp.attrib['b']= igmg_dict['cmps'][key]['bfit']*u.km/u.s
-            self.velplot_widg.current_comp.attrib['logN']= igmg_dict['cmps'][key]['Nfit']
-            self.velplot_widg.current_comp.attrib['Reliability']= igmg_dict['cmps'][key]['Reliability']
+            self.velplot_widg.current_comp.attrib['z'] = igmg_dict['cmps'][key]['zfit']
+            self.velplot_widg.current_comp.attrib['b'] = igmg_dict['cmps'][key]['bfit']*u.km/u.s
+            self.velplot_widg.current_comp.attrib['logN'] = igmg_dict['cmps'][key]['Nfit']
+            try: # This hould me removed in the future
+                self.velplot_widg.current_comp.attrib['Reliability'] = igmg_dict['cmps'][key]['Reliability']
+            except:
+                self.velplot_widg.current_comp.attrib['Reliability'] = igmg_dict['cmps'][key]['Quality']  # old version compatibility
             self.velplot_widg.current_comp.comment = igmg_dict['cmps'][key]['Comment']
             # Sync
             self.velplot_widg.current_comp.sync_lines()
