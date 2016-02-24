@@ -45,6 +45,7 @@ from xastropy.xutils import xdebug as xdb
 
 xa_path = imp.find_module('xastropy')[1]
 
+# Global variables; defined as globals mainly to increase speed
 c_mks = const.c.to('km/s').value
 COLOR_MODEL = '#999966'
 COLORS = ['#0066FF','#339933','#CC3300','#660066','#FF9900','#B20047']
@@ -88,6 +89,9 @@ class IGMGuessesGui(QtGui.QMainWindow):
         # 2. Add COS LSF (?)
 
         self.help_message = """
+Click on any white region within the velocity plots
+for the following keystroke commands to work:
+
 i,o       : zoom in/out x limits
 y         : zoom out y limits
 Y         : guess y limits
@@ -225,6 +229,9 @@ L         : toggle between displaying/hiding labels of currently
 
         # Point MainWindow
         self.setCentralWidget(self.main_widget)
+
+        # Print help message
+        print(self.help_message)
 
     def update_strongest_lines(self):
         '''Grab the strongest lines in the spectrum at the current
@@ -497,14 +504,13 @@ class IGGVelPlotWidget(QtGui.QWidget):
         #xdb.set_trace()
         #QtCore.pyqtRestoreInputHook()
         wrest = self.llist[self.llist['List']].wrest
-        wvobs = (1+self.z) * wrest
+        wvobs = (1 + self.z) * wrest
         gdlin = np.where( (wvobs > wvmin) & (wvobs < wvmax) )[0]
         self.llist['show_line'] = gdlin
         # Update GUI
         self.parent.slines_widg.selected = self.llist['show_line']
         self.parent.slines_widg.on_list_change(
             self.llist[self.llist['List']])
-
 
     # Update model
     def update_model(self):
@@ -523,10 +529,11 @@ class IGGVelPlotWidget(QtGui.QWidget):
                 if (wvobs > wvmin) & (wvobs < wvmax):
                     line.attrib['N'] = 10.**line.attrib['logN'] / u.cm**2
                     gdlin.append(line)
-        # Voigt
         #QtCore.pyqtRemoveInputHook()
         #xdb.set_trace()
         #QtCore.pyqtRestoreInputHook()
+
+        # Voigt
         self.model = lav.voigt_from_abslines(self.spec.wavelength, gdlin, fwhm=self.fwhm)#,debug=True)
         
         #Define arrays for plotting residuals
@@ -568,7 +575,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
 
             # for line in aux_comp_list:
                 # print('masking {:g}'.format(line.wrest))
-                # wvmnx = line.wrest*(1+new_comp.zcomp)*(1 + vlim.value/3e5)
+                # wvmnx = line.wrest*(1+new_comp.zcomp)*(1 + vlim.value / c_mks)
                 # gdp = np.where((self.spec.wavelength>wvmnx[0])&
                 #     (self.spec.wavelength<wvmnx[1]))[0]
                 # if len(gdp) > 0:
@@ -621,17 +628,11 @@ class IGGVelPlotWidget(QtGui.QWidget):
         #xdb.set_trace()
         #QtCore.pyqtRestoreInputHook()
 
-        # Find velocity limits using zfit as reference
-        # zlim_orig = (fitvoigt.z.min, fitvoigt.z.max)
-        # vlim_zfit = (zlim_orig - parm.z.value) * c_mks / (1 + parm.z.value)
-
         # Save and sync
         component.attrib['logN'] = parm.logN.value
         component.attrib['N'] = 10**parm.logN.value / u.cm**2
         component.attrib['z'] = parm.z.value
         component.attrib['b'] = parm.b.value * u.km/u.s
-        # component.attrib['vmin_zfit'] = vlim_zfit[0] * u.km / u.s
-        # component.attrib['vmax_zfit'] = vlim_zfit[1] * u.km / u.s
         component.sync_lines()
 
     def out_of_bounds(self,coord):
@@ -654,7 +655,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
         flg = 1
         sv_idx = self.idx_line
 
-        ## Change rows/columns
+        # add/remove rows/columns
         if event.key == 'k':
             self.sub_xy[0] = max(0, self.sub_xy[0]-1)
         if event.key == 'K':
@@ -663,6 +664,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
             self.sub_xy[1] = max(1, self.sub_xy[1]-1)
         if event.key == 'C':
             self.sub_xy[1] = max(1, self.sub_xy[1]+1)
+        # toggle between many/few panels
         if event.key == '(':
             if self.subxy_state == 'Out':
                 self.sub_xy = [3,2]
@@ -674,19 +676,18 @@ class IGGVelPlotWidget(QtGui.QWidget):
         ## NAVIGATING
         if event.key in self.psdict['nav']:
             flg = ltgu.navigate(self.psdict,event)
-        if event.key == '-':
+        if event.key == '-':  # previous page
             self.idx_line = max(0, self.idx_line-self.sub_xy[0]*self.sub_xy[1]) # Min=0
             if self.idx_line == sv_idx:
                 print('Edge of list')
-        if event.key == '=':
+        if event.key == '=':  # next page
             self.idx_line = min(len(self.llist['show_line'])-self.sub_xy[0]*self.sub_xy[1],
                                 self.idx_line + self.sub_xy[0]*self.sub_xy[1])
             if self.idx_line == sv_idx:
                 print('Edge of list')
-        if event.key == 'f':
+        if event.key == 'f':  # go to the first page
             self.idx_line = 0
             print('Edge of list')
-
 
         # Find line
         try:
@@ -719,13 +720,14 @@ class IGGVelPlotWidget(QtGui.QWidget):
                 self.fit_component(self.parent.fiddle_widg.component)
             # Updates (this captures them all and redraws)
             self.parent.fiddle_widg.update_component()
+
         ## Grab/Delete a component
         if event.key in ['D','S','d']:
             # Delete selected component
             if event.key == 'd':
                 self.parent.delete_component(self.parent.fiddle_widg.component)
                 return
-            #
+
             components = self.parent.comps_widg.all_comp
             iwrest = np.array([comp.init_wrest.value for comp in components])*u.AA
             mtc = np.where(wrest == iwrest)[0]
@@ -734,7 +736,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
             #QtCore.pyqtRemoveInputHook()
             #xdb.set_trace()
             #QtCore.pyqtRestoreInputHook()
-            dvz = np.array([3e5*(self.z- components[mt].zcomp)/(1+self.z) for mt in mtc])
+            dvz = np.array([c_mks * (self.z - components[mt].zcomp) / (1+self.z) for mt in mtc])
             # Find minimum
             mindvz = np.argmin(np.abs(dvz+event.xdata))
             if event.key == 'S':
@@ -743,10 +745,10 @@ class IGGVelPlotWidget(QtGui.QWidget):
                 self.parent.delete_component(components[mtc[mindvz]])
 
         ## Reset z
-        if event.key == ' ': #space to move redshift
+        if event.key == ' ': # space to move redshift
             #from xastropy.relativity import velocities
             #newz = velocities.z_from_v(self.z, event.xdata)
-            self.z = self.z + event.xdata*(1+self.z)/3e5
+            self.z = self.z + event.xdata * (1 + self.z) / c_mks
             #self.abs_sys.zabs = newz
             # Drawing
             self.psdict['x_minmax'] = self.vmnx.value
@@ -793,7 +795,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
 
         ## Add component
         if event.key == 'A': # Add to lines
-            if self.out_of_bounds(wvobs*(1+event.xdata/3e5)):
+            if self.out_of_bounds(wvobs * (1 + event.xdata / c_mks)):
                 return
             if self.flag_add is False:
                 self.vtmp = event.xdata
@@ -813,11 +815,11 @@ class IGGVelPlotWidget(QtGui.QWidget):
             # X = Add to mask
             if self.flag_mask is False:
                 self.wrest = wrest
-                self.wtmp = wvobs*(1+event.xdata/3e5)
+                self.wtmp = wvobs * (1 + event.xdata / c_mks)
                 self.vtmp = event.xdata
                 self.flag_mask = True
             else:
-                wtmp2 = wvobs*(1+event.xdata/3e5)
+                wtmp2 = wvobs * (1 + event.xdata / c_mks)
                 twvmnx = [np.minimum(self.wtmp,wtmp2), np.maximum(self.wtmp,wtmp2)]
                 # Modify mask
                 mskp = np.where((self.spec.wavelength>twvmnx[0])&
@@ -998,7 +1000,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
                     # Any lines inside?
                     mtw = np.where((line_wvobs > wvmnx[0]) & (line_wvobs<wvmnx[1]))[0]
                     for imt in mtw:
-                        v = 3e5*(line_wvobs[imt]/wvobs - 1)
+                        v = c_mks * (line_wvobs[imt]/wvobs - 1)
                         self.ax.text(v, 0.5, line_lbl[imt], color=COLOR_MODEL, backgroundcolor='w',
                             bbox={'pad':0,'edgecolor':'none', 'facecolor':'w'}, size='xx-small',
                                 rotation=90.,ha='center',va='center')
