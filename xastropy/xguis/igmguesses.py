@@ -39,18 +39,16 @@ from linetools.guis import utils as ltgu
 from linetools.guis import line_widgets as ltgl
 from linetools.guis import simple_widgets as ltgsm
 
-#from xastropy.atomic import ionization as xatomi
 from xastropy.plotting import utils as xputils
-from xastropy.xguis import spec_widgets as xspw
-#from xastropy.xguis import utils as xxgu
 
 from xastropy.xutils import xdebug as xdb
 
 xa_path = imp.find_module('xastropy')[1]
 
-c_mks = const.c.to('km/s')
-
-#class IGMGuessesGui(QtGui.QMainWindow):
+# Global variables; defined as globals mainly to increase speed
+c_mks = const.c.to('km/s').value
+COLOR_MODEL = '#999966'
+COLORS = ['#0066FF','#339933','#CC3300','#660066','#FF9900','#B20047']
 
 # GUI for fitting LLS in a spectrum
 class IGMGuessesGui(QtGui.QMainWindow):
@@ -91,6 +89,9 @@ class IGMGuessesGui(QtGui.QMainWindow):
         # 2. Add COS LSF (?)
 
         self.help_message = """
+Click on any white region within the velocity plots
+for the following keystroke commands to work:
+
 i,o       : zoom in/out x limits
 y         : zoom out y limits
 Y         : guess y limits
@@ -111,19 +112,21 @@ A         : set limits for fitting an absorption component
             from cursor position (need to be pressed twice:
             once for left and once for right limit, respectively)
 S         : select an absorption component from cursor position
-D         : delete currently selected absorption component
+D         : delete absorption component that is closest to the cursor
+            (the cursor has to be in the corresponding velocity window panel
+            where the component was defined in the first place)
 d         : delete absorption component selected from component widget
 N,n       : slightly increase/decrease column density in initial guess
 V,v       : slightly increase/decrease b-value in initial guess
 <,>       : slightly increase/decrease redshift in initial guess
 R         : refit
-X,x       : add/remove `good pixels` to keep for subsequent VP fitting
-            (works as `A` command, i.e. need to define two limits)
+X,x       : add/remove `bad pixels` (for avoiding using them in subsequent
+            VP fitting; works as `A` command, i.e. need to define two limits)
 L         : toggle between displaying/hiding labels of currently
             identified lines
 %         : guess a transition and redshift for a given feature at
             the cursor's position
-?         : print help message
+?         : print this help message
 """
 
         # Build a widget combining several others
@@ -157,23 +160,25 @@ L         : toggle between displaying/hiding labels of currently
         # make sure there are no nans in uncertainty, which affects the display of residuals
         spec.data[0]['sig'] = np.where(np.isnan(spec.data[0]['sig']), 0, spec.data[0]['sig'])
 
-        # This attribute will store `good pixels` for subsequent Voigt Profile fitting
-        spec.mask = np.zeros(len(spec.wavelength),dtype=int)
+        # These attributes will store good/bad pixels for subsequent Voigt Profile fitting
+        # spec.good_pixels = np.zeros(len(spec.wavelength),dtype=int)
+        spec.bad_pixels = np.zeros(len(spec.wavelength),dtype=int)
 
         # Full spectrum model
         self.model = XSpectrum1D.from_tuple(
             (spec.wavelength, np.ones(len(spec.wavelength))))
 
-        # LineList (Grab ISM and HI as defaults)
+        # LineList (Grab ISM, Strong and HI as defaults)
         self.llist = ltgu.set_llist('ISM')
         self.llist['HI'] = LineList('HI')
-        # self.llist['Strong'] = LineList('Strong')
+        self.llist['Strong'] = LineList('Strong')
         self.llist['Lists'].append('HI')
-        self.llist['HI']._data = self.llist['HI']._data[::-1] #invert order of Lyman series
+        self.llist['Lists'].append('Strong')
+        self.llist['HI']._data = self.llist['HI']._data[::-1] # invert order of Lyman series
         #self.llist['show_line'] = np.arange(10) #maximum 10 to show for Lyman series
         
         # Define initial redshift
-        z=0.0
+        z = 0.0
         self.llist['z'] = z
         
         # Grab the pieces and tie together
@@ -188,7 +193,7 @@ L         : toggle between displaying/hiding labels of currently
         # Setup strongest LineList
         self.llist['strongest'] = LineList('ISM')
         self.llist['Lists'].append('strongest')
-        self.update_strongest_lines()
+        # self.update_strongest_lines()
         self.slines_widg.selected = self.llist['show_line']
         self.slines_widg.on_list_change(
             self.llist[self.llist['List']])
@@ -196,7 +201,6 @@ L         : toggle between displaying/hiding labels of currently
         # Load prevoius file
         if self.previous_file is not None:
             self.read_previous()
-
         # Connections (buttons are above)
         #self.spec_widg.canvas.mpl_connect('key_press_event', self.on_key)
         #self.abssys_widg.abslist_widget.itemSelectionChanged.connect(
@@ -228,6 +232,9 @@ L         : toggle between displaying/hiding labels of currently
         # Point MainWindow
         self.setCentralWidget(self.main_widget)
 
+        # Print help message
+        print(self.help_message)
+
     def update_strongest_lines(self):
         '''Grab the strongest lines in the spectrum at the current
         redshift.
@@ -235,9 +242,9 @@ L         : toggle between displaying/hiding labels of currently
         z = self.velplot_widg.z
         wvmin = np.min(self.velplot_widg.spec.wavelength)
         wvmax = np.max(self.velplot_widg.spec.wavelength)
-        wvlims = (wvmin/(1+z),wvmax/(1+z))
+        wvlims = (wvmin/(1+z), wvmax/(1+z))
         transitions = self.llist['ISM'].available_transitions(
-            wvlims,n_max=None, n_max_tuple=self.n_max_tuple,min_strength=self.min_strength)
+            wvlims, n_max=None, n_max_tuple=self.n_max_tuple, min_strength=self.min_strength)
 
         if transitions is not None:
             names = list(np.array(transitions['name']))
@@ -263,12 +270,14 @@ L         : toggle between displaying/hiding labels of currently
         # Fiddle query (need to come back to it)
         if component is self.fiddle_widg.component:
             self.fiddle_widg.reset()
+
         # Mask
-        for line in component.lines:
-            wvmnx = line.wrest*(1+component.zcomp)*(1 + component.vlim.value/3e5)
-            gdp = np.where((self.velplot_widg.spec.wavelength>wvmnx[0])&
-                (self.velplot_widg.spec.wavelength<wvmnx[1]))[0]
-            self.velplot_widg.spec.mask[gdp] = 0
+        # for line in component.lines:
+        #     wvmnx = line.wrest * (1 + component.zcomp) * (1 + component.vlim.value / c_mks)
+        #     gdp = np.where((self.velplot_widg.spec.wavelength > wvmnx[0])&
+        #         (self.velplot_widg.spec.wavelength < wvmnx[1]))[0]
+        #     self.velplot_widg.spec.good_pixels[gdp] = 0
+
         # Delete
         del component
         # Update
@@ -303,35 +312,48 @@ L         : toggle between displaying/hiding labels of currently
         # Check FWHM
         if igmg_dict['fwhm'] != self.fwhm:
             raise ValueError('Input FWHMs do not match. Please fix it!')
-        # Mask
-        msk = igmg_dict['mask']
-        if len(msk) > 0:
-            self.velplot_widg.spec.mask[np.array(msk)] = 1
+        # Load bad pixels
+        if 'bad_pixels' in igmg_dict.keys():
+            bad = igmg_dict['bad_pixels']
+            if len(bad) > 0:
+                self.velplot_widg.spec.bad_pixels[np.array(bad)] = 1
+        # Load good pixels
+        # if 'good_pixels' in igmg_dict.keys():
+        #     good = igmg_dict['good_pixels']
+        # elif 'mask' in igmg_dict.keys(): # old format
+        #     good = igmg_dict['mask']
+        # if len(good) > 0:
+        #     self.velplot_widg.spec.good_pixels[np.array(good)] = 1
+
         # Check spectra names
         if self.velplot_widg.spec.filename != igmg_dict['spec_file']:
             warnings.warn('Spec file names do not match! Could just be path..')
+
         # Components
+        print('Reading the components from previous file. It may take a while...')
         for key in igmg_dict['cmps'].keys():
+
             self.velplot_widg.add_component(
                 igmg_dict['cmps'][key]['wrest']*u.AA, 
                 zcomp=igmg_dict['cmps'][key]['zcomp'],
                 vlim=igmg_dict['cmps'][key]['vlim']*u.km/u.s,
-                no_fit_mask=True)
+                update_model=False)
 
             # Name
             self.velplot_widg.current_comp.name = key
             # Set N,b,z
-            self.velplot_widg.current_comp.attrib['z']= igmg_dict['cmps'][key]['zfit']
-            self.velplot_widg.current_comp.attrib['b']= igmg_dict['cmps'][key]['bfit']*u.km/u.s
-            self.velplot_widg.current_comp.attrib['logN']= igmg_dict['cmps'][key]['Nfit']
-            self.velplot_widg.current_comp.attrib['Quality']= igmg_dict['cmps'][key]['Quality']
+            self.velplot_widg.current_comp.attrib['z'] = igmg_dict['cmps'][key]['zfit']
+            self.velplot_widg.current_comp.attrib['b'] = igmg_dict['cmps'][key]['bfit']*u.km/u.s
+            self.velplot_widg.current_comp.attrib['logN'] = igmg_dict['cmps'][key]['Nfit']
+            try: # This hould me removed in the future
+                self.velplot_widg.current_comp.attrib['Reliability'] = igmg_dict['cmps'][key]['Reliability']
+            except:
+                self.velplot_widg.current_comp.attrib['Reliability'] = igmg_dict['cmps'][key]['Quality']  # old version compatibility
             self.velplot_widg.current_comp.comment = igmg_dict['cmps'][key]['Comment']
             # Sync
             self.velplot_widg.current_comp.sync_lines()
+
         # Updates
-        #QtCore.pyqtRemoveInputHook()
-        #xdb.set_trace()
-        #QtCore.pyqtRestoreInputHook()
         self.velplot_widg.update_model()
         self.fiddle_widg.init_component(self.velplot_widg.current_comp)
 
@@ -342,11 +364,8 @@ L         : toggle between displaying/hiding labels of currently
         # Create dict of the components
         out_dict = dict(cmps={},
             spec_file=self.velplot_widg.spec.filename,
-            fwhm=self.fwhm)
-        mskp = np.where(self.velplot_widg.spec.mask == 1)[0]
-        if len(mskp) > 0:
-            out_dict['mask'] = list(mskp)
-        # Load
+            fwhm=self.fwhm, bad_pixels=[])
+        # Write components out
         for kk,comp in enumerate(self.comps_widg.all_comp):
             key = comp.name
             out_dict['cmps'][key] = {}
@@ -356,9 +375,18 @@ L         : toggle between displaying/hiding labels of currently
             out_dict['cmps'][key]['bfit'] = comp.attrib['b'].value
             out_dict['cmps'][key]['wrest'] = comp.init_wrest.value
             out_dict['cmps'][key]['vlim'] = list(comp.vlim.value)
-            out_dict['cmps'][key]['Quality'] = str(comp.attrib['Quality'])
+            out_dict['cmps'][key]['Reliability'] = str(comp.attrib['Reliability'])
             out_dict['cmps'][key]['Comment'] = str(comp.comment)
-        # Write
+
+        # Write bad goo/pixels out
+        # good_pixels = np.where(self.velplot_widg.spec.good_pixels == 1)[0]
+        # if len(good_pixels) > 0:
+        #     out_dict['good_pixels'] = list(good_pixels)
+        bad_pixels = np.where(self.velplot_widg.spec.bad_pixels == 1)[0]
+        if len(bad_pixels) > 0:
+            out_dict['bad_pixels'] = list(bad_pixels)
+
+        # Write file
         print('Wrote: {:s}'.format(self.outfil))
         with io.open(self.outfil, 'w', encoding='utf-8') as f:
             f.write(unicode(json.dumps(out_dict, sort_keys=True, indent=4, 
@@ -456,8 +484,8 @@ class IGGVelPlotWidget(QtGui.QWidget):
         self.canvas.mpl_connect('button_press_event', self.on_click)
 
         # Sub_plots
-        self.sub_xy = [5,3]
-        self.subxy_state = 'Out'
+        self.sub_xy = [3,2]
+        self.subxy_state = 'In'
 
         self.fig.subplots_adjust(hspace=0.0, wspace=0.1,left=0.04,right=0.975)
         
@@ -478,14 +506,13 @@ class IGGVelPlotWidget(QtGui.QWidget):
         #xdb.set_trace()
         #QtCore.pyqtRestoreInputHook()
         wrest = self.llist[self.llist['List']].wrest
-        wvobs = (1+self.z) * wrest
+        wvobs = (1 + self.z) * wrest
         gdlin = np.where( (wvobs > wvmin) & (wvobs < wvmax) )[0]
         self.llist['show_line'] = gdlin
         # Update GUI
         self.parent.slines_widg.selected = self.llist['show_line']
         self.parent.slines_widg.on_list_change(
             self.llist[self.llist['List']])
-
 
     # Update model
     def update_model(self):
@@ -500,14 +527,15 @@ class IGGVelPlotWidget(QtGui.QWidget):
         gdlin = []
         for comp in all_comp:
             for line in comp.lines:
-                wvobs = (1+line.attrib['z'])*line.wrest 
-                if (wvobs>wvmin) & (wvobs<wvmax):
+                wvobs = (1 + line.attrib['z']) * line.wrest
+                if (wvobs > wvmin) & (wvobs < wvmax):
                     line.attrib['N'] = 10.**line.attrib['logN'] / u.cm**2
                     gdlin.append(line)
-        # Voigt
         #QtCore.pyqtRemoveInputHook()
         #xdb.set_trace()
         #QtCore.pyqtRestoreInputHook()
+
+        # Voigt
         self.model = lav.voigt_from_abslines(self.spec.wavelength, gdlin, fwhm=self.fwhm)#,debug=True)
         
         #Define arrays for plotting residuals
@@ -516,42 +544,44 @@ class IGGVelPlotWidget(QtGui.QWidget):
             self.residual = (self.spec.flux - self.model.flux) * self.residual_normalization_factor
 
     # Add a component
-    def add_component(self, wrest, vlim=None, zcomp=None, no_fit_mask=False):
-        '''Generate a component and fit with Gaussian
+    def add_component(self, wrest, vlim=None, zcomp=None, update_model=True):
+        '''Generate a component and fit with Voigt profiles
+
         Parameters:
         ------------
-        no_fit_mask: bool, optional
-          Skip fit + masking (mainly for reading in a previous file)
+        update_model: bool, optional
+          Whether to update the model. It is useful to set it to
+          False when reading the previous file to increase speed.
         '''
         # Center z and reset vmin/vmax
         if zcomp is None:
-            zmin,zmax = self.z + (1+self.z)*(self.avmnx.value/3e5)
-            zcomp = (zmin+zmax)/2.
+            zmin, zmax = self.z + (1 + self.z) * (self.avmnx.value / c_mks)
+            zcomp = 0.5 * (zmin + zmax)
         if vlim is None:
-            vlim = self.avmnx - (self.avmnx[1]+self.avmnx[0])/2.
-        new_comp = Component(zcomp, wrest,vlim=vlim,
-            linelist=self.llist['ISM']) 
+            vlim = self.avmnx - 0.5 * (self.avmnx[1] + self.avmnx[0])
+        new_comp = Component(zcomp, wrest, vlim=vlim, linelist=self.llist['ISM'])
+
         # Fit
         #print('doing fit for {:g}'.format(wrest))
-        if not no_fit_mask:
+        if update_model:
             self.fit_component(new_comp)
 
+            # Masking good pixels
             # For Lyman series only mask pixels for fitting 
             # up to Ly-gamma; the rest should be done manually 
             # if wanted
-            if new_comp.lines[0].name.startswith('HI '):
-                aux_comp_list = new_comp.lines[::-1][:3] #invert order from ISM LineList and truncate
-            else:
-                aux_comp_list = new_comp.lines
+            # if new_comp.lines[0].name.startswith('HI '):
+            #     aux_comp_list = new_comp.lines[::-1][:3] #invert order from ISM LineList and truncate for masking
+            # else:
+            #     aux_comp_list = new_comp.lines
 
-            # Mask for analysis
-            for line in aux_comp_list:
-                #print('masking {:g}'.format(line.wrest))
-                wvmnx = line.wrest*(1+new_comp.zcomp)*(1 + vlim.value/3e5)
-                gdp = np.where((self.spec.wavelength>wvmnx[0])&
-                    (self.spec.wavelength<wvmnx[1]))[0]
-                if len(gdp) > 0:
-                    self.spec.mask[gdp] = 1
+            # for line in aux_comp_list:
+                # print('masking {:g}'.format(line.wrest))
+                # wvmnx = line.wrest*(1+new_comp.zcomp)*(1 + vlim.value / c_mks)
+                # gdp = np.where((self.spec.wavelength>wvmnx[0])&
+                #     (self.spec.wavelength<wvmnx[1]))[0]
+                # if len(gdp) > 0:
+                #     self.spec.good_pixels[gdp] = 1
 
         # Add to component list and Fiddle
         if self.parent is not None:
@@ -560,7 +590,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
 
         # Update model
         self.current_comp = new_comp
-        if not no_fit_mask:
+        if update_model:
             self.update_model()
 
     def fit_component(self, component):
@@ -576,7 +606,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
         # Guesses
         fmin = np.argmin(self.spec.flux[fit_line.analy['pix']])
         zguess = self.spec.wavelength[fit_line.analy['pix'][fmin]]/component.init_wrest - 1.
-        bguess = (component.vlim[1]-component.vlim[0])/2.
+        bguess = 0.5 * (component.vlim[1] - component.vlim[0])
         Nguess = np.log10(fit_line.attrib['N'].to('cm**-2').value)
         # Voigt model
         #QtCore.pyqtRemoveInputHook()
@@ -589,8 +619,8 @@ class IGGVelPlotWidget(QtGui.QWidget):
         # Restrict z range
         fitvoigt.logN.min = 10.
         fitvoigt.b.min = 1.
-        fitvoigt.z.min = component.zcomp+component.vlim[0].value/3e5/(1+component.zcomp)
-        fitvoigt.z.max = component.zcomp+component.vlim[1].value/3e5/(1+component.zcomp)
+        fitvoigt.z.min = component.zcomp + component.vlim[0].value * (1 + component.zcomp) / c_mks
+        fitvoigt.z.max = component.zcomp + component.vlim[1].value * (1 + component.zcomp) / c_mks
 
         # Fit
         fitter = fitting.LevMarLSQFitter()
@@ -627,7 +657,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
         flg = 1
         sv_idx = self.idx_line
 
-        ## Change rows/columns
+        # add/remove rows/columns
         if event.key == 'k':
             self.sub_xy[0] = max(0, self.sub_xy[0]-1)
         if event.key == 'K':
@@ -636,6 +666,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
             self.sub_xy[1] = max(1, self.sub_xy[1]-1)
         if event.key == 'C':
             self.sub_xy[1] = max(1, self.sub_xy[1]+1)
+        # toggle between many/few panels
         if event.key == '(':
             if self.subxy_state == 'Out':
                 self.sub_xy = [3,2]
@@ -647,19 +678,18 @@ class IGGVelPlotWidget(QtGui.QWidget):
         ## NAVIGATING
         if event.key in self.psdict['nav']:
             flg = ltgu.navigate(self.psdict,event)
-        if event.key == '-':
+        if event.key == '-':  # previous page
             self.idx_line = max(0, self.idx_line-self.sub_xy[0]*self.sub_xy[1]) # Min=0
             if self.idx_line == sv_idx:
                 print('Edge of list')
-        if event.key == '=':
+        if event.key == '=':  # next page
             self.idx_line = min(len(self.llist['show_line'])-self.sub_xy[0]*self.sub_xy[1],
                                 self.idx_line + self.sub_xy[0]*self.sub_xy[1])
             if self.idx_line == sv_idx:
                 print('Edge of list')
-        if event.key == 'f':
+        if event.key == 'f':  # go to the first page
             self.idx_line = 0
             print('Edge of list')
-
 
         # Find line
         try:
@@ -692,13 +722,14 @@ class IGGVelPlotWidget(QtGui.QWidget):
                 self.fit_component(self.parent.fiddle_widg.component)
             # Updates (this captures them all and redraws)
             self.parent.fiddle_widg.update_component()
+
         ## Grab/Delete a component
         if event.key in ['D','S','d']:
             # Delete selected component
             if event.key == 'd':
                 self.parent.delete_component(self.parent.fiddle_widg.component)
                 return
-            #
+
             components = self.parent.comps_widg.all_comp
             iwrest = np.array([comp.init_wrest.value for comp in components])*u.AA
             mtc = np.where(wrest == iwrest)[0]
@@ -707,7 +738,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
             #QtCore.pyqtRemoveInputHook()
             #xdb.set_trace()
             #QtCore.pyqtRestoreInputHook()
-            dvz = np.array([3e5*(self.z- components[mt].zcomp)/(1+self.z) for mt in mtc])
+            dvz = np.array([c_mks * (self.z - components[mt].zcomp) / (1+self.z) for mt in mtc])
             # Find minimum
             mindvz = np.argmin(np.abs(dvz+event.xdata))
             if event.key == 'S':
@@ -716,10 +747,10 @@ class IGGVelPlotWidget(QtGui.QWidget):
                 self.parent.delete_component(components[mtc[mindvz]])
 
         ## Reset z
-        if event.key == ' ': #space to move redshift
+        if event.key == ' ': # space to move redshift
             #from xastropy.relativity import velocities
             #newz = velocities.z_from_v(self.z, event.xdata)
-            self.z = self.z + event.xdata*(1+self.z)/3e5
+            self.z = self.z + event.xdata * (1 + self.z) / c_mks
             #self.abs_sys.zabs = newz
             # Drawing
             self.psdict['x_minmax'] = self.vmnx.value
@@ -766,7 +797,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
 
         ## Add component
         if event.key == 'A': # Add to lines
-            if self.out_of_bounds(wvobs*(1+event.xdata/3e5)):
+            if self.out_of_bounds(wvobs * (1 + event.xdata / c_mks)):
                 return
             if self.flag_add is False:
                 self.vtmp = event.xdata
@@ -786,20 +817,20 @@ class IGGVelPlotWidget(QtGui.QWidget):
             # X = Add to mask
             if self.flag_mask is False:
                 self.wrest = wrest
-                self.wtmp = wvobs*(1+event.xdata/3e5)
+                self.wtmp = wvobs * (1 + event.xdata / c_mks)
                 self.vtmp = event.xdata
                 self.flag_mask = True
             else:
-                wtmp2 = wvobs*(1+event.xdata/3e5)
+                wtmp2 = wvobs * (1 + event.xdata / c_mks)
                 twvmnx = [np.minimum(self.wtmp,wtmp2), np.maximum(self.wtmp,wtmp2)]
                 # Modify mask
                 mskp = np.where((self.spec.wavelength>twvmnx[0])&
                     (self.spec.wavelength<twvmnx[1]))[0]
                 #print(twvmnx,len(mskp))
                 if event.key == 'x':
-                    self.spec.mask[mskp] = 0
+                    self.spec.bad_pixels[mskp] = 0
                 elif event.key == 'X':
-                    self.spec.mask[mskp] = 1
+                    self.spec.bad_pixels[mskp] = 1
                 # Reset
                 self.flag_mask = False
                 self.wrest = 0.
@@ -885,10 +916,10 @@ class IGGVelPlotWidget(QtGui.QWidget):
                 line_wvobs = []
                 line_lbl = []
                 for comp in components:
-                    if comp.attrib['Quality'] == 'None':
+                    if comp.attrib['Reliability'] == 'None':
                         la = ''
                     else: 
-                        la = comp.attrib['Quality']
+                        la = comp.attrib['Reliability']
                     for line in comp.lines:
                         line_wvobs.append(line.wrest.value*(line.attrib['z']+1))
                         line_lbl.append(line.name+',{:.3f}{:s}'.format(line.attrib['z'],la))
@@ -902,12 +933,11 @@ class IGGVelPlotWidget(QtGui.QWidget):
             subp_idx = np.hstack(subp.reshape(self.sub_xy[0],self.sub_xy[1]).T)
             #print('idx_l={:d}, nplt={:d}, lall={:d}'.format(self.idx_line,nplt,len(all_idx)))
             
-            #try different color per ion species
-            color_model = '#999966'
-            colors = ['#0066FF','#339933','#CC3300','#660066','#FF9900','#B20047']
+            # try different color per ion species, and grey for model, using global
+            # variables COLOR_MODEL (str) and COLORS (list of str)
             color_ind = 0
 
-            #loop over individual velplot axes
+            # loop over individual velplot axes
             for jj in range(min(nplt, len(all_idx))):
                 try:
                     idx = all_idx[jj+self.idx_line]
@@ -918,13 +948,13 @@ class IGGVelPlotWidget(QtGui.QWidget):
                 wrest = self.llist[self.llist['List']].wrest[idx]
                 kwrest = wrest.value # For the Dict
                 
-                #define colors for visually grouping same species
+                #define colors for visually grouping same species together
                 if jj > 0:
                     name_aux = self.llist[self.llist['List']].name[idx].split(' ')[0]
                     name_aux2 = self.llist[self.llist['List']].name[idx-1].split(' ')[0]
                     if name_aux != name_aux2:
                         color_ind += 1
-                color = colors[color_ind % len(colors)]
+                color = COLORS[color_ind % len(COLORS)]
 
                 # Single window?
                 #if in_wrest is not None:
@@ -941,22 +971,23 @@ class IGGVelPlotWidget(QtGui.QWidget):
                 self.ax.plot( [0., 0.], [-1e9, 1e9], ':', color='gray')
                 # Velocity
                 wvobs = (1+self.z) * wrest
-                wvmnx = wvobs*(1 + np.array(self.psdict['x_minmax'])/3e5)
-                velo = (self.spec.wavelength/wvobs - 1.) * c_mks
-                
-                # Plot
-                self.ax.plot(velo, self.spec.flux, '-',color=color,drawstyle='steps-mid',lw=0.5)
+                wvmnx = wvobs*(1 + np.array(self.psdict['x_minmax']) / c_mks)
+                velo = (self.spec.wavelength/wvobs - 1.) * c_mks * u.km/u.s
+
+                # Plot spectrum and model
+                # flux = self.spec.flux
+                # flux = self.spec.data[0]['flux'] / self.spec.data[0]['co']  # this is slightly faster
+                self.ax.plot(velo, self.spec.flux, '-', color=color, drawstyle='steps-mid', lw=0.5)
                 # Model
-                self.ax.plot(velo, self.model.flux, '-',color=color_model,lw=0.5)
+                # flux_model = self.model.flux
+                # flux_model = self.model.data[0]['flux']  # this is slightly faster
+                self.ax.plot(velo, self.model.flux, '-', color=COLOR_MODEL, lw=0.5)
 
                 #Error & residuals
                 if self.plot_residuals:
                     self.ax.plot(velo, self.residual_limit, 'k-',drawstyle='steps-mid',lw=0.5)
                     self.ax.plot(velo, -self.residual_limit, 'k-',drawstyle='steps-mid',lw=0.5)
                     self.ax.plot(velo, self.residual, '.',color='grey',ms=2)
-
-                #import pdb
-                #pdb.set_trace()
 
                 # Labels
                 if (((jj+1) % self.sub_xy[0]) == 0) or ((jj+1) == len(all_idx)):
@@ -965,22 +996,30 @@ class IGGVelPlotWidget(QtGui.QWidget):
                     self.ax.get_xaxis().set_ticks([])
                 lbl = self.llist[self.llist['List']].name[idx]
                 self.ax.text(0.01, 0.15, lbl, color=color, transform=self.ax.transAxes,
-                             size='x-small', ha='left',va='center',backgroundcolor='w',bbox={'pad':0,'edgecolor':'none',
-                                                                                             'facecolor':'w'})
+                             size='x-small', ha='left', va='center', backgroundcolor='w',
+                             bbox={'pad':0, 'edgecolor':'none', 'facecolor':'w'})
                 if self.flag_idlbl:
                     # Any lines inside?
                     mtw = np.where((line_wvobs > wvmnx[0]) & (line_wvobs<wvmnx[1]))[0]
                     for imt in mtw:
-                        v = 3e5*(line_wvobs[imt]/wvobs - 1)
-                        self.ax.text(v, 0.5, line_lbl[imt], color=color_model,backgroundcolor='w',
-                            bbox={'pad':0,'edgecolor':'none', 'facecolor':'w'}, size='xx-small', rotation=90.,ha='center',va='center')
+                        v = c_mks * (line_wvobs[imt]/wvobs - 1)
+                        self.ax.text(v, 0.5, line_lbl[imt], color=COLOR_MODEL, backgroundcolor='w',
+                            bbox={'pad':0,'edgecolor':'none', 'facecolor':'w'}, size='xx-small',
+                                rotation=90.,ha='center',va='center')
 
-                # Analysis regions
-                if np.sum(self.spec.mask) > 0.:
-                    gdp = self.spec.mask==1
-                    if len(gdp) > 0:
-                        self.ax.scatter(velo[gdp],self.spec.flux[gdp],
-                            marker='o',color=color,s=3.,alpha=0.5)
+                # Plot good pixels
+                # if np.sum(self.spec.good_pixels) > 0.:
+                #     gdp = self.spec.good_pixels == 1
+                #     if len(gdp) > 0:
+                #         self.ax.scatter(velo[gdp],self.spec.flux[gdp],
+                #             marker='o',color=color, s=3.,alpha=0.5)
+
+                # Plot bad pixels
+                if np.sum(self.spec.bad_pixels) > 0.:
+                    bad = self.spec.bad_pixels == 1
+                    if len(bad) > 0:
+                        self.ax.scatter(velo[bad],self.spec.flux[bad],
+                            marker='x',color=color, s=20., alpha=0.5, lw=0.5)
 
                 # Reset window limits
                 self.ax.set_ylim(self.psdict['y_minmax'])
@@ -1002,17 +1041,17 @@ class IGGVelPlotWidget(QtGui.QWidget):
                         #QtCore.pyqtRemoveInputHook()
                         #xdb.set_trace()
                         #QtCore.pyqtRestoreInputHook()
-                        dvz = c_mks * (self.z - comp.zcomp) / (1 + self.z)
-                        if dvz.value < np.max(np.abs(self.psdict['x_minmax'])):
+                        dvz_mks = c_mks * (self.z - comp.zcomp) / (1 + self.z)
+                        if dvz_mks < np.max(np.abs(self.psdict['x_minmax'])):
                             if comp is self.parent.fiddle_widg.component:
                                 lw = 1.5
                             else:
                                 lw = 1.
                             # Plot
                             for vlim in comp.vlim:
-                                self.ax.plot([vlim.value-dvz.value]*2,self.psdict['y_minmax'],
+                                self.ax.plot([vlim.value-dvz_mks]*2,self.psdict['y_minmax'],
                                     '--', color='r',linewidth=lw)
-                            self.ax.plot([-1.*dvz.value]*2,[1.0,1.05],
+                            self.ax.plot([-1.*dvz_mks]*2,[1.0,1.05],
                                 '-', color='grey',linewidth=lw)
 
                 # Fonts
@@ -1036,7 +1075,7 @@ class FiddleComponentWidget(QtGui.QWidget):
         self.Nwidget = ltgsm.EditBox(-1., 'Nc=', '{:0.2f}')
         self.bwidget = ltgsm.EditBox(-1., 'bc=', '{:0.1f}')
 
-        self.ddlbl = QtGui.QLabel('Quality')
+        self.ddlbl = QtGui.QLabel('Reliability')
         self.ddlist = QtGui.QComboBox(self)
         self.ddlist.addItem('None')
         self.ddlist.addItem('a')
@@ -1051,7 +1090,7 @@ class FiddleComponentWidget(QtGui.QWidget):
             self.component = component
 
         # Connect
-        self.ddlist.activated[str].connect(self.setQuality)
+        self.ddlist.activated[str].connect(self.setReliability)
         self.connect(self.Nwidget.box, 
             QtCore.SIGNAL('editingFinished ()'), self.setbzN)
         self.connect(self.zwidget.box, 
@@ -1096,15 +1135,15 @@ class FiddleComponentWidget(QtGui.QWidget):
         self.zwidget.set_text(self.component.attrib['z'])
         self.bwidget.set_text(self.component.attrib['b'].value)
         self.Cwidget.set_text(self.component.comment)
-        # Quality
-        idx = self.ddlist.findText(self.component.attrib['Quality'])
+        # Reliability
+        idx = self.ddlist.findText(self.component.attrib['Reliability'])
         self.ddlist.setCurrentIndex(idx)
         # Label
         self.set_label()
 
-    def setQuality(self,text):
+    def setReliability(self, text):
         if self.component is not None:
-            self.component.attrib['Quality'] = text
+            self.component.attrib['Reliability'] = text
 
     def reset(self):
         #
@@ -1203,7 +1242,12 @@ class ComponentListWidget(QtGui.QWidget):
         Changed an item in the list
         '''
         item = self.complist_widget.selectedItems()
-        txt = item[0].text()
+        try:
+            txt = item[0].text()
+        except:
+            QtCore.pyqtRemoveInputHook()
+            xdb.set_trace()
+            QtCore.pyqtRestoreInputHook()
         if txt == 'None':
             if self.parent is not None:
                 self.parent.updated_compslist(None)
@@ -1267,8 +1311,10 @@ class ComponentListWidget(QtGui.QWidget):
         idx = self.all_items.index(comp_name)
         del self.all_items[idx]
         self.all_comp.pop(idx)
+        self.complist_widget.item(len(self.all_items)).setSelected(True)
+
         tmp = self.complist_widget.takeItem(idx+1) # 1 for None
-        #self.on_list_change()
+        self.on_list_change()
 
 
 class Component(AbsComponent):
@@ -1291,6 +1337,8 @@ class Component(AbsComponent):
             stars = '*'*(len(self.lines[0].name.split('*'))-1)
         else:
             stars = None
+
+        # Init AbsComponent
         AbsComponent.__init__(self,radec, Zion, z, vlim, Ej, comment='None', stars=stars)
 
         # Init cont.
@@ -1298,15 +1346,14 @@ class Component(AbsComponent):
                        'logN': 0., 'sig_logN': 0.,
                        'b': 0.*u.km/u.s, 'bsig': 0.*u.km/u.s,  # Doppler
                        'z': self.zcomp, 'zsig': 0.,
-                       'Quality': 'None'}
+                       'Reliability': 'None'}
 
         # Sync
         self.sync_lines()
 
-        # Use different naming convention here
+        # Use different naming convention within IGMGuesses
         self.name = 'z{:.5f}_{:s}'.format(
             self.zcomp,self.lines[0].data['name'].split(' ')[0])
-
 
 
     def init_lines(self):
@@ -1319,7 +1366,7 @@ class Component(AbsComponent):
         #QtCore.pyqtRemoveInputHook()
         #xdb.set_trace()
         #QtCore.pyqtRestoreInputHook()
-        if isinstance(all_trans,dict):
+        if isinstance(all_trans, dict):
             all_trans = [all_trans]
         for trans in all_trans:
             self.lines.append(AbsLine(trans['wrest'],
