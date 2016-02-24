@@ -112,7 +112,9 @@ A         : set limits for fitting an absorption component
             from cursor position (need to be pressed twice:
             once for left and once for right limit, respectively)
 S         : select an absorption component from cursor position
-D         : delete currently selected absorption component
+D         : delete absorption component that is closest to the cursor
+            (the cursor has to be in the corresponding velocity window panel
+            where the component was defined in the first place)
 d         : delete absorption component selected from component widget
 N,n       : slightly increase/decrease column density in initial guess
 V,v       : slightly increase/decrease b-value in initial guess
@@ -124,7 +126,7 @@ L         : toggle between displaying/hiding labels of currently
             identified lines
 %         : guess a transition and redshift for a given feature at
             the cursor's position
-?         : print help message
+?         : print this help message
 """
 
         # Build a widget combining several others
