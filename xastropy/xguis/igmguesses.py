@@ -39,18 +39,15 @@ from linetools.guis import utils as ltgu
 from linetools.guis import line_widgets as ltgl
 from linetools.guis import simple_widgets as ltgsm
 
-#from xastropy.atomic import ionization as xatomi
 from xastropy.plotting import utils as xputils
-from xastropy.xguis import spec_widgets as xspw
-#from xastropy.xguis import utils as xxgu
 
 from xastropy.xutils import xdebug as xdb
 
 xa_path = imp.find_module('xastropy')[1]
 
 c_mks = const.c.to('km/s').value
-
-#class IGMGuessesGui(QtGui.QMainWindow):
+COLOR_MODEL = '#999966'
+COLORS = ['#0066FF','#339933','#CC3300','#660066','#FF9900','#B20047']
 
 # GUI for fitting LLS in a spectrum
 class IGMGuessesGui(QtGui.QMainWindow):
@@ -932,9 +929,8 @@ class IGGVelPlotWidget(QtGui.QWidget):
             subp_idx = np.hstack(subp.reshape(self.sub_xy[0],self.sub_xy[1]).T)
             #print('idx_l={:d}, nplt={:d}, lall={:d}'.format(self.idx_line,nplt,len(all_idx)))
             
-            # try different color per ion species, and grey for model
-            color_model = '#999966'
-            colors = ['#0066FF','#339933','#CC3300','#660066','#FF9900','#B20047']
+            # try different color per ion species, and grey for model, using global
+            # variables COLOR_MODEL (str) and COLORS (list of str)
             color_ind = 0
 
             # loop over individual velplot axes
@@ -954,7 +950,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
                     name_aux2 = self.llist[self.llist['List']].name[idx-1].split(' ')[0]
                     if name_aux != name_aux2:
                         color_ind += 1
-                color = colors[color_ind % len(colors)]
+                color = COLORS[color_ind % len(COLORS)]
 
                 # Single window?
                 #if in_wrest is not None:
@@ -981,7 +977,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
                 # Model
                 # flux_model = self.model.flux
                 # flux_model = self.model.data[0]['flux']  # this is slightly faster
-                self.ax.plot(velo, self.model.flux, '-', color=color_model, lw=0.5)
+                self.ax.plot(velo, self.model.flux, '-', color=COLOR_MODEL, lw=0.5)
 
                 #Error & residuals
                 if self.plot_residuals:
@@ -1003,7 +999,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
                     mtw = np.where((line_wvobs > wvmnx[0]) & (line_wvobs<wvmnx[1]))[0]
                     for imt in mtw:
                         v = 3e5*(line_wvobs[imt]/wvobs - 1)
-                        self.ax.text(v, 0.5, line_lbl[imt], color=color_model,backgroundcolor='w',
+                        self.ax.text(v, 0.5, line_lbl[imt], color=COLOR_MODEL, backgroundcolor='w',
                             bbox={'pad':0,'edgecolor':'none', 'facecolor':'w'}, size='xx-small',
                                 rotation=90.,ha='center',va='center')
 
