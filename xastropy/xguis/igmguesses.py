@@ -1361,7 +1361,7 @@ def create_component(z, wrest, linelist, vlim=[-300.,300]*u.km/u.s):
     # Attributes
     comp_init_attrib(comp)
     # Mask
-    comp.mask_lines = [True]*len(comp._abslines)
+    comp.mask_lines = 2*np.ones(len(comp._abslines)).astype(int)
     comp.name = 'z{:.5f}_{:s}'.format(
             comp.zcomp, comp._abslines[0].data['name'].split(' ')[0])
     return comp
