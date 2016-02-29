@@ -38,6 +38,7 @@ from linetools.isgm.abscomponent import AbsComponent
 from linetools.guis import utils as ltgu
 from linetools.guis import line_widgets as ltgl
 from linetools.guis import simple_widgets as ltgsm
+from linetools import utils as ltu
 
 from xastropy.plotting import utils as xputils
 
@@ -290,7 +291,8 @@ L         : toggle between displaying/hiding labels of currently
 
     def updated_component(self):
         '''Component attrib was updated. Deal with it'''
-        self.fiddle_widg.component.sync_lines()
+        #self.fiddle_widg.component.sync_lines()
+        sync_comp_lines(self.fiddle_widg.component)
         self.velplot_widg.update_model()
         self.velplot_widg.on_draw(fig_clear=True)
 
@@ -331,13 +333,26 @@ L         : toggle between displaying/hiding labels of currently
 
         # Components
         print('Reading the components from previous file. It may take a while...')
+        ncomp = 0
+        keys = igmg_dict['cmps'].keys()
+
         for key in igmg_dict['cmps'].keys():
 
-            self.velplot_widg.add_component(
-                igmg_dict['cmps'][key]['wrest']*u.AA, 
-                zcomp=igmg_dict['cmps'][key]['zcomp'],
-                vlim=igmg_dict['cmps'][key]['vlim']*u.km/u.s,
-                update_model=False)
+            if 'lines' in igmg_dict['cmps'][key].keys():
+                comp = AbsComponent.from_dict(igmg_dict['cmps'][key], skip_vel=True)
+                comp_init_attrib(comp)
+                comp.init_wrest = igmg_dict['cmps'][key]['wrest']*u.AA
+                self.velplot_widg.add_component(comp, update_model=False)
+                ncomp += 1
+                print('new', ncomp)
+            else:  # for compatibility, should be deprecated
+                self.velplot_widg.add_component(
+                        igmg_dict['cmps'][key]['wrest']*u.AA,
+                        zcomp=igmg_dict['cmps'][key]['zcomp'],
+                        vlim=igmg_dict['cmps'][key]['vlim']*u.km/u.s,
+                        update_model=False)
+                ncomp += 1
+                print('old', ncomp)
 
             # Name
             self.velplot_widg.current_comp.name = key
@@ -351,7 +366,7 @@ L         : toggle between displaying/hiding labels of currently
                 self.velplot_widg.current_comp.attrib['Reliability'] = igmg_dict['cmps'][key]['Quality']  # old version compatibility
             self.velplot_widg.current_comp.comment = igmg_dict['cmps'][key]['Comment']
             # Sync
-            self.velplot_widg.current_comp.sync_lines()
+            sync_comp_lines(self.velplot_widg.current_comp)
 
         # Updates
         self.velplot_widg.update_model()
@@ -359,7 +374,7 @@ L         : toggle between displaying/hiding labels of currently
 
 
     def write_out(self):
-        ''' Write to a JSON file'''
+        """ Write to a JSON file"""
         import json, io
         # Create dict of the components
         out_dict = dict(cmps={},
@@ -368,7 +383,7 @@ L         : toggle between displaying/hiding labels of currently
         # Write components out
         for kk,comp in enumerate(self.comps_widg.all_comp):
             key = comp.name
-            out_dict['cmps'][key] = {}
+            out_dict['cmps'][key] = comp.to_dict()
             out_dict['cmps'][key]['zcomp'] = comp.zcomp
             out_dict['cmps'][key]['zfit'] = comp.attrib['z']
             out_dict['cmps'][key]['Nfit'] = comp.attrib['logN']
@@ -386,10 +401,13 @@ L         : toggle between displaying/hiding labels of currently
         if len(bad_pixels) > 0:
             out_dict['bad_pixels'] = list(bad_pixels)
 
+        # JSONify
+        gd_dict = ltu.jsonify(out_dict)
+
         # Write file
         print('Wrote: {:s}'.format(self.outfil))
         with io.open(self.outfil, 'w', encoding='utf-8') as f:
-            f.write(unicode(json.dumps(out_dict, sort_keys=True, indent=4, 
+            f.write(unicode(json.dumps(gd_dict, sort_keys=True, indent=4,
                 separators=(',', ': '))))
 
     # Write + Quit
@@ -526,7 +544,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
         wvmin, wvmax = np.min(self.spec.wavelength), np.max(self.spec.wavelength)
         gdlin = []
         for comp in all_comp:
-            for line in comp.lines:
+            for line in comp._abslines:
                 wvobs = (1 + line.attrib['z']) * line.wrest
                 if (wvobs > wvmin) & (wvobs < wvmax):
                     line.attrib['N'] = 10.**line.attrib['logN'] / u.cm**2
@@ -544,22 +562,26 @@ class IGGVelPlotWidget(QtGui.QWidget):
             self.residual = (self.spec.flux - self.model.flux) * self.residual_normalization_factor
 
     # Add a component
-    def add_component(self, wrest, vlim=None, zcomp=None, update_model=True):
+    def add_component(self, inp, vlim=None, zcomp=None, update_model=True):
         '''Generate a component and fit with Voigt profiles
 
         Parameters:
         ------------
+        inp : wrest or Component
         update_model: bool, optional
           Whether to update the model. It is useful to set it to
           False when reading the previous file to increase speed.
         '''
-        # Center z and reset vmin/vmax
-        if zcomp is None:
-            zmin, zmax = self.z + (1 + self.z) * (self.avmnx.value / c_mks)
-            zcomp = 0.5 * (zmin + zmax)
-        if vlim is None:
-            vlim = self.avmnx - 0.5 * (self.avmnx[1] + self.avmnx[0])
-        new_comp = Component(zcomp, wrest, vlim=vlim, linelist=self.llist['ISM'])
+        if isinstance(inp, AbsComponent):
+            new_comp = inp
+        else:  # wrest
+            # Center z and reset vmin/vmax
+            if zcomp is None:
+                zmin, zmax = self.z + (1 + self.z) * (self.avmnx.value / c_mks)
+                zcomp = 0.5 * (zmin + zmax)
+            if vlim is None:
+                vlim = self.avmnx - 0.5 * (self.avmnx[1] + self.avmnx[0])
+            new_comp = create_component(zcomp, inp, self.llist['ISM'], vlim=vlim)
 
         # Fit
         #print('doing fit for {:g}'.format(wrest))
@@ -597,8 +619,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
         '''Fit the component and save values'''
         from astropy.modeling import fitting
         # Generate Fit line
-        fit_line = AbsLine(component.init_wrest,
-            linelist=self.llist[self.llist['List']])
+        fit_line = AbsLine(component.init_wrest, linelist=self.llist[self.llist['List']])
         fit_line.analy['vlim'] = component.vlim
         fit_line.analy['spec'] = self.spec
         fit_line.attrib['z'] = component.zcomp
@@ -635,7 +656,8 @@ class IGGVelPlotWidget(QtGui.QWidget):
         component.attrib['N'] = 10**parm.logN.value / u.cm**2
         component.attrib['z'] = parm.z.value
         component.attrib['b'] = parm.b.value * u.km/u.s
-        component.sync_lines()
+        #component.sync_lines()
+        sync_comp_lines(component)
 
     def out_of_bounds(self,coord):
         '''Check for out of bounds
@@ -920,7 +942,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
                         la = ''
                     else: 
                         la = comp.attrib['Reliability']
-                    for line in comp.lines:
+                    for line in comp._abslines:
                         line_wvobs.append(line.wrest.value*(line.attrib['z']+1))
                         line_lbl.append(line.name+',{:.3f}{:s}'.format(line.attrib['z'],la))
                 line_wvobs = np.array(line_wvobs)*u.AA
@@ -1317,69 +1339,114 @@ class ComponentListWidget(QtGui.QWidget):
         self.on_list_change()
 
 
+def create_component(z, wrest, linelist, vlim=[-300.,300]*u.km/u.s):
+    # Transitions
+    all_trans = linelist.all_transitions(wrest)
+    if isinstance(all_trans, dict):
+        all_trans = [all_trans]
+    abslines = []
+    for trans in all_trans:
+        aline = AbsLine(trans['wrest'])  #, linelist=self.linelist))
+        aline.attrib['z'] = z
+        aline.analy['vlim'] = vlim
+        abslines.append(aline)
+    if abslines[0].data['Ej'].value > 0.:
+        stars = '*'*(len(abslines[0].name.split('*'))-1)
+    else:
+        stars = None
+    # AbsComponent
+    comp = AbsComponent.from_abslines(abslines, stars=stars)
+    # Init_wrest
+    comp.init_wrest = wrest
+    # Attributes
+    comp_init_attrib(comp)
+    # Mask
+    comp.mask_lines = 2*np.ones(len(comp._abslines)).astype(int)
+    comp.name = 'z{:.5f}_{:s}'.format(
+            comp.zcomp, comp._abslines[0].data['name'].split(' ')[0])
+    return comp
+
+def comp_init_attrib(comp):
+    # Attributes
+    comp.attrib = {'N': 0./u.cm**2, 'Nsig': 0./u.cm**2, 'flagN': 0,  # Column
+               'logN': 0., 'sig_logN': 0.,
+               'b': 0.*u.km/u.s, 'bsig': 0.*u.km/u.s,  # Doppler
+               'z': comp.zcomp, 'zsig': 0.,
+               'Reliability': 'None'}
+
+def sync_comp_lines(comp):
+    '''Synchronize attributes of the lines (may not be necessary)
+    '''
+    for line in comp._abslines:
+        line.attrib['logN'] = comp.attrib['logN']
+        line.attrib['b'] = comp.attrib['b']
+        line.attrib['z'] = comp.attrib['z']
+
+"""
 class Component(AbsComponent):
-    def __init__(self, z, wrest, vlim=[-300.,300]*u.km/u.s,
-        linelist=None):
+
+    @classmethod
+    def from_dict(cls, idict, **kwargs):
+        slf = AbsComponent.from_dict(idict)
+        cls.__init__(slf.z, )
+        slf.attrib = {}
+        slf.linelist = None
+        slf.name = 'z{:.5f}_{:s}'.format(
+                slf.zcomp,slf._abslines[0].data['name'].split(' ')[0])
+        QtCore.pyqtRemoveInputHook()
+        xdb.set_trace()
+        QtCore.pyqtRestoreInputHook()
+        return slf
+
+    def __init__(self, z, wrest, vlim=[-300.,300]*u.km/u.s, linelist=None):
 
         # Init
         self.init_wrest = wrest
-        self.linelist = linelist
-        self.lines = []
-        self.init_lines()
+        if linelist is None:
+            self.linelist = LineList('Strong')
+        else:
+            self.linelist = linelist
+        # Grab the line (dict)
+        line = self.linelist[wrest]
 
         # Generate with type
-        radec = (0*u.deg,0*u.deg)
-        Zion = (self.lines[0].data['Z'],self.lines[0].data['ion'])
-        Ej = self.lines[0].data['Ej']
+        Ej = line['Ej']
+        Zion = (line['Z'], line['ion'])
+        radec = (0*u.deg, 0*u.deg)
 
         # Name for fine-structure
         if Ej.value > 0.:
-            stars = '*'*(len(self.lines[0].name.split('*'))-1)
+            stars = '*'*(len(line[0].name.split('*'))-1)
         else:
             stars = None
 
         # Init AbsComponent
-        AbsComponent.__init__(self,radec, Zion, z, vlim, Ej, comment='None', stars=stars)
+        AbsComponent.__init__(self, radec, Zion, z, vlim, Ej, comment='None', stars=stars)
+
+
+        self.mask_lines = [True]*len(self._abslines)
 
         # Init cont.
-        self.attrib = {'N': 0./u.cm**2, 'Nsig': 0./u.cm**2, 'flagN': 0,  # Column
-                       'logN': 0., 'sig_logN': 0.,
-                       'b': 0.*u.km/u.s, 'bsig': 0.*u.km/u.s,  # Doppler
-                       'z': self.zcomp, 'zsig': 0.,
-                       'Reliability': 'None'}
+
+        #QtCore.pyqtRemoveInputHook()
+        #xdb.set_trace()
+        #QtCore.pyqtRestoreInputHook()
 
         # Sync
         self.sync_lines()
 
         # Use different naming convention within IGMGuesses
         self.name = 'z{:.5f}_{:s}'.format(
-            self.zcomp,self.lines[0].data['name'].split(' ')[0])
-
-
-    def init_lines(self):
-        '''Fill up the component lines
-        '''
-        if self.linelist is None:
-            self.linelist = LineList('Strong')
-        # Get the lines
-        all_trans = self.linelist.all_transitions(self.init_wrest)
-        #QtCore.pyqtRemoveInputHook()
-        #xdb.set_trace()
-        #QtCore.pyqtRestoreInputHook()
-        if isinstance(all_trans, dict):
-            all_trans = [all_trans]
-        for trans in all_trans:
-            self.lines.append(AbsLine(trans['wrest'],
-                linelist=self.linelist))
-
+            self.zcomp,self._abslines[0].data['name'].split(' ')[0])
 
     def sync_lines(self):
-        '''Synchronize attributes of the lines
+        '''Synchronize attributes of the lines (may not be necessary)
         '''
-        for line in self.lines:
+        for line in self._abslines:
             line.attrib['logN'] = self.attrib['logN']
             line.attrib['b'] = self.attrib['b']
             line.attrib['z'] = self.attrib['z']
+"""
 
 # Script to run XSpec from the command line or ipython
 def run_gui(*args, **kwargs):
