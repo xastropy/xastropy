@@ -179,12 +179,17 @@ L         : toggle between displaying/hiding labels of currently
         # LineList (Grab ISM, Strong and HI as defaults)
         self.llist = ltgu.set_llist('ISM')
         self.llist['HI'] = LineList('HI')
+        self.llist['HI']._data = self.llist['HI']._data[::-1] # invert order of Lyman series
         self.llist['Strong'] = LineList('Strong')
+        # self.llist['H2'] = LineList('H2')
         self.llist['Lists'].append('HI')
         self.llist['Lists'].append('Strong')
-        self.llist['HI']._data = self.llist['HI']._data[::-1] # invert order of Lyman series
-        #self.llist['show_line'] = np.arange(10) #maximum 10 to show for Lyman series
-        
+        # self.llist['Lists'].append('H2')
+        # Setup available LineList; this will be the default one
+        # which will be updated using a given base Linelist (e.g. 'ISM', 'HI')
+        self.llist['available'] = LineList('ISM')
+        self.llist['Lists'].append('available')
+
         # Define initial redshift
         z = 0.0
         self.llist['z'] = z
@@ -197,14 +202,7 @@ L         : toggle between displaying/hiding labels of currently
         self.velplot_widg = IGGVelPlotWidget(spec, z, 
             parent=self, llist=self.llist, fwhm=self.fwhm,plot_residuals=self.plot_residuals)
         self.wq_widg = ltgsm.WriteQuitWidget(parent=self)
-        
-        # Setup strongest LineList
-        self.llist['strongest'] = LineList('ISM')
-        self.llist['Lists'].append('strongest')
-        # self.update_strongest_lines()
-        self.slines_widg.selected = self.llist['show_line']
-        self.slines_widg.on_list_change(
-            self.llist[self.llist['List']])
+
 
         # Load prevoius file
         if self.previous_file is not None:
@@ -233,9 +231,11 @@ L         : toggle between displaying/hiding labels of currently
         self.main_widget.setLayout(hbox)
 
         # Attempt to initialize
-        self.update_strongest_lines()
+        self.update_available_lines(linelist=self.llist[self.llist['List']])
         self.velplot_widg.init_lines()
         self.velplot_widg.on_draw(rescale=True, fig_clear=True)
+        self.slines_widg.selected = self.llist['show_line']
+        self.slines_widg.on_list_change(self.llist[self.llist['List']])
 
         # Point MainWindow
         self.setCentralWidget(self.main_widget)
@@ -243,26 +243,25 @@ L         : toggle between displaying/hiding labels of currently
         # Print help message
         print(self.help_message)
 
-    def update_strongest_lines(self):
-        '''Grab the strongest lines in the spectrum at the current
-        redshift.
-        '''
+    def update_available_lines(self, linelist):
+        """Grab the available lines in the spectrum at the current
+        redshift with the current linelist (a given LineList object)
+        """
+
         z = self.velplot_widg.z
         wvmin = np.min(self.velplot_widg.spec.wavelength)
         wvmax = np.max(self.velplot_widg.spec.wavelength)
         wvlims = (wvmin/(1+z), wvmax/(1+z))
-        transitions = self.llist['ISM'].available_transitions(
+        transitions = linelist.available_transitions(
             wvlims, n_max=None, n_max_tuple=self.n_max_tuple, min_strength=self.min_strength)
 
         if transitions is not None:
             names = list(np.array(transitions['name']))
         else:
-            names = ['HI 1215']
-        self.llist['strongest'] = self.llist['strongest'].subset_lines(reset_data=True,subset=names)
-        self.llist['show_line'] = np.arange(len(self.llist['strongest']._data))
-        self.llist['List'] = 'strongest'
-        # self.llist['strongest'] = self.llist['ISM'].subset(names)
-
+            raise ValueError('There are no transitions available!')
+        self.llist['available'] = linelist.subset_lines(reset_data=True, subset=names)
+        # self.llist['show_line'] = np.arange(len(self.llist['available']._data)) # this is done in init_lines()
+        self.llist['List'] = 'available'
 
     def on_list_change(self):
         self.update_boxes()
@@ -342,8 +341,8 @@ L         : toggle between displaying/hiding labels of currently
 
         # Components
         print('Reading the components from previous file. It may take a while...')
-        ncomp = 0
-        keys = igmg_dict['cmps'].keys()
+        # ncomp = 0
+        # keys = igmg_dict['cmps'].keys()
 
         for key in igmg_dict['cmps'].keys():
 
@@ -352,16 +351,16 @@ L         : toggle between displaying/hiding labels of currently
                 comp_init_attrib(comp)
                 comp.init_wrest = igmg_dict['cmps'][key]['wrest']*u.AA
                 self.velplot_widg.add_component(comp, update_model=False)
-                ncomp += 1
-                print('new', ncomp)
+                # ncomp += 1
+                # print('new', ncomp)
             else:  # for compatibility, should be deprecated
                 self.velplot_widg.add_component(
                         igmg_dict['cmps'][key]['wrest']*u.AA,
                         zcomp=igmg_dict['cmps'][key]['zcomp'],
                         vlim=igmg_dict['cmps'][key]['vlim']*u.km/u.s,
                         update_model=False)
-                ncomp += 1
-                print('old', ncomp)
+                # ncomp += 1
+                # print('old', ncomp)
 
             # Name
             self.velplot_widg.current_comp.name = key
@@ -369,7 +368,7 @@ L         : toggle between displaying/hiding labels of currently
             self.velplot_widg.current_comp.attrib['z'] = igmg_dict['cmps'][key]['zfit']
             self.velplot_widg.current_comp.attrib['b'] = igmg_dict['cmps'][key]['bfit']*u.km/u.s
             self.velplot_widg.current_comp.attrib['logN'] = igmg_dict['cmps'][key]['Nfit']
-            try: # This hould me removed in the future
+            try: # This should me removed in the future
                 self.velplot_widg.current_comp.attrib['Reliability'] = igmg_dict['cmps'][key]['Reliability']
             except:
                 self.velplot_widg.current_comp.attrib['Reliability'] = igmg_dict['cmps'][key]['Quality']  # old version compatibility
@@ -482,7 +481,6 @@ class IGGVelPlotWidget(QtGui.QWidget):
         self.psdict['y_minmax'] = [-0.1, 1.1]
         self.psdict['nav'] = ltgu.navigate(0,0,init=True)
 
-        
 
         # Status Bar?
         #if not status is None:
@@ -494,6 +492,9 @@ class IGGVelPlotWidget(QtGui.QWidget):
         else:
             self.llist = llist
         self.llist['z'] = self.z
+        # QtCore.pyqtRemoveInputHook()
+        # xdb.set_trace()
+        # QtCore.pyqtRestoreInputHook()
 
         # Indexing for line plotting
         self.idx_line = 0
@@ -516,7 +517,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
         self.sub_xy = [3,2]
         self.subxy_state = 'In'
 
-        self.fig.subplots_adjust(hspace=0.0, wspace=0.1,left=0.04,right=0.975)
+        self.fig.subplots_adjust(hspace=0.0, wspace=0.1, left=0.04, right=0.975)
         
         vbox = QtGui.QVBoxLayout()
         vbox.addWidget(self.canvas)
@@ -528,20 +529,22 @@ class IGGVelPlotWidget(QtGui.QWidget):
 
     # Load them up for display
     def init_lines(self):
-        wvmin = np.min(self.spec.wavelength)
-        wvmax = np.max(self.spec.wavelength)
+        wvmin = self.spec.wvmin
+        wvmax = self.spec.wvmax
         #
-        #QtCore.pyqtRemoveInputHook()
-        #xdb.set_trace()
-        #QtCore.pyqtRestoreInputHook()
+        # QtCore.pyqtRemoveInputHook()
+        # xdb.set_trace()
+        # QtCore.pyqtRestoreInputHook()
         wrest = self.llist[self.llist['List']].wrest
-        wvobs = (1 + self.z) * wrest
+        wvobs = (1. + self.z) * wrest
         gdlin = np.where( (wvobs > wvmin) & (wvobs < wvmax) )[0]
         self.llist['show_line'] = gdlin
+
         # Update GUI
         self.parent.slines_widg.selected = self.llist['show_line']
         self.parent.slines_widg.on_list_change(
             self.llist[self.llist['List']])
+
 
     # Update model
     def update_model(self):
@@ -594,7 +597,9 @@ class IGGVelPlotWidget(QtGui.QWidget):
                 zcomp = 0.5 * (zmin + zmax)
             if vlim is None:
                 vlim = self.avmnx - 0.5 * (self.avmnx[1] + self.avmnx[0])
-            new_comp = create_component(zcomp, inp, self.llist['ISM'], vlim=vlim)
+            # Create component from lines available in the ISM LineList, it makes more sense
+            linelist = self.llist['ISM']
+            new_comp = create_component(zcomp, inp, linelist, vlim=vlim)
 
         # Fit
         #print('doing fit for {:g}'.format(wrest))
@@ -785,6 +790,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
             #self.abs_sys.zabs = newz
             # Drawing
             self.psdict['x_minmax'] = self.vmnx.value
+
         if event.key == '^':
             zgui = ltgsm.AnsBox('Enter redshift:',float)
             zgui.exec_()
@@ -809,13 +815,26 @@ class IGGVelPlotWidget(QtGui.QWidget):
             #self.statusBar().showMessage('z = {:f}'.format(z))
             self.init_lines()
 
-        # Toggle line lists
-        if event.key == 'H':
+        # Select the base LineList from keystroke
+        if event.key == 'H':  # update HI
             self.llist['List'] = 'HI'
+            # self.parent.update_available_lines(linelist=self.llist['HI'])
+            self.idx_line = 0
             self.init_lines()
-        if event.key == 'U':
-            self.parent.update_strongest_lines()
+        if event.key == 'U':  # Update Strong
+            # self.llist['List'] = 'Strong'
+            self.parent.update_available_lines(linelist=self.llist['Strong'])
+            self.idx_line = 0
             self.init_lines()
+        if event.key == 'I':  # Update ISM
+            self.llist['List'] = 'ISM'
+            self.parent.update_available_lines(linelist=self.llist['ISM'])
+            self.idx_line = 0
+            self.init_lines()
+        # if event.key == 'M':  # Plot molecules
+        #     self.llist['List'] = 'H2'
+        #     self.init_lines()
+        #     self.idx_line = 0
 
         ## Velocity limits
         unit = u.km/u.s
