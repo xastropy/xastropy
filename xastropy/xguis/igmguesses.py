@@ -115,7 +115,7 @@ Space bar : set redshift from cursor position
 T         : update available transitions at current redshift from `Strong` LineList
 U         : update available transitions at current redshift from `ISM` LineList
 H         : update to HI Lyman series LineList at current redshift
-            (type `U` or `I` to get metals back)
+            (type `T` or `U` to get metals back)
 A         : set limits for fitting an absorption component
             from cursor position (need to be pressed twice:
             once for each left and right limits)
