@@ -1439,8 +1439,9 @@ def mask_comp_lines(comp, min_ew = 0.003*u.AA, verbose=False):
                 print('Comp {}: AbsLine {} has estimated EW={:.4f} A < {} A; '
                       'masking out.'.format(comp.name, line.name, ew.to('AA').value, min_ew.to('AA').value, comp.name))
             comp.mask_abslines[ii] = 0
-        else:  # line is strong enough
-            comp.mask_abslines[ii] = 2
+        else:  # line is strong enough, do not mask out
+            pass
+    # Sanity check
     if np.sum(comp.mask_abslines) == 0:
         print('Warning: Comp {} does not have any line with EW>{} A! You should consider a '
               'lower -min_ew limit to mask out lines.'.format(comp.name, min_ew.to('AA').value))
@@ -1583,7 +1584,7 @@ def run_gui(*args, **kwargs):
     if min_strength is None:
         min_strength = 0.
 
-    # n_max_tuple
+    # min_ew
     try:
         min_ew = pargs.min_ew
     except AttributeError:
