@@ -99,6 +99,7 @@ Click on any white region within the velocity plots
 for the following keystroke commands to work:
 
 i,o       : zoom in/out x limits
+I,O       : zoom in/out x limits (larger re-scale)
 y         : zoom out y limits
 Y         : guess y limits
 t,b       : set y top/bottom limit
@@ -111,8 +112,8 @@ K,k       : add/remove row
 f         : move to the first page
 Space bar : set redshift from cursor position
 ^         : set redshift by hand
-U         : update available transitions at current redshift from `Strong` LineList
-I         : update available transitions at current redshift from `ISM` LineList
+T         : update available transitions at current redshift from `Strong` LineList
+U         : update available transitions at current redshift from `ISM` LineList
 H         : update to HI Lyman series LineList at current redshift
             (type `U` or `I` to get metals back)
 A         : set limits for fitting an absorption component
@@ -821,13 +822,13 @@ class IGGVelPlotWidget(QtGui.QWidget):
             # self.parent.update_available_lines(linelist=self.llist['HI'])
             self.idx_line = 0
             self.init_lines()
-        if event.key == 'U':  # Update Strong
+        if event.key == 'T':  # Update Strong
             # self.llist['List'] = 'Strong'
             self.parent.update_available_lines(linelist=self.llist['Strong'])
             self.idx_line = 0
             self.init_lines()
-        if event.key == 'I':  # Update ISM
-            self.llist['List'] = 'ISM'
+        if event.key == 'U':  # Update ISM
+            # self.llist['List'] = 'ISM'
             self.parent.update_available_lines(linelist=self.llist['ISM'])
             self.idx_line = 0
             self.init_lines()
