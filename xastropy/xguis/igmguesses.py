@@ -351,6 +351,7 @@ L         : toggle between displaying/hiding labels of currently
                 comp = AbsComponent.from_dict(igmg_dict['cmps'][key], skip_vel=True)
                 comp_init_attrib(comp)
                 comp.init_wrest = igmg_dict['cmps'][key]['wrest']*u.AA
+                comp.mask_abslines = igmg_dict['cmps'][key]['mask_abslines']
                 self.velplot_widg.add_component(comp, update_model=False)
                 # ncomp += 1
                 # print('new', ncomp)
@@ -394,6 +395,7 @@ L         : toggle between displaying/hiding labels of currently
         # Write components out
         for kk,comp in enumerate(self.comps_widg.all_comp):
             key = comp.name
+            out_dict['cmps'][key] = comp.to_dict()
             out_dict['cmps'][key]['zcomp'] = comp.zcomp
             out_dict['cmps'][key]['zfit'] = comp.attrib['z']
             out_dict['cmps'][key]['Nfit'] = comp.attrib['logN']
@@ -402,8 +404,7 @@ L         : toggle between displaying/hiding labels of currently
             out_dict['cmps'][key]['vlim'] = list(comp.vlim.value)
             out_dict['cmps'][key]['Reliability'] = str(comp.attrib['Reliability'])
             out_dict['cmps'][key]['Comment'] = str(comp.comment)
-            out_dict['cmps'][key] = comp.to_dict()
-
+            out_dict['cmps'][key]['mask_abslines'] = comp.mask_abslines
         # Write bad goo/pixels out
         # good_pixels = np.where(self.velplot_widg.spec.good_pixels == 1)[0]
         # if len(good_pixels) > 0:
