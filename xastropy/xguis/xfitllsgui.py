@@ -338,7 +338,7 @@ class XFitLLSGUI(QtGui.QMainWindow):
             self.Cwidget.box.frmt.format(
                 self.abssys_widg.all_abssys[idx].comment))
         # Rest-frame too
-        self.spec_widg.show_restframe = True
+        self.spec_widg.show_restframe = False
         self.spec_widg.rest_z = self.abssys_widg.all_abssys[idx].zabs
 
 
