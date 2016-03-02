@@ -215,7 +215,7 @@ L         : toggle between displaying/hiding labels of currently
 
         # Layout
         anly_widg = QtGui.QWidget()
-        anly_widg.setMaximumWidth(400)
+        anly_widg.setMaximumWidth(500)
         anly_widg.setMinimumWidth(250)
 
         vbox = QtGui.QVBoxLayout()
@@ -342,10 +342,9 @@ L         : toggle between displaying/hiding labels of currently
 
         # Components
         print('Reading the components from previous file. It may take a while...')
+        ntot = len(igmg_dict['cmps'].keys())
         # ncomp = 0
-        # keys = igmg_dict['cmps'].keys()
-
-        for key in igmg_dict['cmps'].keys():
+        for ii, key in enumerate(igmg_dict['cmps'].keys()):
 
             if 'lines' in igmg_dict['cmps'][key].keys():
                 comp = AbsComponent.from_dict(igmg_dict['cmps'][key], skip_vel=True)
@@ -378,6 +377,11 @@ L         : toggle between displaying/hiding labels of currently
             # Sync
             sync_comp_lines(self.velplot_widg.current_comp)
             mask_comp_lines(self.velplot_widg.current_comp, min_ew=self.min_ew)
+
+            import sys
+            progress = int(ii * 100. / ntot)
+            sys.stdout.write('Progress: {}%\r'.format(progress))
+            sys.stdout.flush()
 
         # Updates
         self.velplot_widg.update_model()
@@ -752,7 +756,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
             elif event.key == 'V':
                 self.parent.fiddle_widg.component.attrib['b'] += 5*u.km/u.s
             elif event.key == '<':
-                self.parent.fiddle_widg.component.attrib['z'] -= 4e-5 # should be a fraction of pixel size
+                self.parent.fiddle_widg.component.attrib['z'] -= 4e-5  # should be a fraction of pixel size
             elif event.key == '>':
                 self.parent.fiddle_widg.component.attrib['z'] += 4e-5
 
