@@ -571,8 +571,8 @@ class IGGVelPlotWidget(QtGui.QWidget):
         #QtCore.pyqtRestoreInputHook()
 
         # Voigt
-        self.model = lav.voigt_from_abslines(self.spec.wavelength, gdlin, fwhm=self.fwhm)#,debug=True)
-        
+        if len(gdlin) > 0:
+            self.model = lav.voigt_from_abslines(self.spec.wavelength, gdlin, fwhm=self.fwhm)#,debug=True)
         #Define arrays for plotting residuals
         if self.plot_residuals:
             self.residual_limit = self.spec.sig * self.residual_normalization_factor
@@ -973,7 +973,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
                     else: 
                         la = comp.attrib['Reliability']
                     for ii, line in enumerate(comp._abslines):
-                        if comp.mask_abslines[ii] == 0:
+                        if comp.mask_abslines[ii] == 0:  # do not plot these masked out lines
                             continue
                         line_wvobs.append(line.wrest.value*(line.attrib['z']+1))
                         line_lbl.append(line.name+',{:.3f}{:s}'.format(line.attrib['z'],la))
@@ -1436,10 +1436,13 @@ def mask_comp_lines(comp, min_ew = 0.003*u.AA, verbose=False):
         if ew < min_ew:
             if verbose:
                 print('Comp {}: AbsLine {} has estimated EW={:.4f} A < {} A; '
-                      'masking out.'.format(comp.name, line.name, ew.to('AA').value, min_ew.value, comp.name))
+                      'masking out.'.format(comp.name, line.name, ew.to('AA').value, min_ew.to('AA').value, comp.name))
             comp.mask_abslines[ii] = 0
         else:  # line is strong enough
             comp.mask_abslines[ii] = 2
+    if np.sum(comp.mask_abslines) == 0:
+        print('Warning: Comp {} does not have any line with EW>{} A! You should consider a '
+              'lower -min_ew limit to mask out lines.'.format(comp.name, min_ew.to('AA').value))
     # QtCore.pyqtRemoveInputHook()
     # xdb.set_trace()
     # QtCore.pyqtRestoreInputHook()
