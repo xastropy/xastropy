@@ -18,6 +18,7 @@ from __future__ import print_function, absolute_import, division, unicode_litera
 # Import libraries
 import numpy as np
 import warnings, imp
+import copy
 
 from PyQt4 import QtGui
 from PyQt4 import QtCore
@@ -25,6 +26,7 @@ from PyQt4 import QtCore
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 # Matplotlib Figure object
 from matplotlib.figure import Figure
+
 
 from astropy.units import Quantity
 from astropy import units as u
@@ -62,7 +64,7 @@ class IGMGuessesGui(QtGui.QMainWindow):
     '''
     def __init__(self, ispec, parent=None, previous_file=None, 
         srch_id=True, outfil=None, fwhm=None, zqso=None,
-        plot_residuals=True,n_max_tuple=None, min_strength=0.):
+        plot_residuals=True,n_max_tuple=None, min_strength=0., min_ew=0.005):
         QtGui.QMainWindow.__init__(self, parent)
         """
         ispec : str
@@ -82,6 +84,9 @@ class IGMGuessesGui(QtGui.QMainWindow):
             The value should lie between (0,14.7), where 0. means 
             include everything, and 14.7 corresponds to the strength of 
             HI Lya transition assuming solar abundance.
+        min_ew : float, optional
+            Minimum equivalent width (in AA) of lines to be stored within a components.
+            This is useful for not storing extremely weak lines.
 
 
         """
@@ -106,12 +111,13 @@ K,k       : add/remove row
 f         : move to the first page
 Space bar : set redshift from cursor position
 ^         : set redshift by hand
-U         : update the main LineList at current redshift
-H         : update to Lyman series LineList at current redshift
-            (type `U` to get metals back)
+U         : update available transitions at current redshift from `Strong` LineList
+I         : update available transitions at current redshift from `ISM` LineList
+H         : update to HI Lyman series LineList at current redshift
+            (type `U` or `I` to get metals back)
 A         : set limits for fitting an absorption component
             from cursor position (need to be pressed twice:
-            once for left and once for right limit, respectively)
+            once for each left and right limits)
 S         : select an absorption component from cursor position
 D         : delete absorption component that is closest to the cursor
             (the cursor has to be in the corresponding velocity window panel
@@ -149,6 +155,7 @@ L         : toggle between displaying/hiding labels of currently
         self.plot_residuals = plot_residuals
         self.n_max_tuple = n_max_tuple
         self.min_strength = min_strength
+        self.min_ew = min_ew * u.AA
 
         # Load spectrum
         spec, spec_fil = ltgu.read_spec(ispec)
@@ -293,6 +300,8 @@ L         : toggle between displaying/hiding labels of currently
         '''Component attrib was updated. Deal with it'''
         #self.fiddle_widg.component.sync_lines()
         sync_comp_lines(self.fiddle_widg.component)
+        mask_comp_lines(self.fiddle_widg.component, min_ew=self.min_ew)
+
         self.velplot_widg.update_model()
         self.velplot_widg.on_draw(fig_clear=True)
 
@@ -367,6 +376,7 @@ L         : toggle between displaying/hiding labels of currently
             self.velplot_widg.current_comp.comment = igmg_dict['cmps'][key]['Comment']
             # Sync
             sync_comp_lines(self.velplot_widg.current_comp)
+            mask_comp_lines(self.velplot_widg.current_comp, min_ew=self.min_ew)
 
         # Updates
         self.velplot_widg.update_model()
@@ -378,12 +388,12 @@ L         : toggle between displaying/hiding labels of currently
         import json, io
         # Create dict of the components
         out_dict = dict(cmps={},
-            spec_file=self.velplot_widg.spec.filename,
-            fwhm=self.fwhm, bad_pixels=[])
+                        spec_file=self.velplot_widg.spec.filename,
+                        fwhm=self.fwhm, bad_pixels=[])
+
         # Write components out
         for kk,comp in enumerate(self.comps_widg.all_comp):
             key = comp.name
-            out_dict['cmps'][key] = comp.to_dict()
             out_dict['cmps'][key]['zcomp'] = comp.zcomp
             out_dict['cmps'][key]['zfit'] = comp.attrib['z']
             out_dict['cmps'][key]['Nfit'] = comp.attrib['logN']
@@ -392,6 +402,7 @@ L         : toggle between displaying/hiding labels of currently
             out_dict['cmps'][key]['vlim'] = list(comp.vlim.value)
             out_dict['cmps'][key]['Reliability'] = str(comp.attrib['Reliability'])
             out_dict['cmps'][key]['Comment'] = str(comp.comment)
+            out_dict['cmps'][key] = comp.to_dict()
 
         # Write bad goo/pixels out
         # good_pixels = np.where(self.velplot_widg.spec.good_pixels == 1)[0]
@@ -408,7 +419,7 @@ L         : toggle between displaying/hiding labels of currently
         print('Wrote: {:s}'.format(self.outfil))
         with io.open(self.outfil, 'w', encoding='utf-8') as f:
             f.write(unicode(json.dumps(gd_dict, sort_keys=True, indent=4,
-                separators=(',', ': '))))
+                                       separators=(',', ': '))))
 
     # Write + Quit
     def write_quit(self):
@@ -536,7 +547,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
     def update_model(self):
         if self.parent is None:
             return
-        all_comp = self.parent.comps_widg.all_comp #selected_components()
+        all_comp = self.parent.comps_widg.all_comp # selected_components()
         if len(all_comp) == 0:
             self.model.flux[:] = 1.
             return
@@ -544,7 +555,9 @@ class IGGVelPlotWidget(QtGui.QWidget):
         wvmin, wvmax = np.min(self.spec.wavelength), np.max(self.spec.wavelength)
         gdlin = []
         for comp in all_comp:
-            for line in comp._abslines:
+            for ii, line in enumerate(comp._abslines):
+                if comp.mask_abslines[ii] == 0: # Do not use these absorption lines
+                    continue
                 wvobs = (1 + line.attrib['z']) * line.wrest
                 if (wvobs > wvmin) & (wvobs < wvmax):
                     line.attrib['N'] = 10.**line.attrib['logN'] / u.cm**2
@@ -624,20 +637,18 @@ class IGGVelPlotWidget(QtGui.QWidget):
         fit_line.analy['spec'] = self.spec
         fit_line.attrib['z'] = component.zcomp
         fit_line.measure_aodm(normalize=False)  # Already normalized
+
         # Guesses
         fmin = np.argmin(self.spec.flux[fit_line.analy['pix']])
         zguess = self.spec.wavelength[fit_line.analy['pix'][fmin]]/component.init_wrest - 1.
         bguess = 0.5 * (component.vlim[1] - component.vlim[0])
         Nguess = np.log10(fit_line.attrib['N'].to('cm**-2').value)
         # Voigt model
-        #QtCore.pyqtRemoveInputHook()
-        #xdb.set_trace()
-        #QtCore.pyqtRestoreInputHook()
         fitvoigt = lav.single_voigt_model(logN=Nguess,b=bguess.value,
                                 z=zguess, wrest=component.init_wrest.value,
                                 gamma=fit_line.data['gamma'].value, 
                                 f=fit_line.data['f'], fwhm=self.fwhm)
-        # Restrict z range
+        # Restrict parameter space
         fitvoigt.logN.min = 10.
         fitvoigt.b.min = 1.
         fitvoigt.z.min = component.zcomp + component.vlim[0].value * (1 + component.zcomp) / c_mks
@@ -647,9 +658,6 @@ class IGGVelPlotWidget(QtGui.QWidget):
         fitter = fitting.LevMarLSQFitter()
         parm = fitter(fitvoigt,self.spec.wavelength[fit_line.analy['pix']],
             self.spec.flux[fit_line.analy['pix']].value)
-        #QtCore.pyqtRemoveInputHook()
-        #xdb.set_trace()
-        #QtCore.pyqtRestoreInputHook()
 
         # Save and sync
         component.attrib['logN'] = parm.logN.value
@@ -658,6 +666,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
         component.attrib['b'] = parm.b.value * u.km/u.s
         #component.sync_lines()
         sync_comp_lines(component)
+        mask_comp_lines(component, min_ew=self.parent.min_ew)
 
     def out_of_bounds(self,coord):
         '''Check for out of bounds
@@ -933,6 +942,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
             #QtCore.pyqtRemoveInputHook()
             #xdb.set_trace()
             #QtCore.pyqtRestoreInputHook()
+
             # Labels
             if self.flag_idlbl:
                 line_wvobs = []
@@ -942,11 +952,14 @@ class IGGVelPlotWidget(QtGui.QWidget):
                         la = ''
                     else: 
                         la = comp.attrib['Reliability']
-                    for line in comp._abslines:
+                    for ii, line in enumerate(comp._abslines):
+                        if comp.mask_abslines[ii] == 0:
+                            continue
                         line_wvobs.append(line.wrest.value*(line.attrib['z']+1))
                         line_lbl.append(line.name+',{:.3f}{:s}'.format(line.attrib['z'],la))
                 line_wvobs = np.array(line_wvobs)*u.AA
                 line_lbl = np.array(line_lbl)
+
             # Subplots
             nplt = self.sub_xy[0]*self.sub_xy[1]
             if len(all_idx) <= nplt:
@@ -1360,8 +1373,14 @@ def create_component(z, wrest, linelist, vlim=[-300.,300]*u.km/u.s):
     comp.init_wrest = wrest
     # Attributes
     comp_init_attrib(comp)
-    # Mask
-    comp.mask_lines = 2*np.ones(len(comp._abslines)).astype(int)
+
+    # Mask abslines within a component
+    # 0: Do not use
+    # 1: Use for display only
+    # 2: Use for subsequent VP fitting
+    comp.mask_abslines = 2*np.ones(len(comp._abslines)).astype(int)
+
+    # Component name
     comp.name = 'z{:.5f}_{:s}'.format(
             comp.zcomp, comp._abslines[0].data['name'].split(' ')[0])
     return comp
@@ -1374,13 +1393,36 @@ def comp_init_attrib(comp):
                'z': comp.zcomp, 'zsig': 0.,
                'Reliability': 'None'}
 
+
 def sync_comp_lines(comp):
-    '''Synchronize attributes of the lines (may not be necessary)
-    '''
+    """Synchronize attributes of the lines and updates
+    """
     for line in comp._abslines:
         line.attrib['logN'] = comp.attrib['logN']
         line.attrib['b'] = comp.attrib['b']
         line.attrib['z'] = comp.attrib['z']
+
+
+def mask_comp_lines(comp, min_ew = 0.003*u.AA, verbose=False):
+    """ Mask out lines that are weaker than
+    equivalent width threshold."""
+
+    for ii, line in enumerate(comp._abslines):
+        # Estimate equivalent width assuming optically thin line
+        # This is ok because we want to mask out weak lines
+        fosc = line.data['f']
+        wrest = line.data['wrest']
+        ew = fosc * wrest**2 * 10**line.attrib['logN'] / u.cm / (1.13 * 10**12 )  # eq. 9.15 Draine 2011
+        if ew < min_ew:
+            if verbose:
+                print('Comp {}: AbsLine {} has estimated EW={:.4f} A < {} A; '
+                      'masking out.'.format(comp.name, line.name, ew.to('AA').value, min_ew.value, comp.name))
+            comp.mask_abslines[ii] = 0
+        else:  # line is strong enough
+            comp.mask_abslines[ii] = 2
+    # QtCore.pyqtRemoveInputHook()
+    # xdb.set_trace()
+    # QtCore.pyqtRestoreInputHook()
 
 """
 class Component(AbsComponent):
@@ -1468,7 +1510,9 @@ def run_gui(*args, **kwargs):
     parser.add_argument("-fwhm", type=float, help="FWHM smoothing (pixels)")
     parser.add_argument("-previous_file", type=str, help="Input Guesses file")
     parser.add_argument("-n_max_tuple", type=int, help="Maximum number of transitions per ion species to display")
-    parser.add_argument("-min_strength", type=float, help="Minimum strength for transitions to be considered; choose values (0,14.7)")
+    parser.add_argument("-min_strength", type=float, help="Minimum strength for transitions to be displayed; choose values (0,14.7)")
+    parser.add_argument("-min_ew", type=float, help="Minimum EW (in AA) for transitions to be stored within a component. This\
+                                                    is useful to get rid of extremely weak transitions from the model")
 
 
     if len(args) == 0:
@@ -1514,10 +1558,18 @@ def run_gui(*args, **kwargs):
         min_strength = 0.
     if min_strength is None:
         min_strength = 0.
-    
+
+    # n_max_tuple
+    try:
+        min_ew = pargs.min_ew
+    except AttributeError:
+        min_ew = 0.005  # in AA
+    if min_ew is None:
+        min_ew = 0.005  # in AA
+
     app = QtGui.QApplication(sys.argv)
     gui = IGMGuessesGui(pargs.in_file, outfil=outfil, fwhm=fwhm,
-        previous_file=previous_file, zqso=zqso,n_max_tuple=n_max_tuple,min_strength=min_strength)
+        previous_file=previous_file, zqso=zqso,n_max_tuple=n_max_tuple,min_strength=min_strength, min_ew=min_ew)
     gui.show()
     app.exec_()
 
