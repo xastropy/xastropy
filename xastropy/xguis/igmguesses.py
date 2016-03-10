@@ -397,9 +397,12 @@ L         : toggle between displaying/hiding labels of currently
                         fwhm=self.fwhm, bad_pixels=[])
 
         # Write components out
+        # We need a deep copy here because ._abslines will be modify before writting
+        # but we want to keep the original ._abslines list in case column density
+        # increases.
         comps_aux = copy.deepcopy(self.comps_widg.all_comp)
         for kk,comp in enumerate(comps_aux):
-            # get rid of masked abslines
+            # get rid of masked abslines for writting out to hard drive
             abslines_aux = []
             mask_abslines_aux = []
             for ii, line in enumerate(comp._abslines):
