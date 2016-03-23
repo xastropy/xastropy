@@ -250,9 +250,9 @@ L         : toggle between displaying/hiding labels of currently
         """
 
         z = self.velplot_widg.z
-        wvmin = np.min(self.velplot_widg.spec.wavelength)
-        wvmax = np.max(self.velplot_widg.spec.wavelength)
-        wvlims = (wvmin/(1+z), wvmax/(1+z))
+        wvmin = self.velplot_widg.spec.wvmin
+        wvmax = self.velplot_widg.spec.wvmax
+        wvlims = (wvmin / (1. + z), wvmax / (1. + z))
         transitions = linelist.available_transitions(
             wvlims, n_max=None, n_max_tuple=self.n_max_tuple, min_strength=self.min_strength)
 
@@ -397,7 +397,21 @@ L         : toggle between displaying/hiding labels of currently
                         fwhm=self.fwhm, bad_pixels=[])
 
         # Write components out
-        for kk,comp in enumerate(self.comps_widg.all_comp):
+        # We need a deep copy here because ._abslines will be modify before writting
+        # but we want to keep the original ._abslines list in case column density
+        # increases.
+        comps_aux = copy.deepcopy(self.comps_widg.all_comp)
+        for kk,comp in enumerate(comps_aux):
+            # get rid of masked abslines for writting out to hard drive
+            abslines_aux = []
+            mask_abslines_aux = []
+            for ii, line in enumerate(comp._abslines):
+                if comp.mask_abslines[ii] != 0:
+                    abslines_aux += [line]
+                    mask_abslines_aux += [comp.mask_abslines[ii]]
+            comp._abslines = abslines_aux
+            comp.mask_abslines = np.array(mask_abslines_aux)
+
             key = comp.name
             out_dict['cmps'][key] = comp.to_dict()
             out_dict['cmps'][key]['zcomp'] = comp.zcomp
@@ -409,7 +423,7 @@ L         : toggle between displaying/hiding labels of currently
             out_dict['cmps'][key]['Reliability'] = str(comp.attrib['Reliability'])
             out_dict['cmps'][key]['Comment'] = str(comp.comment)
             out_dict['cmps'][key]['mask_abslines'] = comp.mask_abslines
-        # Write bad goo/pixels out
+        # Write bad/good pixels out
         # good_pixels = np.where(self.velplot_widg.spec.good_pixels == 1)[0]
         # if len(good_pixels) > 0:
         #     out_dict['good_pixels'] = list(good_pixels)
@@ -1444,7 +1458,9 @@ def mask_comp_lines(comp, min_ew = 0.003*u.AA, verbose=False):
                       'masking out.'.format(comp.name, line.name, ew.to('AA').value, min_ew.to('AA').value, comp.name))
             comp.mask_abslines[ii] = 0
         else:  # line is strong enough, do not mask out
-            pass
+            if comp.mask_abslines[ii] == 0: # if it already masked out, unmask it
+                comp.mask_abslines[ii] = 2
+
     # Sanity check
     if np.sum(comp.mask_abslines) == 0:
         print('Warning: Comp {} does not have any line with EW>{} A! You should consider a '
