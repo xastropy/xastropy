@@ -12,7 +12,6 @@ from PyQt4 import QtCore
 
 # Matplotlib Figure object
 
-from astropy.units import Quantity
 from astropy import units as u
 from astropy.coordinates import SkyCoord
 
@@ -22,7 +21,6 @@ from linetools.spectra.xspectrum1d import XSpectrum1D
 from linetools.spectra import convolve as lsc
 import linetools.spectra.io as lsi
 from linetools.spectralline import AbsLine
-from linetools.guis import line_widgets as ltgl
 from linetools.guis import utils as ltgu
 from linetools.guis import simple_widgets as ltgsm
 from linetools.guis import spec_widgets as ltgsp
@@ -30,7 +28,6 @@ from linetools import utils as ltu
 
 #from pyigm.abssys.lls import LLSSystem
 from pyigm.abssys.dla import DLASystem
-from pyigm.abssys import lls as igmlls
 
 from xastropy.xutils import xdebug as xdb
 from xastropy.xguis import spec_widgets as xspw
@@ -651,10 +648,10 @@ def run_fitdla(*args, **kwargs):
 
     parser = argparse.ArgumentParser(description='Parser for XFitLLSGUI')
     parser.add_argument("in_file", type=str, help="Spectral file")
+    parser.add_argument("zqso", type=float, help="Use QSO template with zqso")
     parser.add_argument("-out_file", type=str, help="Output LLS Fit file")
     parser.add_argument("-smooth", type=float, help="Smoothing (pixels)")
     parser.add_argument("-dla_fit_file", type=str, help="Input LLS Fit file")
-    parser.add_argument("-zqso", type=float, help="Use QSO template with zqso")
 
     if len(args) == 0:
         pargs = parser.parse_args()
@@ -687,11 +684,11 @@ def run_fitdla(*args, **kwargs):
     except AttributeError:
         smooth=3.
 
-    # Smoothing parameter
-    try:
-        zqso = pargs.zqso
-    except AttributeError:
-        zqso=None
+    # Quasar redshift (currently required)
+    #try:
+    zqso = pargs.zqso
+    #except AttributeError:
+    #    zqso=None
 
     app = QtGui.QApplication(sys.argv)
     gui = XFitDLAGUI(pargs.in_file,outfil=outfil,smooth=smooth,
