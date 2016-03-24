@@ -17,6 +17,7 @@ from astropy import units as u
 
 from linetools.guis import line_widgets as ltgl
 from linetools.isgm import utils as ltiu
+#from linetools.guis import spec_widgets as lspw
 
 from xastropy.xutils import xdebug as xdb
 from xastropy.xguis import spec_widgets as xspw

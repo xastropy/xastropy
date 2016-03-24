@@ -236,8 +236,8 @@ class VelPlotWidget(QtGui.QWidget):
         #QtCore.pyqtRestoreInputHook()
 
         self.psdict = {} # Dict for spectra plotting
-        self.psdict['xmnx'] = self.vmnx.value # Too much pain to use units with this
-        self.psdict['ymnx'] = [-0.1, 1.1]
+        self.psdict['x_minmax'] = self.vmnx.value # Too much pain to use units with this
+        self.psdict['y_minmax'] = [-0.1, 1.1]
         self.psdict['nav'] = ltgu.navigate(0,0,init=True)
 
         # Status Bar?
@@ -283,8 +283,8 @@ class VelPlotWidget(QtGui.QWidget):
 
     # Load them up for display
     def init_lines(self):
-        wvmin = np.min(self.spec.dispersion)
-        wvmax = np.max(self.spec.dispersion)
+        wvmin = np.min(self.spec.wavelength)
+        wvmax = np.max(self.spec.wavelength)
         #
         wrest = self.llist[self.llist['List']].wrest
         wvobs = (1+self.z) * wrest
@@ -392,7 +392,7 @@ class VelPlotWidget(QtGui.QWidget):
             self.z = newz
             self.abs_sys.zabs = newz
             # Drawing
-            self.psdict['xmnx'] = self.vmnx.value
+            self.psdict['x_minmax'] = self.vmnx.value
 
         # Single line command
         if event.key in ['1','2','B','U','L','N','V','A', 'x', 'X',
@@ -516,7 +516,7 @@ class VelPlotWidget(QtGui.QWidget):
         except ValueError:
             return
         if event.button == 1: # Draw line
-            self.ax.plot( [event.xdata,event.xdata], self.psdict['ymnx'], ':', color='green')
+            self.ax.plot( [event.xdata,event.xdata], self.psdict['y_minmax'], ':', color='green')
             self.on_draw(replot=False) 
     
             # Print values
@@ -569,7 +569,7 @@ class VelPlotWidget(QtGui.QWidget):
                 self.ax.plot( [0., 0.], [-1e9, 1e9], ':', color='gray')
                 # Velocity
                 wvobs = (1+self.z) * wrest
-                velo = (self.spec.dispersion/wvobs - 1.)*const.c.to('km/s')
+                velo = (self.spec.wavelength/wvobs - 1.)*const.c.to('km/s')
                 
                 # Plot
                 self.ax.plot(velo, self.spec.flux, 'k-',drawstyle='steps-mid')
@@ -598,19 +598,19 @@ class VelPlotWidget(QtGui.QWidget):
                 #QtCore.pyqtRemoveInputHook()
                 #xdb.set_trace()
                 #QtCore.pyqtRestoreInputHook()
-                self.ax.set_xlim(self.psdict['xmnx'])
+                self.ax.set_xlim(self.psdict['x_minmax'])
 
                 # Rescale?
                 if (rescale is True) & (self.norm is False):
-                    gdp = np.where( (velo.value > self.psdict['xmnx'][0]) &
-                                    (velo.value < self.psdict['xmnx'][1]))[0]
+                    gdp = np.where( (velo.value > self.psdict['x_minmax'][0]) &
+                                    (velo.value < self.psdict['x_minmax'][1]))[0]
                     if len(gdp) > 5:
                         per = xstats.basic.perc(self.spec.flux[gdp])
                         self.ax.set_ylim((0., 1.1*per[1]))
                     else:
-                        self.ax.set_ylim(self.psdict['ymnx'])
+                        self.ax.set_ylim(self.psdict['y_minmax'])
                 else:
-                    self.ax.set_ylim(self.psdict['ymnx'])
+                    self.ax.set_ylim(self.psdict['y_minmax'])
 
                 # Fonts
                 xputils.set_fontsize(self.ax,6.)
@@ -694,8 +694,8 @@ class AODMWidget(QtGui.QWidget):
 
 
         self.psdict = {} # Dict for spectra plotting
-        self.psdict['xmnx'] = self.vmnx.value # Too painful to use units here
-        self.psdict['ymnx'] = [-0.1, 1.1]
+        self.psdict['x_minmax'] = self.vmnx.value # Too painful to use units here
+        self.psdict['y_minmax'] = [-0.1, 1.1]
         self.psdict['nav'] = ltgu.navigate(0,0,init=True)
 
         # Create the mpl Figure and FigCanvas objects. 
@@ -742,7 +742,7 @@ class AODMWidget(QtGui.QWidget):
         except ValueError:
             return
         if event.button == 1: # Draw line
-            self.ax.plot( [event.xdata,event.xdata], self.psdict['ymnx'], ':', color='green')
+            self.ax.plot( [event.xdata,event.xdata], self.psdict['y_minmax'], ':', color='green')
             self.on_draw()
     
             # Print values
@@ -763,9 +763,9 @@ class AODMWidget(QtGui.QWidget):
 
             # Velocity
             wvobs = (1+self.z) * iwrest
-            velo = (self.spec.dispersion/wvobs - 1.)*const.c.to('km/s')
-            gdp = np.where((velo.value > self.psdict['xmnx'][0]) &
-                           (velo.value < self.psdict['xmnx'][1]))[0]
+            velo = (self.spec.wavelength/wvobs - 1.)*const.c.to('km/s')
+            gdp = np.where((velo.value > self.psdict['x_minmax'][0]) &
+                           (velo.value < self.psdict['x_minmax'][1]))[0]
 
             # Normalize?
             if self.norm is False:
@@ -794,13 +794,13 @@ class AODMWidget(QtGui.QWidget):
         self.ax.plot( [0., 0.], [-1e29, 1e29], ':', color='gray')
 
         # Reset window limits
-        self.ax.set_xlim(self.psdict['xmnx'])
+        self.ax.set_xlim(self.psdict['x_minmax'])
         if rescale:
-            self.psdict['ymnx'] = [0.05*ymx, ymx*1.1]
+            self.psdict['y_minmax'] = [0.05*ymx, ymx*1.1]
         #QtCore.pyqtRemoveInputHook()
         #xdb.set_trace()
         #QtCore.pyqtRestoreInputHook()
-        self.ax.set_ylim(self.psdict['ymnx'])
+        self.ax.set_ylim(self.psdict['y_minmax'])
 
         # Draw
         self.canvas.draw()
