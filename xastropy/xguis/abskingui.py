@@ -17,6 +17,7 @@ from astropy import units as u
 
 from linetools.guis import line_widgets as ltgl
 from linetools.isgm import utils as ltiu
+#from linetools.guis import spec_widgets as lspw
 
 from xastropy.xutils import xdebug as xdb
 from xastropy.xguis import spec_widgets as xspw
@@ -31,9 +32,10 @@ analysis:
 1.  Inspect the velocity plots.
 2.  Identify the best low-ion transition for the analysis.
   a. High S/N
-  b. Not saturated (or just barely)
-  c. Preferably SiII, SII, ZnII (i.e. not refractory)
+  b. Strong, but not saturated (or just barely)
+  c. Preferably SiII, SII, ZnII, MgII (i.e. highly not refractory)
 3.  Hit "^" on the line for a low-ion kinematic tracer
+  a.  Adjust velocity limits if need be (1, 2)
 4.  Hit "&" on the line for a high-ion kinematic tracer
 '''
 
@@ -43,7 +45,7 @@ class AbsKinGui(QtGui.QDialog):
     """
     def __init__(self, ispec, z=None, parent=None, llist=None, norm=True,
                  vmnx=[-300., 300.]*u.km/u.s, abs_sys=None, outfil='dum_kin.json',
-                 sel_wv=None):
+                 sel_wv=None, name=''):
         """
         spec : Filename or Spectrum1D
         Norm : Bool (False)
@@ -68,6 +70,9 @@ class AbsKinGui(QtGui.QDialog):
         self.sel_wv = sel_wv
 
         # Grab the pieces and tie together
+        newfont = QtGui.QFont("Times", 10, QtGui.QFont.Bold)
+        sys_label = QtGui.QLabel('Name: \n {:s}'.format(name))
+        sys_label.setFont(newfont)
         self.vplt_widg = xspw.VelPlotWidget(ispec, abs_sys=self.abs_sys, llist=llist,
                                             vmnx=self.vmnx, z=self.z, norm=self.norm)
         self.pltline_widg = ltgl.PlotLinesWidget(init_llist=self.vplt_widg.llist,
@@ -111,6 +116,7 @@ class AbsKinGui(QtGui.QDialog):
 
         # Layout
         vbox = QtGui.QVBoxLayout()
+        vbox.addWidget(sys_label)
         vbox.addWidget(self.pltline_widg)
         vbox.addWidget(self.slines)
         vbox.addWidget(wbtn)

@@ -100,7 +100,7 @@ def get_coord(targ_file, radec=None):
         if len(targ_file) != 3:
             return -1
         # Manipulate
-        ras, decs = x_radec.dtos1((targ_file[1], targ_file[2]))
+        ras, decs = x_r.dtos1((targ_file[1], targ_file[2]))
         # Generate the Table
         ra_tab = QTable( [ [targ_file[0]], [ras], [decs] ], names=('Name','RA','DEC') )
     else:
@@ -108,8 +108,8 @@ def get_coord(targ_file, radec=None):
 
     # Add dummy columns for decimal degrees and EPOCH
     nrow = len(ra_tab)
-    col_RAD = Column(name='RAD', data=np.zeros(nrow), unit=u.degree)
-    col_DECD = Column(name='DECD', data=np.zeros(nrow), unit=u.degree)
+    col_RAD = Column(name='RAD', data=np.zeros(nrow), unit=astrou.degree)
+    col_DECD = Column(name='DECD', data=np.zeros(nrow), unit=astrou.degree)
     col_EPOCH = Column(name='EPOCH', data=np.zeros(nrow))
     ra_tab.add_columns( [col_RAD, col_DECD, col_EPOCH] )
     # Assume 2000 for now
@@ -123,7 +123,7 @@ def get_coord(targ_file, radec=None):
 #  imsize is in arcmin
 def main(inp, survey='2r', radec=None, deci=None, fpath=None, show_circ=True,
          EPOCH=0., DSS=None, BW=False, imsize=5.*astrou.arcmin, show_spec=False,
-         OUT_TYPE='PDF'):
+         OUT_TYPE='PDF', show_another=None):
     '''
     Parameters:
     ---------
@@ -142,6 +142,8 @@ def main(inp, survey='2r', radec=None, deci=None, fpath=None, show_circ=True,
        B&W image?
     show_circ: bool (True)
        Show a yellow circle on the target
+    show_another : tuple, optional
+       RA,DEC for another target to circle (e.g. offset star)
     show_spec: bool (False)
        Try to grab and show an SDSS spectrum 
     imsize: Quantity, optional
@@ -165,7 +167,8 @@ def main(inp, survey='2r', radec=None, deci=None, fpath=None, show_circ=True,
 
     # Read in the Target list
     if isinstance(inp,basestring):
-        ra_tab = get_coord(targ_file, radec=radec)
+        raise NotImplementedError("No longer implemented")
+        #ra_tab = get_coord(targ_file, radec=radec)
     else:
         ira_tab = {}
         ira_tab['Name'] = inp[0]
@@ -265,19 +268,47 @@ def main(inp, survey='2r', radec=None, deci=None, fpath=None, show_circ=True,
         plt.text(-imsize/2.-xpos, 0., 'EAST', rotation=90.,fontsize=20)
         plt.text(0.,imsize/2.+ypos, 'NORTH', fontsize=20, horizontalalignment='center')
 
-        # Title
-        plt.text(0.5,1.24, str(nm), fontsize=32, 
-            horizontalalignment='center',transform=ax.transAxes)
-        plt.text(0.5,1.16, 'RA (J2000) = '+str(obj['RAS']), fontsize=28, 
-            horizontalalignment='center',transform=ax.transAxes)
-        plt.text(0.5,1.10, 'DEC (J2000) = '+str(obj['DECS']), fontsize=28, 
-            horizontalalignment='center',transform=ax.transAxes)
         #import pdb; pdb.set_trace()
 
         # Circle
         if show_circ:
             circle=plt.Circle((0,0),cradius,color='y', fill=False)
             plt.gca().add_artist(circle)
+
+        # Second Circle
+        if show_another is not None:
+            # Coordinates
+            cobj = x_r.to_coord((obj['RA'],obj['DEC']))
+            canother = x_r.to_coord(show_another)
+            # Offsets
+            off, PA = x_r.offsets(cobj, canother)
+            xanother = -1*off[0].to('arcmin').value
+            yanother = off[1].to('arcmin').value
+            square=matplotlib.patches.Rectangle((xanother-cradius,
+                                                 yanother-cradius),
+                                                cradius*2,cradius*2,color='cyan', fill=False)
+            plt.gca().add_artist(square)
+            plt.text(0.5, 1.24, str(nm), fontsize=32,
+                 horizontalalignment='center',transform=ax.transAxes)
+            plt.text(0.5, 1.18, 'RA (J2000) = '+str(obj['RAS'])+
+                     '  DEC (J2000) = '+str(obj['DECS']), fontsize=22,
+                     horizontalalignment='center',transform=ax.transAxes)
+            plt.text(0.5, 1.12, 'RA(offset) = {:s}  DEC(offset) = {:s}'.format(
+                     canother.ra.to_string(unit=astrou.hour,pad=True,sep=':', precision=2),
+                     canother.dec.to_string(pad=True, alwayssign=True, sep=':', precision=1)),
+                     fontsize=22, horizontalalignment='center',transform=ax.transAxes,
+                     color='blue')
+            plt.text(0.5, 1.06, 'RA(offset to obj) = {:g}  DEC(offset to obj) = {:g}'.format(
+                     -1*off[0].to('arcsec'), -1*off[1].to('arcsec')),
+                      fontsize=18, horizontalalignment='center',transform=ax.transAxes)
+        else:
+            # Title
+            plt.text(0.5,1.24, str(nm), fontsize=32,
+                     horizontalalignment='center',transform=ax.transAxes)
+            plt.text(0.5,1.16, 'RA (J2000) = '+str(obj['RAS']), fontsize=28,
+                     horizontalalignment='center',transform=ax.transAxes)
+            plt.text(0.5,1.10, 'DEC (J2000) = '+str(obj['DECS']), fontsize=28,
+                     horizontalalignment='center',transform=ax.transAxes)
 
         # Spectrum??
         if show_spec:
