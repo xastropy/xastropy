@@ -121,7 +121,7 @@ def plot_1d_arrays(*args,**kwargs):
                 plt.scatter(args[0].flatten(),args[kk].flatten(), **kwargs)
 
     if plt_dict['flg_two'] == 1:
-        plt.plot(plt_dict['xtwo'], plt_dict['ytwo'], plt_dict['mtwo'], **kwargs)
+        plt.plot(plt_dict['xtwo'], plt_dict['ytwo'], plt_dict['mtwo'], color='red', **kwargs)
 
     # Limits
     if plt_dict['xrng'] is not None:
