@@ -17,7 +17,9 @@ import numpy as np
 import os, imp
 from xastropy.xutils import xdebug as xdb
 from xastropy.igm import tau_eff
-#from xastropy.igm.fN.model import fN_Model
+
+from pyigm.fN.fnmodel import FNModel
+from pyigm.fN import tau_eff as pyiteff
 
 from astropy.io import fits
 
@@ -281,12 +283,12 @@ def tst_fn_data(fN_model=None, model_two=None, data_list=None, outfil=None):
     #print(fN_model.param)
     if fN_model is not None: 
         xplt = 12.01 + 0.01*np.arange(1100)
-        yplt = fN_model.eval(xplt, 2.4)
+        yplt = fN_model.evaluate(xplt, 2.4)
         main.plot(xplt,yplt,'-',color='black')
         print(xplt[0],yplt[0])
     if model_two is not None: 
         xplt = 12.01 + 0.01*np.arange(1100)
-        yplt = model_two.eval(xplt, 2.4)
+        yplt = model_two.evaluate(xplt, 2.4)
         main.plot(xplt,yplt,'-',color='gray')
         
 
@@ -322,8 +324,8 @@ def tst_fn_data(fN_model=None, model_two=None, data_list=None, outfil=None):
         # Plot
         inset.errorbar(1, teff, sig_teff, fmt='_', capthick=2)
         # Model
-        if fN_model != None: 
-            model_teff = tau_eff.ew_teff_lyman(1215.6701*(1+fN_cs[itau].zeval), fN_cs[itau].zeval+0.1,
+        if fN_model is not None:
+            model_teff = pyiteff.lyman_ew(1215.6701*(1+fN_cs[itau].zeval), fN_cs[itau].zeval+0.1,
                                         fN_model, NHI_MIN=fN_cs[itau].data['NHI_MNX'][0],
                                         NHI_MAX=fN_cs[itau].data['NHI_MNX'][1])
             inset.plot(1, model_teff, 'ko')
@@ -342,7 +344,7 @@ def tst_fn_data(fN_model=None, model_two=None, data_list=None, outfil=None):
                     fmt='_', capthick=2)
         # Model
         if fN_model != None:
-            lX = fN_model.calc_lox(fN_cs[iLLS].zeval,
+            lX = fN_model.calculate_lox(fN_cs[iLLS].zeval,
                                 17.19+np.log10(fN_cs[iLLS].data['TAU_LIM']), 22.) 
             inset.plot(2, lX, 'ko')
 
@@ -364,7 +366,7 @@ def tst_fn_data(fN_model=None, model_two=None, data_list=None, outfil=None):
         inset2.set_ylabel('(Mpc)')
 
         # Model
-        if fN_model != None:
+        if fN_model is not None:
             #fN_model.zmnx = (0.1, 20.) # Reset for MFP calculation
             mfp = fN_model.mfp(fN_cs[iMFP].zeval)
             inset2.plot(3, mfp, 'ko')
@@ -394,8 +396,9 @@ if __name__ == '__main__':
     print(all_fN_cs)
     for fN_c in all_fN_cs: print(fN_c)
 
-    # Plot
-    tst_fn_data()
+    # Plot with model
+    fnmodel = FNModel.default_model()
+    tst_fn_data(fN_model=fnmodel)
     xdb.set_trace()
     print('fN.data: All done testing..')
 

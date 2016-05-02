@@ -22,10 +22,24 @@ from astropy.table import QTable, Table, Column
 
 from ginga.util import grc
 
-#from xastropy.xutils import xdebug as xdb
+#from xastropy.xutils import xdebug as xdb  # CANNOT KEEP THIS ON
+
+def show_img(img, host='localhost', port=9000, name='image', **kwargs):
+    """ Show a numpy image in the Ginga display
+    Parameters
+    ----------
+    img
+    kwargs
+
+    Returns
+    -------
+
+    """
+    viewer = grc.RemoteClient(host, port)
+    ch = viewer.channel('Image')
+    ch.load_np(name, img, 'fits', {})
 
 
-#
 def show_fits(fits_file, host='localhost', port=9000, **kwargs):
     ''' Read a binary FITS file into an active Ginga window
 
@@ -46,6 +60,7 @@ def show_fits(fits_file, host='localhost', port=9000, **kwargs):
     # Check for file
     if not os.path.isfile(fil):
         raise ValueError('File={:s} not found!'.format(fil))
+    xdb.set_trace()  # THIS NO LONGER WORKS
     # Connect to ginga RC (should have error checking here)
     client = grc.RemoteClient(host, port)
     # Connect to ginga widget
@@ -56,10 +71,11 @@ def show_fits(fits_file, host='localhost', port=9000, **kwargs):
     # Execute
     res = method(*args, **kwargs)
 
+'''
 def show_img(img,tmp_dir='./',tmp_file='tmp_ginga.fits', **kwargs):
-    '''Push an image to an Ginga window
+    """Push an image to an Ginga window
     Currently uses the kludge of writing a temp file
-    '''
+    """
     # Generate filename with full path
     if tmp_file[0] != '/':
         kludge_fil = os.getcwd()+'/'+tmp_dir+tmp_file
@@ -76,3 +92,4 @@ def show_img(img,tmp_dir='./',tmp_file='tmp_ginga.fits', **kwargs):
     hdulist.writeto(kludge_fil,clobber=True)
     # Show
     show_fits(kludge_fil, **kwargs)
+'''
