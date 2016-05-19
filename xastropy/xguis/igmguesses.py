@@ -1595,6 +1595,8 @@ def run_gui(*args, **kwargs):
         n_max_tuple = pargs.n_max_tuple
     except AttributeError:
         n_max_tuple = 5
+    if n_max_tuple is None:
+        n_max_tuple = 5
 
     # min_strength
     try:
