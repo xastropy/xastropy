@@ -68,7 +68,7 @@ def plot_1d_arrays(*args,**kwargs):
 
     # Scatter plot?
     if ('scatter' in kwargs):
-        kwargs['marker'] = 'o'
+        #kwargs['marker'] = 'o'
         kwargs.pop('scatter')
         plt_dict['flg_scatt'] = 1
     else:
@@ -118,7 +118,7 @@ def plot_1d_arrays(*args,**kwargs):
             if plt_dict['flg_scatt'] == 0:
                 plt.plot(args[0].flatten(),args[kk].flatten(), **kwargs)
             else:
-                plt.scatter(args[0].flatten(),args[kk].flatten(), **kwargs)
+                plt.scatter(args[0].flatten(),args[kk].flatten(), marker='o', **kwargs)
 
     if plt_dict['flg_two'] == 1:
         plt.plot(plt_dict['xtwo'], plt_dict['ytwo'], plt_dict['mtwo'], color='red', **kwargs)
@@ -194,7 +194,7 @@ def plot_hist(*args,**kwargs):
 
     # Ax
     if not 'ax' in kwargs:
-        ax = plt
+        ax = plt.gca()
     else:
         ax = kwargs['ax']
     
@@ -220,10 +220,7 @@ def plot_hist(*args,**kwargs):
         ax.bar(edges[:-1], hist, width=kwargs['binsz'], alpha=kwargs['alpha'])
         # Labels
         if 'xlabel' in kwargs:
-            try:
-                ax.set_xlabel(kwargs['xlabel'])
-            except: 
-                ax.xlabel(kwargs['xlabel'])
+            ax.set_xlabel(kwargs['xlabel'])
         if 'xmnx' in kwargs:
             ax.set_xlim(kwargs['xmnx'])
     else: 

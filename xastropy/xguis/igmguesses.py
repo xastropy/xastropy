@@ -31,6 +31,7 @@ from matplotlib.figure import Figure
 from astropy.units import Quantity
 from astropy import units as u
 from astropy import constants as const
+from astropy.coordinates import SkyCoord
 
 from linetools.analysis import voigt as lav
 from linetools.lists.linelist import LineList
@@ -52,6 +53,7 @@ xa_path = imp.find_module('xastropy')[1]
 c_mks = const.c.to('km/s').value
 COLOR_MODEL = '#999966'
 COLORS = ['#0066FF','#339933','#CC3300','#660066','#FF9900','#B20047']
+zero_coord = SkyCoord(ra=0.*u.deg, dec=0.*u.deg)  # Coords
 
 # GUI for fitting LLS in a spectrum
 class IGMGuessesGui(QtGui.QMainWindow):
@@ -160,6 +162,8 @@ L         : toggle between displaying/hiding labels of currently
 
         # Load spectrum
         spec, spec_fil = ltgu.read_spec(ispec)
+        # Should do coordiantes properly eventually
+        self.coord = zero_coord
         # Normalize
         if spec.co_is_set:
             spec.normed = True
@@ -347,10 +351,15 @@ L         : toggle between displaying/hiding labels of currently
         for ii, key in enumerate(igmg_dict['cmps'].keys()):
 
             if 'lines' in igmg_dict['cmps'][key].keys():
-                comp = AbsComponent.from_dict(igmg_dict['cmps'][key], skip_vel=True)
+                comp = AbsComponent.from_dict(igmg_dict['cmps'][key], linelist=self.llist['ISM'], coord=self.coord,
+                                              chk_sep=False, chk_data=False, chk_vel=False)
                 comp_init_attrib(comp)
                 comp.init_wrest = igmg_dict['cmps'][key]['wrest']*u.AA
-                comp.mask_abslines = igmg_dict['cmps'][key]['mask_abslines']
+                try:
+                    comp.mask_abslines = igmg_dict['cmps'][key]['mask_abslines']
+                except KeyError:  # For compatatbility
+                    warnings.warn("Setting all abslines to 2")
+                    comp.mask_abslines = 2*np.ones(len(comp._abslines)).astype(int)
                 self.velplot_widg.add_component(comp, update_model=False)
                 # ncomp += 1
                 # print('new', ncomp)
