@@ -136,17 +136,16 @@ def getimg(ira, idec, imsize, BW=False, DSS=None):
         url = dsshttp(ra,dec,imsize) # DSS
 
     # Request
-    rtv = requests.get(url) 
+    rtv = requests.get(url)
 
-    # Query for photometry
+    # Query for photometry :: Requires updated SDSS core
     coord = SkyCoord(ra=ra*u.degree, dec=dec*u.degree)
     phot = SDSS.query_region(coord, radius=0.02*u.deg)
-
     if phot is None:
         print('getimg: Pulling from DSS instead of SDSS')
         BW = 1
         url = dsshttp(ra,dec,imsize) # DSS
-        rtv = requests.get(url) 
+        rtv = requests.get(url)
 
     img = Image.open(StringIO(rtv.content))
 
