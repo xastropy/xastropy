@@ -53,7 +53,7 @@ class XFitDLAGUI(QtGui.QMainWindow):
         04-Mar-2016 by JXP
     """
     def __init__(self, ispec, parent=None, dla_fit_file=None,
-                 zqso=None, outfil=None, smooth=3., dw=0.1,
+                 zqso=None, outfil=None, smooth=None, dw=0.1,
                  skip_wveval=False, norm=True):
         QtGui.QMainWindow.__init__(self, parent)
         """
@@ -61,7 +61,7 @@ class XFitDLAGUI(QtGui.QMainWindow):
         dla_fit_file: str, optional
           Name of the LLS fit file to input
         smooth : float, optional
-          Number of pixels to smooth on (FWHM)
+          Number of pixels to smooth on (FWHM).  Will not smooth if 0.
         dw : float, optional
           Pixel width in Angstroms for the wavelength array used to
           generate optical depths. Default is 0.1.
@@ -86,7 +86,10 @@ class XFitDLAGUI(QtGui.QMainWindow):
             self.outfil = outfil
         self.count_dla = 0
         self.dla_model = None
-        self.smooth = None
+        if smooth is None:
+            self.smooth = 0.
+        else:
+            self.smooth = smooth
         self.base_continuum = None
         self.all_forest = []
         self.flag_write = False
@@ -143,8 +146,6 @@ class XFitDLAGUI(QtGui.QMainWindow):
         # Full Model (LLS+continuum)
         self.full_model = XSpectrum1D.from_tuple((
             spec.wavelength,np.ones(len(spec.wavelength))))
-        if self.smooth is None:
-            self.smooth = smooth
 
         # Initialize as needed
         if dla_fit_file is not None:
@@ -329,7 +330,7 @@ class XFitDLAGUI(QtGui.QMainWindow):
 
         # Flux and smooth
         flux = np.exp(-1. * all_tau_model)
-        if self.smooth > 0:
+        if self.smooth > 0.:
             if not self.skip_wveval:
                 mult = np.median(np.diff(wa.value)) / self.dw
                 flux = lsc.convolve_psf(flux, self.smooth * mult)
@@ -368,12 +369,12 @@ class XFitDLAGUI(QtGui.QMainWindow):
             return idx
 
     def on_key(self,event):
-        if event.key in ['1','2']: # Modify knots
-            if event.key == '1':  # Add a knot
+        if event.key in ['a','m']: # Modify knots
+            if event.key == 'a':  # Add a knot
                 x, y = event.xdata, event.ydata
-                self.conti_dict['knots'].append((x, float(y)))
+                self.conti_dict['knots'].append([x, float(y)])
                 self.conti_dict['knots'].sort()
-            elif event.key == '2':
+            elif event.key == 'm':
                 contx,conty = zip(*self.spec_widg.ax.transData.transform(
                         self.conti_dict['knots']))
                 sep = np.hypot(event.x - np.array(contx),
@@ -381,7 +382,7 @@ class XFitDLAGUI(QtGui.QMainWindow):
                 ind = np.argmin(sep)
                 #
                 x, y = event.xdata, event.ydata
-                self.conti_dict['knots'][ind] = x, float(y)
+                self.conti_dict['knots'][ind] = [x, float(y)]
                 self.conti_dict['knots'].sort()
             self.update_conti()
         elif event.key == 'A': # New DLA
@@ -392,7 +393,7 @@ class XFitDLAGUI(QtGui.QMainWindow):
             idx = self.get_sngl_sel_sys()
             if idx is None:
                 return
-            elif event.key == 'a': #Lya
+            elif event.key == 'c': # Center on Lya
                 self.abssys_widg.all_abssys[idx].zabs = event.xdata/1215.6700-1.
             elif event.key == 'g': # Move nearest line to cursor
                 wrest = event.xdata/(1+self.abssys_widg.all_abssys[idx].zabs)
@@ -483,7 +484,8 @@ class XFitDLAGUI(QtGui.QMainWindow):
         #QtCore.pyqtRemoveInputHook()
         #import pdb; pdb.set_trace()
         #QtCore.pyqtRestoreInputHook()
-        self.spec_widg.ax.scatter(xknot, yknot, marker='o', color='pink')
+        self.spec_widg.ax.scatter(xknot, yknot, marker='o', color='pink',
+                                  zorder=10)
         # Draw
         self.spec_widg.canvas.draw()
 
@@ -678,12 +680,6 @@ def run_fitdla(*args, **kwargs):
     except AttributeError:
         dla_fit_file=None
 
-    # Smoothing parameter
-    try:
-        smooth = pargs.smooth
-    except AttributeError:
-        smooth=3.
-
     # Quasar redshift (currently required)
     #try:
     zqso = pargs.zqso
@@ -691,7 +687,7 @@ def run_fitdla(*args, **kwargs):
     #    zqso=None
 
     app = QtGui.QApplication(sys.argv)
-    gui = XFitDLAGUI(pargs.in_file,outfil=outfil,smooth=smooth,
+    gui = XFitDLAGUI(pargs.in_file,outfil=outfil,smooth=pargs.smooth,
         dla_fit_file=dla_fit_file, zqso=zqso)
     gui.show()
     app.exec_()
