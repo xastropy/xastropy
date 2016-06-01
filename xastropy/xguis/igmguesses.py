@@ -640,7 +640,7 @@ class IGGVelPlotWidget(QtGui.QWidget):
                 vlim = self.avmnx - 0.5 * (self.avmnx[1] + self.avmnx[0])
             # Create component from lines available in the ISM LineList, it makes more sense
             linelist = self.llist['ISM']
-            new_comp = create_component(zcomp, inp, linelist, vlim=vlim)
+            new_comp = create_component(zcomp, inp, linelist, vlim=vlim, spec=self.spec)
 
         # Fit
         #print('doing fit for {:g}'.format(wrest))
@@ -1419,13 +1419,21 @@ class ComponentListWidget(QtGui.QWidget):
         self.on_list_change()
 
 
-def create_component(z, wrest, linelist, vlim=[-300.,300]*u.km/u.s):
+def create_component(z, wrest, linelist, vlim=[-300.,300]*u.km/u.s,
+                     spec=None):
     # Transitions
     all_trans = linelist.all_transitions(wrest)
     if isinstance(all_trans, dict):
         all_trans = [all_trans]
     abslines = []
+    if spec is not None:
+        wvmin, wvmax = spec.wvmin, spec.wvmax
+    else:
+        wvmin, wvmax = 0.*u.AA, 1e9*u.AA
     for trans in all_trans:
+        # Restrict to those with spectral coverage!
+        if (trans['wrest']*(1+z) < wvmin) or (trans['wrest']*(1+z) > wvmax):
+            continue
         aline = AbsLine(trans['wrest'])  #, linelist=self.linelist))
         aline.attrib['z'] = z
         aline.analy['vlim'] = vlim

@@ -44,7 +44,7 @@ class AbsKinGui(QtGui.QDialog):
     """ GUI to analyze absorption lines for future kinematic analysis
     """
     def __init__(self, ispec, z=None, parent=None, llist=None, norm=True,
-                 vmnx=[-300., 300.]*u.km/u.s, abs_sys=None, outfil='dum_kin.json',
+                 vmnx=[-300., 300.]*u.km/u.s, abs_sys=None, outfil=None,
                  sel_wv=None, name=''):
         """
         spec : Filename or Spectrum1D
@@ -161,9 +161,6 @@ class AbsKinGui(QtGui.QDialog):
         self.vplt_widg.llist['show_line'] = select
         self.vplt_widg.idx_line = 0
         self.slines.selected = select
-        #QtCore.pyqtRemoveInputHook()
-        #xdb.set_trace()
-        #QtCore.pyqtRestoreInputHook()
         self.slines.on_list_change(llist[llist['List']])
 
     # Write
@@ -181,18 +178,27 @@ class AbsKinGui(QtGui.QDialog):
     # Write
     def write_out(self):
         # Add components
-        comps = ltiu.build_components_from_abslines(self.vplt_widg.abs_lines)
-        self.vplt_widg.abs_sys._components = comps
+        #comps = ltiu.build_components_from_abslines(self.vplt_widg.abs_lines)
+        #self.vplt_widg.abs_sys._components = comps
         # Dict
         adict = self.vplt_widg.abs_sys.to_dict()
+        if self.outfil is None:
+            outfil = 'tmp_abskin.json'
+            warnings.warn("Outfil not specified.  Using {:s}".format(outfil))
+        else:
+            outfil = self.outfil
 
-        with io.open(self.outfil, 'w', encoding='utf-8') as f:
+        QtCore.pyqtRemoveInputHook()
+        xdb.set_trace()
+        QtCore.pyqtRestoreInputHook()
+        print("Wrote abs_sys to {:s}".format(outfil))
+        with io.open(outfil, 'w', encoding='utf-8') as f:
             f.write(unicode(json.dumps(adict, sort_keys=True, indent=4,
                                        separators=(',', ': '))))
 
     # Write + Quit
     def write_quit(self):
-        #self.write_out()
+        self.write_out()
         self.flg_quit = 1
         self.abs_sys = self.vplt_widg.abs_sys
         self.done(1)
@@ -217,10 +223,10 @@ def main(*args, **kwargs):
     """
     import sys
     import argparse
-    from specutils import Spectrum1D
 
     parser = argparse.ArgumentParser(description='Parse for AbsKingGui')
     parser.add_argument("file", type=str, help="Spectral file")
+    parser.add_argument("-sysfile", type=str, help="System JSON file")
     parser.add_argument("-zsys", type=float, help="System Redshift")
     parser.add_argument("-outfil", type=str, help="Output filename")
     parser.add_argument("--un_norm", help="Spectrum is NOT normalized",
@@ -248,20 +254,15 @@ def main(*args, **kwargs):
     if pargs.un_norm:
         norm = False
 
-    # z
-    try:
-        zsys = pargs.zsys
-    except AttributeError:
-        zsys=None
-
-    # z
-    try:
-        outfil = pargs.outfil
-    except AttributeError:
-        outfil=None
+    # Read AbsSystem
+    from linetools.isgm.abssystem import GenericAbsSystem
+    if pargs.sysfile is not None:
+        abs_sys = GenericAbsSystem.from_json(pargs.sysfile, chk_vel=False)
+    else:
+        abs_sys = None
 
     app = QtGui.QApplication(sys.argv)
-    gui = AbsKinGui(pargs.file, z=zsys, norm=norm, outfil=outfil)
+    gui = AbsKinGui(pargs.file, z=pargs.zsys, norm=norm, abs_sys=abs_sys, outfil=pargs.outfil)
     gui.show()
     app.exec_()
 
