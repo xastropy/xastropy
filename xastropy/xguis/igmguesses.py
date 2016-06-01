@@ -121,6 +121,7 @@ H         : update to HI Lyman series LineList at current redshift
 A         : set limits for fitting an absorption component
             from cursor position (need to be pressed twice:
             once for each left and right limits)
+a         : Add a new component with the velocity range of the current
 1,2       : Modify velocity region of the component (left, right sides)
 S         : select an absorption component from cursor position
 D         : delete absorption component that is closest to the cursor
