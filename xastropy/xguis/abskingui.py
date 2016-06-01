@@ -177,9 +177,9 @@ class AbsKinGui(QtGui.QDialog):
 
     # Write
     def write_out(self):
-        # Add components
-        #comps = ltiu.build_components_from_abslines(self.vplt_widg.abs_lines)
-        #self.vplt_widg.abs_sys._components = comps
+        # Generate components
+        comps = ltiu.build_components_from_abslines(self.vplt_widg.abs_lines, chk_vel=False)
+        self.vplt_widg.abs_sys._components = comps
         # Dict
         adict = self.vplt_widg.abs_sys.to_dict()
         if self.outfil is None:
@@ -188,9 +188,9 @@ class AbsKinGui(QtGui.QDialog):
         else:
             outfil = self.outfil
 
-        QtCore.pyqtRemoveInputHook()
-        xdb.set_trace()
-        QtCore.pyqtRestoreInputHook()
+        #QtCore.pyqtRemoveInputHook()
+        #xdb.set_trace()
+        #QtCore.pyqtRestoreInputHook()
         print("Wrote abs_sys to {:s}".format(outfil))
         with io.open(outfil, 'w', encoding='utf-8') as f:
             f.write(unicode(json.dumps(adict, sort_keys=True, indent=4,
