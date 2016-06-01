@@ -121,6 +121,7 @@ H         : update to HI Lyman series LineList at current redshift
 A         : set limits for fitting an absorption component
             from cursor position (need to be pressed twice:
             once for each left and right limits)
+1,2       : Modify velocity region of the component (left, right sides)
 S         : select an absorption component from cursor position
 D         : delete absorption component that is closest to the cursor
             (the cursor has to be in the corresponding velocity window panel
@@ -240,6 +241,9 @@ L         : toggle between displaying/hiding labels of currently
         self.velplot_widg.init_lines()
         self.velplot_widg.on_draw(rescale=True, fig_clear=True)
         self.slines_widg.selected = self.llist['show_line']
+        #QtCore.pyqtRemoveInputHook()
+        #xdb.set_trace()
+        #QtCore.pyqtRestoreInputHook()
         self.slines_widg.on_list_change(self.llist[self.llist['List']])
 
         # Point MainWindow
@@ -263,10 +267,15 @@ L         : toggle between displaying/hiding labels of currently
         if transitions is not None:
             names = list(np.array(transitions['name']))
         else:
-            raise ValueError('There are no transitions available!')
-        self.llist['available'] = linelist.subset_lines(reset_data=True, subset=names)
-        # self.llist['show_line'] = np.arange(len(self.llist['available']._data)) # this is done in init_lines()
-        self.llist['List'] = 'available'
+            print('There are no transitions available!')
+            print('You will probably need to modify your redshift..')
+            names = []
+        if len(names) > 0:
+            self.llist['available'] = linelist.subset_lines(reset_data=True, subset=names)
+            self.llist['List'] = 'available'
+        else:
+            self.llist['List'] = 'Strong'
+
 
     def on_list_change(self):
         self.update_boxes()
@@ -561,13 +570,15 @@ class IGGVelPlotWidget(QtGui.QWidget):
         wvmin = self.spec.wvmin
         wvmax = self.spec.wvmax
         #
-        # QtCore.pyqtRemoveInputHook()
-        # xdb.set_trace()
-        # QtCore.pyqtRestoreInputHook()
+        #QtCore.pyqtRemoveInputHook()
+        #xdb.set_trace()
+        #QtCore.pyqtRestoreInputHook()
         wrest = self.llist[self.llist['List']].wrest
         wvobs = (1. + self.z) * wrest
-        gdlin = np.where( (wvobs > wvmin) & (wvobs < wvmax) )[0]
+        gdlin = np.where( (wvobs > wvmin) & (wvobs < wvmax))[0]
         self.llist['show_line'] = gdlin
+        if len(gdlin) == 0:
+            self.llist['show_line'] = np.array([0])
 
         # Update GUI
         self.parent.slines_widg.selected = self.llist['show_line']
@@ -766,14 +777,15 @@ class IGGVelPlotWidget(QtGui.QWidget):
             pass
 
         ## Fiddle with a Component
-        if event.key in ['N','n','v','V','<','>','R']:
+        if event.key in ['N','n','v','V','<','>','R','1','2']:
             if self.parent.fiddle_widg.component is None:
                 print('Need to generate a component first!')
                 return
+            comp = self.parent.fiddle_widg.component
             if event.key == 'N':
-                self.parent.fiddle_widg.component.attrib['logN'] += 0.05
+                comp.attrib['logN'] += 0.05
             elif event.key == 'n':
-                self.parent.fiddle_widg.component.attrib['logN'] -= 0.05
+                comp.attrib['logN'] -= 0.05
             elif event.key == 'v':
                 self.parent.fiddle_widg.component.attrib['b'] -= 5*u.km/u.s
             elif event.key == 'V':
@@ -785,6 +797,12 @@ class IGGVelPlotWidget(QtGui.QWidget):
 
             elif event.key == 'R': # Refit
                 self.fit_component(self.parent.fiddle_widg.component)
+            elif event.key == '1':
+                dvz_mks = c_mks * (self.z - comp.zcomp) / (1 + self.z)
+                comp.vlim[0] = (event.xdata + dvz_mks)*u.km/u.s
+            elif event.key == '2':
+                dvz_mks = c_mks * (self.z - comp.zcomp) / (1 + self.z)
+                comp.vlim[1] = (event.xdata + dvz_mks)*u.km/u.s
             # Updates (this captures them all and redraws)
             self.parent.fiddle_widg.update_component()
 
@@ -860,19 +878,6 @@ class IGGVelPlotWidget(QtGui.QWidget):
             self.parent.update_available_lines(linelist=self.llist['ISM'])
             self.idx_line = 0
             self.init_lines()
-        # if event.key == 'M':  # Plot molecules
-        #     self.llist['List'] = 'H2'
-        #     self.init_lines()
-        #     self.idx_line = 0
-
-        ## Velocity limits
-        unit = u.km/u.s
-        if event.key in ['1','2']:
-            if event.key == '1':
-                self.avmnx[0] = event.xdata*unit
-            elif event.key == '2':
-                self.avmnx[1] = event.xdata*unit
-            # todo: we need to update the fit with new edges here
 
         ## Add component
         if event.key == 'A': # Add to lines
@@ -884,11 +889,24 @@ class IGGVelPlotWidget(QtGui.QWidget):
                 self.wrest = wrest
             else:
                 self.avmnx = np.array([np.minimum(self.vtmp,event.xdata),
-                    np.maximum(self.vtmp,event.xdata)])*unit
+                    np.maximum(self.vtmp,event.xdata)])*u.km/u.s
                 self.add_component(wrest)
                 # Reset
                 self.flag_add = False
                 self.wrest = 0.
+        if event.key == 'a': # Add to lines using current vlim
+            if self.parent.fiddle_widg.component is None:
+                print('Need to generate a component first!')
+                return
+            comp = self.parent.fiddle_widg.component
+            dvz_mks = c_mks * (self.z - comp.zcomp) / (1 + self.z)
+            #QtCore.pyqtRemoveInputHook()
+            #xdb.set_trace()
+            #QtCore.pyqtRestoreInputHook()
+            self.wrest = wrest
+            self.avmnx = comp.vlim - dvz_mks*u.km/u.s
+            self.add_component(wrest)
+            self.wrest = 0.
 
         # Fiddle with analysis pixel mask
         if event.key in ['x','X']:
