@@ -629,8 +629,8 @@ class XFitDLAGUI(QtGui.QMainWindow):
         #QtCore.pyqtRestoreInputHook()
         clean_dict = ltu.jsonify(out_dict)
         with io.open(self.outfil, 'w', encoding='utf-8') as f:
-            f.write(unicode(json.dumps(clean_dict, sort_keys=True, indent=4,
-                separators=(',', ': '))))
+            f.write(json.dumps(clean_dict, sort_keys=True, indent=4,
+                separators=(',', ': ')))
         self.flag_write = True
 
     # Write + Quit
