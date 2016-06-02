@@ -14,6 +14,7 @@ from PyQt4 import QtCore
 
 from astropy import units as u
 from astropy.coordinates import SkyCoord
+from astropy.table import Table
 
 from linetools.analysis import continuum as laco
 from linetools.analysis import interp as laint
@@ -54,7 +55,7 @@ class XFitDLAGUI(QtGui.QMainWindow):
     """
     def __init__(self, ispec, parent=None, dla_fit_file=None,
                  zqso=None, outfil=None, smooth=None, dw=0.1,
-                 skip_wveval=False, norm=True):
+                 skip_wveval=False, norm=True, conti_file=None):
         QtGui.QMainWindow.__init__(self, parent)
         """
         ispec : Spectrum1D or specfil
@@ -71,6 +72,8 @@ class XFitDLAGUI(QtGui.QMainWindow):
         norm : bool, optional
           Whether to normalize the spectrum by dividing by the
           continuum (default True).
+        conti_file : str, optional
+          ASCII file containing the continuum knots (wave, flux)
         """
 
         # Build a widget combining several others
@@ -133,10 +136,17 @@ class XFitDLAGUI(QtGui.QMainWindow):
         if dla_fit_file is not None:
             self.init_DLA(dla_fit_file,spec)
         else:
-            if zqso is not None:
-                co, knots = laco.find_continuum(spec, redshift=self.zqso)
+            if conti_file is not None:
+                # Read continuum
+                cspec = lsi.readspec(conti_file)
+                if not cspec.sig_is_set:
+                    cspec.sig = 0.1*np.median(cspec.flux)
             else:
-                co, knots = laco.find_continuum(spec, kind='default')
+                cspec = spec
+            if zqso is not None:
+                co, knots = laco.find_continuum(cspec, redshift=self.zqso)
+            else:
+                co, knots = laco.find_continuum(cspec, kind='default')
             self.conti_dict = dict(co=co, knots=knots)
 
         self.update_conti()
@@ -654,6 +664,7 @@ def run_fitdla(*args, **kwargs):
     parser.add_argument("-out_file", type=str, help="Output LLS Fit file")
     parser.add_argument("-smooth", type=float, help="Smoothing (pixels)")
     parser.add_argument("-dla_fit_file", type=str, help="Input LLS Fit file")
+    parser.add_argument("-conti_file", type=str, help="Input continuum spectrum")
 
     if len(args) == 0:
         pargs = parser.parse_args()
@@ -688,7 +699,7 @@ def run_fitdla(*args, **kwargs):
 
     app = QtGui.QApplication(sys.argv)
     gui = XFitDLAGUI(pargs.in_file,outfil=outfil,smooth=pargs.smooth,
-        dla_fit_file=dla_fit_file, zqso=zqso)
+        dla_fit_file=dla_fit_file, zqso=zqso, conti_file=pargs.conti_file)
     gui.show()
     app.exec_()
 
