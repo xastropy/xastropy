@@ -65,7 +65,11 @@ class AbsKinGui(QtGui.QDialog):
                 raise ValueError('AbsKin: Need to set abs_sys or z!')
             self.z = z
         self.vmnx = vmnx
-        self.outfil = outfil
+        if outfil is None:
+            self.outfil = 'tmp_abskin.json'
+            warnings.warn("Outfil not specified.  Using {:s}".format(outfil))
+        else:
+            self.outfil = outfil
         self.norm = norm
         self.sel_wv = sel_wv
 
@@ -182,19 +186,14 @@ class AbsKinGui(QtGui.QDialog):
         self.vplt_widg.abs_sys._components = comps
         # Dict
         adict = self.vplt_widg.abs_sys.to_dict()
-        if self.outfil is None:
-            outfil = 'tmp_abskin.json'
-            warnings.warn("Outfil not specified.  Using {:s}".format(outfil))
-        else:
-            outfil = self.outfil
 
         #QtCore.pyqtRemoveInputHook()
         #xdb.set_trace()
         #QtCore.pyqtRestoreInputHook()
-        print("Wrote abs_sys to {:s}".format(outfil))
-        with io.open(outfil, 'w', encoding='utf-8') as f:
-            f.write(unicode(json.dumps(adict, sort_keys=True, indent=4,
-                                       separators=(',', ': '))))
+        print("Wrote abs_sys to {:s}".format(self.outfil))
+        with io.open(self.outfil, 'w', encoding='utf-8') as f:
+            f.write(json.dumps(adict, sort_keys=True, indent=4,
+                                       separators=(',', ': ')))
 
     # Write + Quit
     def write_quit(self):
@@ -205,7 +204,7 @@ class AbsKinGui(QtGui.QDialog):
 
     # Write + Quit
     def quit(self):
-        self.abs_sys = self.vplt_widg.abs_sys # Have to write to pass back
+        self.abs_sys = self.vplt_widg.abs_sys  # Have to write to pass back
         self.flg_quit = 0
         self.done(1)
 
@@ -224,7 +223,7 @@ def main(*args, **kwargs):
     import sys
     import argparse
 
-    parser = argparse.ArgumentParser(description='Parse for AbsKingGui')
+    parser = argparse.ArgumentParser(description='Parse for AbsKinGui')
     parser.add_argument("file", type=str, help="Spectral file")
     parser.add_argument("-sysfile", type=str, help="System JSON file")
     parser.add_argument("-zsys", type=float, help="System Redshift")
