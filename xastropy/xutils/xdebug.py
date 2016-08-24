@@ -11,9 +11,10 @@
 #;------------------------------------------------------------------------------
 """
 try:
-    from ipdb import *
-except ImportError:
-    from pdb import *
+    import ipdb as pdb
+except:
+    pass
+from pdb import *
 from xastropy.xutils.printing import printcol as xpcol
 from xastropy.plotting.simple import plot_1d_arrays as xplot
 from xastropy.plotting.simple import plot_hist as xhist
