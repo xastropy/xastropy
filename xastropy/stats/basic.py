@@ -107,3 +107,31 @@ def poisson_interval(k, cl=0.95, sigma=None):
     if k == 0: 
         low = 0.0
     return low, high
+
+
+def binomial_ci(mle, N, alpha=0.05):
+    """ One sided confidence interval for a binomial test.
+    To find the two sided interval, call with (1-alpha/2) and alpha/2 as arguments
+
+    Parameters
+    ----------
+    mle : float
+      Fraction of successes
+    N : int
+      Number of trials
+
+    If after N trials we obtain mle as the proportion of those
+    trials that resulted in success, find c such that
+
+    P(k/N < mle; theta = c) = alpha
+
+    where k/N is the proportion of successes in the set of trials,
+    and theta is the success probability for each trial.
+    """
+    from scipy.stats import binom
+    from scipy.optimize import bisect
+
+
+    to_minimise = lambda c: binom.cdf(mle*N,N,c)-alpha
+    return bisect(to_minimise,0,1)
+
