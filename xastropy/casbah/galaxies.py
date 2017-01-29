@@ -196,8 +196,14 @@ def build_imaging(field, obs_path=None, path='./'):
         if len(img_fil) == 1:
             # Copy
             path = os.getenv('CASBAH_GALAXIES')
-            shutil.copy2(img_fil[0], path+'/'+field[0]+'/')
-            print('Copied {:s}'.format(img_fil[0]))
+            new_img_file = xcasbahu.get_filename(field, 'IMAGING', orig_file=img_fil[0], rename_deimos=True)
+            # Rename target imaging
+            targets['TARG_IMG'][np.where(deimos_targ)[0]] = new_img_file[new_img_file.rfind('/')+1:]
+            xdb.set_trace()
+            if 'gz' in img_fil[0]:
+                new_img_file += '.gz'
+            shutil.copy2(img_fil[0], new_img_file)
+            print('Copied {:s} to {:s}'.format(img_fil[0], new_img_file))
         else:
             raise ValueError('Need to provide the image! {:s}'.format(
                 field[0]+'/IMG/LBT/'+msk_img))
@@ -242,6 +248,8 @@ def build_targets(field, obs_path=None, path='./'):
     cut_sex = all_sex[['TARG_RA','TARG_DEC','EPOCH','TARG_ID',
         'TARG_MAG','TARG_IMG','INSTR','MASK_NAME']]
     #cut_sex.write(targ_file,overwrite=True)
+    # Rename DEIMOS mask image
+    deimos_targ = np.where(targets['INSTR'] == 'DEIMOS')[0]
     cut_sex.write(targ_file,format='ascii.fixed_width',delimiter='|')
     print('Wrote file {:s}'.format(targ_file))
 

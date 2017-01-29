@@ -22,7 +22,7 @@ from xastropy.obs import radec as xra
 
 from xastropy.xutils import xdebug as xdb
 
-def get_filename(field, ftype):
+def get_filename(field, ftype, **kwargs):
     '''Generate a CASBAH file given field and type
 
     Parameters:
@@ -47,6 +47,12 @@ def get_filename(field, ftype):
         filename = path+'/'+field[0]+'/'+field[0]+'_deimostarg.pdf'
     elif ftype == 'HECTO_TARG_FIG':
         filename = path+'/'+field[0]+'/'+field[0]+'_hectotarg.pdf'
+    elif ftype == 'IMAGING':
+        if 'rename_deimos' in kwargs.keys():
+            img_fil = kwargs['orig_file']
+            ipos = img_fil.find('.mos')
+            filter=img_fil[ipos-1:ipos]
+            filename = path+'/'+field[0]+'/'+field[0]+'_IMG_{:s}_{:s}.fits'.format('LBC', filter)
     else:
         raise ValueError('Not ready for this ftype: {:s}'.format(ftype))
     # Return

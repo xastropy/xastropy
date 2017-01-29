@@ -20,7 +20,6 @@ from astropy.table import Table
 from pyigm.field.igmfield import IgmGalaxyField
 
 #from astropy import constants as const
-from xastropy.casbah import galaxy_data as xcgd
 from xastropy.casbah import utils as xcasbahu
 from xastropy.xutils import lists as xxul
 
