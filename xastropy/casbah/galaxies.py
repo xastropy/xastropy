@@ -197,9 +197,6 @@ def build_imaging(field, obs_path=None, path='./'):
             # Copy
             path = os.getenv('CASBAH_GALAXIES')
             new_img_file = xcasbahu.get_filename(field, 'IMAGING', orig_file=img_fil[0], rename_deimos=True)
-            # Rename target imaging
-            targets['TARG_IMG'][np.where(deimos_targ)[0]] = new_img_file[new_img_file.rfind('/')+1:]
-            xdb.set_trace()
             if 'gz' in img_fil[0]:
                 new_img_file += '.gz'
             shutil.copy2(img_fil[0], new_img_file)
@@ -207,6 +204,7 @@ def build_imaging(field, obs_path=None, path='./'):
         else:
             raise ValueError('Need to provide the image! {:s}'.format(
                 field[0]+'/IMG/LBT/'+msk_img))
+
 
 def build_targets(field, obs_path=None, path='./'):
     """Top-level program to build target info
@@ -247,10 +245,7 @@ def build_targets(field, obs_path=None, path='./'):
     targ_file = xcasbahu.get_filename(field, 'TARGETS')
     cut_sex = all_sex[['TARG_RA','TARG_DEC','EPOCH','TARG_ID',
         'TARG_MAG','TARG_IMG','INSTR','MASK_NAME']]
-    #cut_sex.write(targ_file,overwrite=True)
-    # Rename DEIMOS mask image
-    deimos_targ = np.where(targets['INSTR'] == 'DEIMOS')[0]
-    cut_sex.write(targ_file,format='ascii.fixed_width',delimiter='|')
+    cut_sex.write(targ_file,format='ascii.fixed_width',delimiter='|', overwrite=True)
     print('Wrote file {:s}'.format(targ_file))
 
     # Generate MULTI_OBJ file
@@ -273,8 +268,7 @@ def build_targets(field, obs_path=None, path='./'):
                 multi_tab.add_row(maskobs)
         else:
             multi_tab.add_row(mask)
-
-    multi_tab.write(multi_file,format='ascii.fixed_width',delimiter='|')
+    multi_tab.write(multi_file,format='ascii.fixed_width',delimiter='|', overwrite=True)
     print('Wrote file {:s}'.format(multi_file))
     # Reading the MULTI-OBJ file
     #mtab = Table.read(ifile,delimiter='|',format='ascii.fixed_width',

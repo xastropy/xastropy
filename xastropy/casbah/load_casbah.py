@@ -23,7 +23,7 @@ from pyigm.field.igmfield import IgmGalaxyField
 from xastropy.casbah import utils as xcasbahu
 from xastropy.xutils import lists as xxul
 
-from xastropy.xutils import xdebug as xdb
+#from xastropy.xutils import xdebug as xdb
 
 # SDSS
 def load_field(field):

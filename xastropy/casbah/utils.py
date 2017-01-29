@@ -18,43 +18,6 @@ from astropy.io import fits, ascii
 from astropy import units as u 
 from astropy.coordinates import SkyCoord
 
-from xastropy.obs import radec as xra
+#from xastropy.xutils import xdebug as xdb
 
-from xastropy.xutils import xdebug as xdb
-
-def get_filename(field, ftype, **kwargs):
-    '''Generate a CASBAH file given field and type
-
-    Parameters:
-    -----------
-    field: tuple
-      (Name, ra, dec)
-    ftype: str
-      Type of filename desired
-    '''
-    path = os.getenv('CASBAH_GALAXIES')
-    if ftype == 'MULTI_OBJ':
-        filename = path+'/'+field[0]+'/'+field[0]+'_MULTI_OBJ.ascii'
-    elif ftype == 'FIELD_PATH':
-        filename = path+'/'+field[0]
-    elif ftype == 'TARGETS':
-        filename = path+'/'+field[0]+'/'+field[0]+'_targets.ascii'
-    elif ftype == 'SDSS':
-        filename = path+'/'+field[0]+'/'+field[0]+'_SDSS.fits'
-    elif ftype == 'HECTOSPEC':
-        filename = path+'/'+field[0]+'/'+field[0]+'_HECTOSPEC.fits'
-    elif ftype == 'DEIMOS_TARG_FIG':
-        filename = path+'/'+field[0]+'/'+field[0]+'_deimostarg.pdf'
-    elif ftype == 'HECTO_TARG_FIG':
-        filename = path+'/'+field[0]+'/'+field[0]+'_hectotarg.pdf'
-    elif ftype == 'IMAGING':
-        if 'rename_deimos' in kwargs.keys():
-            img_fil = kwargs['orig_file']
-            ipos = img_fil.find('.mos')
-            filter=img_fil[ipos-1:ipos]
-            filename = path+'/'+field[0]+'/'+field[0]+'_IMG_{:s}_{:s}.fits'.format('LBC', filter)
-    else:
-        raise ValueError('Not ready for this ftype: {:s}'.format(ftype))
-    # Return
-    return filename
 
