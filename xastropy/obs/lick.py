@@ -14,12 +14,13 @@
 import numpy as np
 from numpy.ma.core import MaskedConstant
 import os, subprocess
+import pdb
 
 from astropy.table import Table
 from astropy.coordinates import SkyCoord
 from astropy import units as u
 
-from xastropy.xutils import xdebug as xdb
+#from xastropy.xutils import xdebug as xdb
 from xastropy.obs import finder as x_finder
 from xastropy.obs import radec as x_rad
 
@@ -60,7 +61,7 @@ def wiki(targs, keys, fndr_pth=None, dbx_pth=None, outfil=None, skip_finder=Fals
         else: # Expecting Public
             ifind = dbx_pth.find('Observing/')
             if ifind == -1:
-                xdb.set_trace()
+                pdb.set_trace()
             else:
                 dbx_folder = os.getenv('DROPBOX_DIR')+'/Public/'+dbx_pth[ifind:]
         #

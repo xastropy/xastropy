@@ -19,7 +19,7 @@ from astropy.table import Table
 from astropy.coordinates import SkyCoord
 from astropy import units as u
 
-from xastropy.xutils import xdebug as xdb
+#from xastropy.xutils import xdebug as xdb
 from xastropy.obs import finder as x_finder
 
 # def wiki :: Generate a Wiki Table

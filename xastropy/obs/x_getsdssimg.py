@@ -41,7 +41,7 @@ from astroquery.sdss import SDSS
 from astropy.coordinates import SkyCoord
 from astropy import units as u
 
-from xastropy.xutils import xdebug as xdb
+#from xastropy.xutils import xdebug as xdb
 
 
 # Generate the SDSS URL (default is 202" on a side)
