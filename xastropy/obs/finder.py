@@ -123,7 +123,7 @@ def get_coord(targ_file, radec=None):
 #  imsize is in arcmin
 def main(inp, survey='2r', radec=None, deci=None, fpath=None, show_circ=True,
          EPOCH=0., DSS=None, BW=False, imsize=5.*astrou.arcmin, show_spec=False,
-         OUT_TYPE='PDF', show_another=None):
+         OUT_TYPE='PDF', show_another=None, cradius=None):
     '''
     Parameters:
     ---------
@@ -150,6 +150,9 @@ def main(inp, survey='2r', radec=None, deci=None, fpath=None, show_circ=True,
        Image size 
     OUT_TYPE: str, optional  
        File type -- 'PDF', 'PNG'
+    cradius : Quantity, optional
+       Circle radius, only shown if show_circ is True.
+       Default is imsize/50.
     '''
     reload(x_r)
     reload(xgs)
@@ -163,7 +166,10 @@ def main(inp, survey='2r', radec=None, deci=None, fpath=None, show_circ=True,
         imsize=imsize.to('arcmin').value
     except AttributeError:
         raise AttributeError('finder: Input imsize needs to be an Angle')
-    cradius = imsize / 50. 
+    if cradius is None:
+        cradius = imsize / 50.
+    else:
+        cradius = cradius.to('arcmin').value
 
     # Read in the Target list
     if isinstance(inp,basestring):
