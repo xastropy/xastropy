@@ -112,7 +112,7 @@ def wiki(targs, keys, fndr_pth=None, dbx_pth=None, outfil=None, skip_finder=Fals
 #### ###############################
 def starlist(targs, outfil=None):
     '''
-    Generates a Keck approved starlist 
+    Generates a Lick approved starlist
     FORMAT:
       1-25: Name 
       Then: RA, DEC, EPOCH [WITH COLONS!]

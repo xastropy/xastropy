@@ -58,7 +58,7 @@ from astropy.coordinates import SkyCoord
 import matplotlib
 
 from xastropy.obs import x_getsdssimg as xgs
-from xastropy.xutils import xdebug as xdb
+#from xastropy.xutils import xdebug as xdb
 from xastropy.obs import radec as x_r
 
 #### ###############################
@@ -293,13 +293,13 @@ def main(inp, survey='2r', radec=None, deci=None, fpath=None, show_circ=True,
             plt.text(0.5, 1.18, 'RA (J2000) = '+str(obj['RAS'])+
                      '  DEC (J2000) = '+str(obj['DECS']), fontsize=22,
                      horizontalalignment='center',transform=ax.transAxes)
-            plt.text(0.5, 1.12, 'RA(offset) = {:s}  DEC(offset) = {:s}'.format(
+            plt.text(0.5, 1.12, 'RA(other) = {:s}  DEC(other) = {:s}'.format(
                      canother.ra.to_string(unit=astrou.hour,pad=True,sep=':', precision=2),
                      canother.dec.to_string(pad=True, alwayssign=True, sep=':', precision=1)),
                      fontsize=22, horizontalalignment='center',transform=ax.transAxes,
                      color='blue')
-            plt.text(0.5, 1.06, 'RA(offset to obj) = {:g}  DEC(offset to obj) = {:g}'.format(
-                     -1*off[0].to('arcsec'), -1*off[1].to('arcsec')),
+            plt.text(0.5, 1.06, 'RA(to targ) = {:.2f}  DEC(to targ) = {:.2f} PA={:g}'.format(
+                     -1*off[0].to('arcsec'), -1*off[1].to('arcsec'),PA),
                       fontsize=18, horizontalalignment='center',transform=ax.transAxes)
         else:
             # Title
