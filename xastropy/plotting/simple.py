@@ -50,11 +50,11 @@ def plot_1d_arrays(*args,**kwargs):
     """
     # Error checking
     if len(args) == 0:
-        print 'x_guis.simple_splot: No arguments!'
+        print('x_guis.simple_splot: No arguments!')
         return
     
     if not isinstance(args[0],np.ndarray):
-        print 'x_guis: Input array is not a numpy.ndarray!'
+        print('x_guis: Input array is not a numpy.ndarray!')
         return
 
     plt_dict = {}
@@ -165,11 +165,11 @@ def plot_hist(*args,**kwargs):
     """
     # Error checking
     if len(args) == 0:
-        print 'x_guis.simple_splot: No arguments!'
+        print('x_guis.simple_splot: No arguments!')
         return
     
     if not isinstance(args[0],np.ndarray):
-        print 'x_guis: Input array is not a numpy.ndarray!'
+        print('x_guis: Input array is not a numpy.ndarray!')
         return
 
     plt_dict = {}

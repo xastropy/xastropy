@@ -34,7 +34,10 @@
 from __future__ import print_function, absolute_import, division#, unicode_literals
 
 import requests
-from cStringIO import StringIO
+try:  # Python 2.7
+    from cStringIO import StringIO
+except ImportError:
+    from io import StringIO, BytesIO
 
 from astroquery.sdss import SDSS
 
@@ -148,7 +151,11 @@ def getimg(ira, idec, imsize, BW=False, DSS=None):
         url = dsshttp(ra,dec,imsize) # DSS
         rtv = requests.get(url) 
 
-    img = Image.open(StringIO(rtv.content))
+    # Python 3
+    try:
+        img = Image.open(StringIO(rtv.content))
+    except:
+        img = Image.open(BytesIO(rtv.content))
 
     # B&W ?
     if BW:
@@ -163,7 +170,6 @@ def getimg(ira, idec, imsize, BW=False, DSS=None):
 def get_spec_img(ra, dec):
 
     from PIL import Image
-    from cStringIO import StringIO
 
     # Coord
     if hasattr(ra,'unit'):

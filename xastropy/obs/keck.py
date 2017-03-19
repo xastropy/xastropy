@@ -26,8 +26,8 @@ from xastropy.obs import finder as x_finder
 # def starlist :: Generate a starlist file
 
 #### ###############################
-def wiki(targs, keys, fndr_pth=None, dbx_pth=None, outfil=None,
-         offset=None, BW=False, show_spec=False):
+def wiki(targs, keys, fndr_pth=None, dbx_pth=None, outfil=None, skip_make=False,
+         offset=None, BW=False, show_spec=False, use_png=False):
     """
     Generate a Wiki table for Keck observing.
     Should work for any of the Wiki pages
@@ -39,14 +39,14 @@ def wiki(targs, keys, fndr_pth=None, dbx_pth=None, outfil=None,
       List of keys to include in the Table + order
     fndr_pth: string
       Folder for finder charts
-    dbx_pth: string
-      Dropbox path for the finders
+    dbx_pth: str
+      Dropbox path for the finders -- NOT RECOMMENDED UNLESS YOU HAVE A ZILLION
     offset : tuple
       tag, tag for RA,DEC of offset objects
 
     Writes a file to disk that can be pasted into the Wiki
     """
-    reload(x_finder)
+    #reload(x_finder)
     # Outfil
     if outfil is None:
         outfil = 'tmp_wiki.txt'
@@ -75,15 +75,23 @@ def wiki(targs, keys, fndr_pth=None, dbx_pth=None, outfil=None,
             else:
                 show_another = None
 
-            x_finder.main([targ[name_tag], targ['RA'], targ['DEC']], radec=1,
+            if use_png:
+                exte = '.png'
+                ext2 = 'PNG'
+            else:
+                exte = '.pdf'
+                ext2 = 'PDF'
+            if not skip_make:
+                x_finder.main([targ[name_tag], targ['RA'], targ['DEC']], radec=1,
                           fpath=fndr_pth, BW=BW, show_spec=show_spec,
-                          show_another=show_another)
+                          show_another=show_another, OUT_TYPE=ext2)
             # Copy? + Save
-            nm = "".join(targ[name_tag].split()) 
-            fil1 = fndr_pth+ nm + '.pdf'
+            nm = "".join(targ[name_tag].split())
+            fil1 = fndr_pth+ nm + exte
             fil2 = dbx_folder
-            subprocess.call(["cp", fil1, dbx_folder])
-            fndr_files.append(dbx_pth+nm+'.pdf')
+            if not skip_make:
+                subprocess.call(["cp", fil1, dbx_folder])
+            fndr_files.append(dbx_pth+nm+exte)
         
     # Header
     lin = '||' 
@@ -109,7 +117,7 @@ def wiki(targs, keys, fndr_pth=None, dbx_pth=None, outfil=None,
     f.close()
 
 #### ###############################
-def starlist(targs, outfil=None):
+def starlist(targs, outfil=None, add_pa=None):
     '''
     Generates a Keck approved starlist 
     FORMAT:
@@ -120,6 +128,8 @@ def starlist(targs, outfil=None):
     ----------
     targs: Table (targets with RA, DEC)
     outfil: string (None)
+    add_pa : str, optional
+      If input, use this column for PA values
     '''
     # Init
     if outfil is None:
@@ -130,6 +140,9 @@ def starlist(targs, outfil=None):
     # Name tag
     name_tag = get_name_tag(targs.dtype.names)
 
+    if add_pa is not None:
+        pas = targs[add_pa]
+
     # Loop
     for jj,targ in enumerate(targs):
         ras = targ['RA'].replace(':',' ')
@@ -137,9 +150,6 @@ def starlist(targs, outfil=None):
         if not decs[0] in ['+','-']:
             decs = '+'+decs
         # Name
-        #print('name = {:s}, {:d}'.format(targ[name_tag],jj))
-        #if jj == 7:
-        #    xdb.set_trace()
         mask = []
         while type(targ[name_tag]) is MaskedConstant:
             mask.append(name_tag)
@@ -152,6 +162,9 @@ def starlist(targs, outfil=None):
         lin = lin + '  ' + decs
         # EPOCH
         lin = lin + '  2000.'
+        # PA?
+        if add_pa:
+            lin += ' rotmode=PA rotdest={:.1f}'.format(pas[jj])
         # Write
         f.write(str(lin+'\n'))
 

@@ -8,10 +8,10 @@ except ImportError:
     print('WARNING: Not loading modules in xastropy.obs except radec.  \n Install astroquery and PIL if you want them')
     print('-----------------------------------------------------------')
 else:
-    import finder
-    import keck
-    import lick
-    import x_getsdssimg
+    from . import finder
+    from . import keck
+    from . import lick
+    from . import x_getsdssimg
 
 # Non-dependent modules
-import radec
+from . import radec

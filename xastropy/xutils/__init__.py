@@ -1,9 +1,9 @@
-import arrays
-import files
-import fits
-import math
-import printing
-import xdebug
+from . import arrays
+from . import files
+from . import fits
+from . import math
+from . import printing
+from . import xdebug
 try:
     import ginga
 except ImportError:
