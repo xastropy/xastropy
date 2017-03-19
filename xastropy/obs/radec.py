@@ -22,6 +22,11 @@ from xastropy.xutils import xdebug as xdb
 # def stod1 :: Input one RA/DEC pair as strings and return RA/DEC in decimal degrees
 # def to_coord :: Input RA/DEC in one of several formats and return SkyCoord
 
+try:
+    basestring
+except NameError:  # For Python 3
+    basestring = str
+
 #### ###############################
 #  Main driver (return decimal values for inputted string)
 def stod1(rads):

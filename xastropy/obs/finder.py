@@ -48,6 +48,7 @@
 """
 
 # Import libraries
+from imp import reload
 import numpy as np
 
 from astropy.io import fits, ascii
@@ -60,6 +61,11 @@ import matplotlib
 from xastropy.obs import x_getsdssimg as xgs
 #from xastropy.xutils import xdebug as xdb
 from xastropy.obs import radec as x_r
+
+try:
+    basestring
+except NameError:  # For Python 3
+    basestring = str
 
 #### ###############################
 #  Deal with the RA/DEC
@@ -154,8 +160,8 @@ def main(inp, survey='2r', radec=None, deci=None, fpath=None, show_circ=True,
        Circle radius, only shown if show_circ is True.
        Default is imsize/50.
     '''
-    reload(x_r)
-    reload(xgs)
+    #reload(x_r)
+    #reload(xgs)
     import matplotlib.pyplot as plt
     import matplotlib.cm as cm
 
@@ -326,11 +332,11 @@ def main(inp, survey='2r', radec=None, deci=None, fpath=None, show_circ=True,
             plt.savefig(outfil, dpi=300)
         else:
             plt.savefig(outfil)
-        print 'finder: Wrote '+outfil
+        print('finder: Wrote '+outfil)
         plt.close()
         #xdb.set_trace()
 
-    print 'finder: All done.'
+    print('finder: All done.')
     return oBW
 
 # ################
