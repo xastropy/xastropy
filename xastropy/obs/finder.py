@@ -320,11 +320,11 @@ def main(inp, survey='2r', radec=None, deci=None, fpath=None, show_circ=True,
             plt.savefig(outfil, dpi=300)
         else:
             plt.savefig(outfil)
-        print 'finder: Wrote '+outfil
+        print('finder: Wrote '+outfil)
         plt.close()
         #xdb.set_trace()
 
-    print 'finder: All done.'
+    print('finder: All done.')
     return oBW
 
 # ################
