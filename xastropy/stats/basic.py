@@ -16,7 +16,7 @@ import numpy as np
 import os
 from scipy.interpolate import interp1d
 
-from xastropy.xutils import xdebug as xdb
+#from xastropy.xutils import xdebug as xdb
 
 # def perc
 # def lin_to_log
