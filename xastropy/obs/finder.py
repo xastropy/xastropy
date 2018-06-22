@@ -346,9 +346,8 @@ def main(inp, survey='2r', radec=None, deci=None, fpath=None, show_circ=True,
             xy = (x_new, y_new)  # xy of lower-left corner (after rotation)
             box=plt.Rectangle(xy, w_arcmin, l_arcmin, color='k', angle=pa_deg, fill=False, lw=0.5)
             plt.gca().add_artist(box)
-            delta = 0.02
-            plt.text(0.5+delta,0.5-delta, 'Slit PA={}deg'.format(pa_deg), fontsize=15,
-                     ha='left', va='top', transform=ax.transAxes)
+            plt.text(0.5,0.05, 'Slit PA={}deg'.format(pa_deg),
+                     fontsize=15, ha='center', va='top', transform=ax.transAxes)
 
         # Write
         if show_spec:
