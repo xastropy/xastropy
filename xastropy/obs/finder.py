@@ -129,7 +129,7 @@ def get_coord(targ_file, radec=None):
 #  imsize is in arcmin
 def main(inp, survey='2r', radec=None, deci=None, fpath=None, show_circ=True,
          EPOCH=0., DSS=None, BW=False, imsize=5.*astrou.arcmin, show_spec=False,
-         show_slit=False, OUT_TYPE='PDF', show_another=None, cradius=None):
+         show_slit=None, OUT_TYPE='PDF', show_another=None, cradius=None):
     '''
     Parameters:
     ---------
@@ -154,7 +154,7 @@ def main(inp, survey='2r', radec=None, deci=None, fpath=None, show_circ=True,
        Try to grab and show an SDSS spectrum
     show_slit: Input
         Whether to overplot a slit
-        False - No show
+        None - No show
         List of values - [width, length, PA], e.g. [1*u.arcsec, 10*u.arcsec, 20*u.deg]
     imsize: Quantity, optional
        Image size 
@@ -332,7 +332,7 @@ def main(inp, survey='2r', radec=None, deci=None, fpath=None, show_circ=True,
             plt.imshow(spec_img,extent=(-imsize/2.1, imsize*(-0.1), -imsize/2.1, imsize*(-0.2)))
 
         # Show slit??
-        if show_slit is not False:
+        if show_slit is not None:
             # List of values - [width, length, PA],
             # e.g. [1*u.arcsec, 10*u.arcsec, 20*u.deg]
             w, l, pa = show_slit
