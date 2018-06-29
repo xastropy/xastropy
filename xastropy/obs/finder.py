@@ -129,7 +129,7 @@ def get_coord(targ_file, radec=None):
 #  imsize is in arcmin
 def main(inp, survey='2r', radec=None, deci=None, fpath=None, show_circ=True,
          EPOCH=0., DSS=None, BW=False, imsize=5.*astrou.arcmin, show_spec=False,
-         OUT_TYPE='PDF', show_another=None, cradius=None):
+         show_slit=None, OUT_TYPE='PDF', show_another=None, cradius=None):
     '''
     Parameters:
     ---------
@@ -151,7 +151,11 @@ def main(inp, survey='2r', radec=None, deci=None, fpath=None, show_circ=True,
     show_another : tuple, optional
        RA,DEC for another target to circle (e.g. offset star)
     show_spec: bool (False)
-       Try to grab and show an SDSS spectrum 
+       Try to grab and show an SDSS spectrum
+    show_slit: Input
+        Whether to overplot a slit
+        None - No show
+        List of values - [width, length, PA], e.g. [1*u.arcsec, 10*u.arcsec, 20*u.deg]
     imsize: Quantity, optional
        Image size 
     OUT_TYPE: str, optional  
@@ -326,6 +330,24 @@ def main(inp, survey='2r', radec=None, deci=None, fpath=None, show_circ=True,
         if show_spec:
             spec_img = xgs.get_spec_img(obj['RA'], obj['DEC']) 
             plt.imshow(spec_img,extent=(-imsize/2.1, imsize*(-0.1), -imsize/2.1, imsize*(-0.2)))
+
+        # Show slit??
+        if show_slit is not None:
+            # List of values - [width, length, PA],
+            # e.g. [1*u.arcsec, 10*u.arcsec, 20*u.deg]
+            w, l, pa = show_slit
+            w_arcmin = w.to('arcmin').value
+            l_arcmin = l.to('arcmin').value
+            pa_deg = pa.to('deg').value
+            pa_rad = pa_deg * np.pi / 180.
+            # get the new position of the lower-left corner of rectangle given the PA
+            y_new = 0. - 0.5 * (l_arcmin * np.sin(np.pi/2. - pa_rad) + w_arcmin * np.sin(pa_rad))
+            x_new = 0. + 0.5 * (l_arcmin * np.cos(np.pi/2. - pa_rad) - w_arcmin * np.cos(pa_rad))
+            xy = (x_new, y_new)  # xy of lower-left corner (after rotation)
+            box=plt.Rectangle(xy, w_arcmin, l_arcmin, color='k', angle=pa_deg, fill=False, lw=0.5)
+            plt.gca().add_artist(box)
+            plt.text(0.5,0.05, 'Slit PA={}deg'.format(pa_deg),
+                     fontsize=15, ha='center', va='top', transform=ax.transAxes)
 
         # Write
         if show_spec:
