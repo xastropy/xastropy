@@ -129,7 +129,8 @@ def get_coord(targ_file, radec=None):
 #  imsize is in arcmin
 def main(inp, survey='2r', radec=None, deci=None, fpath=None, show_circ=True,
          EPOCH=0., DSS=None, BW=False, imsize=5.*astrou.arcmin, show_spec=False,
-         show_slit=None, OUT_TYPE='PDF', show_another=None, cradius=None):
+         show_slit=None, OUT_TYPE='PDF', show_another=None, cradius=None,
+         in_img=None):
     '''
     Parameters:
     ---------
@@ -248,8 +249,11 @@ def main(inp, survey='2r', radec=None, deci=None, fpath=None, show_circ=True,
         print(outfil)
 
         # Grab the Image
-        reload(xgs)
-        img, oBW = xgs.getimg(obj['RA'], obj['DEC'], imsize, BW=BW,DSS=DSS)
+        if in_img is None:
+            img, oBW = xgs.getimg(obj['RA'], obj['DEC'], imsize, BW=BW,DSS=DSS)
+        else:
+            img = in_img
+            oBW = True
 
         # Generate the plot
         plt.clf()

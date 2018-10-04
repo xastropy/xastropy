@@ -44,7 +44,7 @@ from astroquery.sdss import SDSS
 from astropy.coordinates import SkyCoord
 from astropy import units as u
 
-from xastropy.xutils import xdebug as xdb
+import pdb
 
 
 # Generate the SDSS URL (default is 202" on a side)
@@ -120,6 +120,10 @@ def getimg(ira, idec, imsize, BW=False, DSS=None):
     ira: (float or Quantity) RA in decimal degrees
     idec: (float or Quantity) DEC in decimal degrees
     imsize: Image size in arcmin (without units)
+
+    Return:
+        img
+        BW : bool
     '''
     import PIL
     from PIL import Image

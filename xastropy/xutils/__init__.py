@@ -12,5 +12,6 @@ except ImportError:
     print('WARNING: Not loading ginga model in xastropy.utils   \n Install ginga if you want it')
     print('-----------------------------------------------------------')
 else:
-    import xginga
+    pass
+    #import xginga
 
