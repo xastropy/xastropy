@@ -130,7 +130,7 @@ def get_coord(targ_file, radec=None):
 def main(inp, survey='2r', radec=None, deci=None, fpath=None, show_circ=True,
          EPOCH=0., DSS=None, BW=False, imsize=5.*astrou.arcmin, show_spec=False,
          show_slit=None, OUT_TYPE='PDF', show_another=None, cradius=None,
-         in_img=None):
+         in_img=None, vmin=None, vmax=None):
     '''
     Parameters:
     ---------
@@ -149,7 +149,7 @@ def main(inp, survey='2r', radec=None, deci=None, fpath=None, show_circ=True,
        B&W image?
     show_circ: bool (True)
        Show a yellow circle on the target
-    show_another : tuple, optional
+    show_another : tuple of float, optional
        RA,DEC for another target to circle (e.g. offset star)
     show_spec: bool (False)
        Try to grab and show an SDSS spectrum
@@ -158,7 +158,9 @@ def main(inp, survey='2r', radec=None, deci=None, fpath=None, show_circ=True,
         None - No show
         List of values - [width, length, PA], e.g. [1*u.arcsec, 10*u.arcsec, 20*u.deg]
     imsize: Quantity, optional
-       Image size 
+       Image size
+    in_img: np.ndarray
+        Input image
     OUT_TYPE: str, optional  
        File type -- 'PDF', 'PNG'
     cradius : Quantity, optional
@@ -275,7 +277,8 @@ def main(inp, survey='2r', radec=None, deci=None, fpath=None, show_circ=True,
             cmm = cm.Greys_r
         else: 
             cmm = None 
-        plt.imshow(img,cmap=cmm,aspect='equal',extent=(-imsize/2., imsize/2, -imsize/2.,imsize/2))
+        plt.imshow(img,cmap=cmm,aspect='equal',extent=(-imsize/2., imsize/2, -imsize/2.,imsize/2),
+                   vmin=vmin, vmax=vmax)
 
         # Axes
         plt.xlim(-imsize/2., imsize/2.)
